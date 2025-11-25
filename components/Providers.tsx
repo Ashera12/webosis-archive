@@ -25,14 +25,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             <SmoothScroll>
               {/* Navbar - hide on admin & register pages */}
               {!isAdminPage && !isRegisterPage && (
-                <div className="fixed top-0 left-0 right-0 z-50" suppressHydrationWarning>
-                  <ClientOnly>
-                    <Navbar />
-                  </ClientOnly>
-                </div>
+                <ClientOnly>
+                  <Navbar />
+                </ClientOnly>
               )}
               <PageTransition>
-                <div className={!isAdminPage && !isRegisterPage ? 'pt-16 md:pt-20' : ''} suppressHydrationWarning>
+                <div 
+                  className={!isAdminPage && !isRegisterPage ? '' : ''} 
+                  style={!isAdminPage && !isRegisterPage ? { paddingTop: 'var(--nav-offset)' } : undefined}
+                  suppressHydrationWarning
+                >
                   {children}
                 </div>
               </PageTransition>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const body = await request.json();
     const { contentId, contentType, content, authorName } = body;
 

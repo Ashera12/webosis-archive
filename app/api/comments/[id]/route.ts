@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -13,7 +12,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const commentId = params.id;
 
     // Get comment to check ownership

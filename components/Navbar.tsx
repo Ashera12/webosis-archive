@@ -290,57 +290,63 @@ const Navbar: React.FC = () => {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* FASE 4: Navbar Content Mirror - Header dengan Logo, Toggles & Close (Auto-Shrink) */}
-          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-3 xs:px-4 py-2.5 xs:py-3 flex items-center justify-between gap-2 xs:gap-3">
-            {/* Logo dengan auto-shrink */}
-            <Link
-              href="/"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-1.5 xs:gap-2 group flex-shrink-0 min-w-0"
-            >
-              <div className="relative w-8 h-8 xs:w-9 xs:h-9 xsm:w-10 xsm:h-10 rounded-full overflow-hidden flex-shrink-0">
-                <img
-                  src="/images/logo-2.png"
-                  alt={t('navbar.logoAlt')}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
-              </div>
-              <span className="flex items-center min-w-0">
-                <span className="block sm:hidden text-[0.65rem] xs:text-[0.7rem] font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[84px]">
-                  {brandNameShort}
+          {/* FASE 4: Header tersusun: Brand + Icon group terpusat, close di kanan */}
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-3 xs:px-4 py-2.5 xs:py-3 flex items-center gap-2 xs:gap-3">
+            {/* Cluster kiri: Brand + Icons */}
+            <div className="flex items-center gap-1.5 xs:gap-2 min-w-0">
+              <Link
+                href="/"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-1.5 xs:gap-2 group flex-shrink-0 min-w-0"
+              >
+                <div className="relative w-8 h-8 xs:w-9 xs:h-9 rounded-full overflow-hidden flex-shrink-0">
+                  <img
+                    src="/images/logo-2.png"
+                    alt={t('navbar.logoAlt')}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
+                </div>
+                <span className="flex items-center min-w-0">
+                  <span className="block sm:hidden text-[0.65rem] xs:text-[0.7rem] font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[70px]">
+                    {brandNameShort}
+                  </span>
+                  <span className="hidden sm:block text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[140px]">
+                    {brandNameFull}
+                  </span>
                 </span>
-                <span className="hidden sm:block text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[160px]">
-                  {brandNameFull}
-                </span>
-              </span>
-            </Link>
+              </Link>
 
-            {/* Controls - Semua auto shrink */}
-            <div className="flex items-center gap-1.5 xs:gap-2 flex-shrink-0">
+              {/* Icon group langsung setelah brand */}
+              <div className="flex items-center gap-1 xs:gap-1.5 pl-1 xs:pl-1.5">
+                {/* Language Toggle */}
+                <div className="w-7 h-7 xs:w-8 xs:h-8 flex items-center justify-center flex-shrink-0">
+                  <div className="scale-[0.6] xs:scale-[0.65] sm:scale-[0.7] origin-center">
+                    <ClientOnly fallback={<div className="w-7 h-7 xs:w-8 xs:h-8 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+                      <LanguageToggle />
+                    </ClientOnly>
+                  </div>
+                </div>
+
+                {/* Theme Toggle */}
+                <div className="w-7 h-7 xs:w-8 xs:h-8 flex items-center justify-center flex-shrink-0">
+                  <div className="scale-[0.6] xs:scale-[0.65] sm:scale-[0.7] origin-center">
+                    <ClientOnly fallback={<div className="w-7 h-7 xs:w-8 xs:h-8 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+                      <ThemeToggle />
+                    </ClientOnly>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Close button di kanan dengan ml-auto */}
+            <div className="ml-auto flex items-center">
               {/* Language Toggle */}
-              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
-                  <ClientOnly fallback={<div className="w-8 h-8 xs:w-9 xs:h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
-                    <LanguageToggle />
-                  </ClientOnly>
-                </div>
-              </div>
-
-              {/* Theme Toggle */}
-              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
-                  <ClientOnly fallback={<div className="w-8 h-8 xs:w-9 xs:h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
-                    <ThemeToggle />
-                  </ClientOnly>
-                </div>
-              </div>
-
               {/* Close Button lebih kecil */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-8 h-8 xs:w-9 xs:h-9 xsm:w-10 xsm:h-10 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
+                className="w-8 h-8 xs:w-9 xs:h-9 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
                 aria-label="Close menu"
               >
                 <svg className="w-4 h-4 xs:w-4.5 xs:h-4.5 xsm:w-5 xsm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

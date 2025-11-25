@@ -46,7 +46,14 @@ export async function DELETE(
 
     // Check if user is authorized to delete
     const userRole = session?.user?.role?.trim()?.toLowerCase() || '';
-    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole);
+    
+    // Check exact match or contains privileged keywords
+    const isPrivileged = 
+      ['admin', 'superadmin', 'osis'].includes(userRole) ||
+      userRole.includes('admin') ||
+      userRole.includes('osis') ||
+      userRole.includes('super');
+    
     const isOwner = session?.user?.id && (session.user.id === comment.user_id || session.user.id === comment.author_id);
     const isAnonymousComment = !comment.user_id && !comment.author_id;
 

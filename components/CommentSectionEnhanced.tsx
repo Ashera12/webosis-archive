@@ -247,8 +247,28 @@ export default function CommentSection({
     
     // Normalize role for checking (trim whitespace, lowercase)
     const userRole = session.user.role?.trim()?.toLowerCase() || '';
-    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole);
+    
+    // Check exact match or contains privileged keywords
+    const isPrivileged = 
+      ['admin', 'superadmin', 'osis'].includes(userRole) ||
+      userRole.includes('admin') ||
+      userRole.includes('osis') ||
+      userRole.includes('super');
+    
     const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
+    
+    // Log for debugging (only for first comment)
+    if (session.user.role && comment === comments[0]) {
+      console.log('[CommentSection] Permission check:', {
+        userId: session.user.id,
+        userRole: session.user.role,
+        normalized: userRole,
+        isPrivileged,
+        isOwner,
+        commentUserId: comment.user_id,
+        commentAuthorId: comment.author_id
+      });
+    }
     
     return isPrivileged || isOwner;
   };

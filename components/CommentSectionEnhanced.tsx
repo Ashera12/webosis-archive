@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { useToast } from '@/contexts/ToastContext';
-import { FaHeart, FaRegHeart, FaClock, FaTrash, FaPaperPlane, FaReply, FaEdit, FaTimes, FaCheck } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaClock, FaTrash, FaPaperPlane, FaReply, FaEdit, FaTimes, FaCheck, FaCommentAlt } from 'react-icons/fa';
 
 interface Comment {
   id: string;
@@ -451,9 +451,13 @@ export default function CommentSection({
       <button
         onClick={() => setShowComments(!showComments)}
         className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-semibold transition-colors"
+        aria-label={showComments ? 'Sembunyikan komentar' : 'Tampilkan komentar'}
       >
+        <FaCommentAlt className="text-xl" />
         <span>{showComments ? 'Sembunyikan' : 'Tampilkan'} Komentar</span>
-        <span className="text-sm">({comments.length})</span>
+        <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded-full text-sm font-bold">
+          {comments.length}
+        </span>
       </button>
 
       {/* Comments Section */}

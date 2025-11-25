@@ -30,10 +30,14 @@ export default function MediaRenderer({
         src={src}
         className={className}
         playsInline
+        webkit-playsinline="true"
         controls={controlsForVideo}
+        controlsList="nodownload"
+        preload="metadata"
         autoPlay={autoPlay}
         loop={loop}
         muted={muted}
+        style={{ maxWidth: '100%', height: 'auto' }}
       />
     );
   }

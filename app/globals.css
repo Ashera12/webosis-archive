@@ -385,6 +385,57 @@ html {
   scroll-padding-top: 80px;
 }
 
+/* Mobile viewport fix */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Fix for mobile Safari viewport height */
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Video responsive styles */
+video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  outline: none;
+  border-radius: 0.5rem;
+}
+
+/* Ensure video controls are visible on mobile */
+video::-webkit-media-controls {
+  display: flex !important;
+}
+
+video::-webkit-media-controls-enclosure {
+  max-width: 100%;
+}
+
+/* Touch optimization for video */
+video {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-first responsive utilities */
+@media (max-width: 640px) {
+  /* Smaller text for very small screens */
+  .page-content {
+    font-size: 0.9375rem;
+  }
+  
+  /* Reduce padding on containers */
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  /* Adjust navbar height for mobile */
+  :root {
+    --navbar-height: 56px;
+  }
+}
+
 /* Hide scrollbar but keep functionality */
 .hide-scrollbar {
   -ms-overflow-style: none;

@@ -15,16 +15,6 @@ const config: Config = {
         'inter': ['Inter', 'sans-serif'],
         'playfair': ['Playfair Display', 'serif'],
       },
-      borderRadius: {
-        'ds': '12px',
-        'ds-lg': '1rem',
-        'ds-2xl': '1.25rem',
-        // Premium radius scale
-        'sm': '8px',
-        'md': '12px',
-        'lg': '20px',
-        'xl': '32px',
-      },
       boxShadow: {
         'ds-soft': '0 8px 24px rgba(2,6,23,0.06)',
         'ds-card': '0 6px 18px rgba(11,22,34,0.06)',

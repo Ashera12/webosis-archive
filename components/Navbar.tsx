@@ -277,14 +277,14 @@ const Navbar: React.FC = () => {
           onClick={(e) => e.stopPropagation()}
         >
           {/* FASE 4: Navbar Content Mirror - Header dengan Logo, Toggles & Close */}
-          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-3 xs:px-4 py-3 flex items-center justify-between gap-2">
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-4 xs:px-5 py-3 xs:py-3.5 flex items-center justify-between gap-3">
             {/* Logo */}
             <Link 
               href="/" 
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 group flex-shrink min-w-0"
+              className="flex items-center gap-2 xs:gap-2.5 group flex-shrink-0 min-w-0"
             >
-              <div className="relative w-8 h-8 xs:w-9 xs:h-9 rounded-full overflow-hidden flex-shrink-0">
+              <div className="relative w-9 h-9 xs:w-10 xs:h-10 rounded-full overflow-hidden flex-shrink-0">
                 <img
                   src="/images/logo-2.png"
                   alt={t('navbar.logoAlt')}
@@ -292,47 +292,47 @@ const Navbar: React.FC = () => {
                 />
                 <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
               </div>
-              <span className="text-xs xs:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent truncate">
+              <span className="text-sm xs:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent truncate">
                 {t('navbar.brandName')}
               </span>
             </Link>
 
-            {/* Controls */}
-            <div className="flex items-center gap-1.5 xs:gap-2 flex-shrink-0">
-              {/* Language Toggle */}
-              <div className="w-9 h-9 flex items-center justify-center">
-                <div className="scale-75 origin-center">
-                  <ClientOnly fallback={<div className="w-9 h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+            {/* Controls - Auto-Sync Size */}
+            <div className="flex items-center gap-2 xs:gap-2.5 flex-shrink-0">
+              {/* Language Toggle - Consistent wrapper */}
+              <div className="w-9 h-9 xs:w-10 xs:h-10 flex items-center justify-center flex-shrink-0">
+                <div className="scale-[0.8] xs:scale-90 origin-center">
+                  <ClientOnly fallback={<div className="w-9 h-9 xs:w-10 xs:h-10 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                     <LanguageToggle />
                   </ClientOnly>
                 </div>
               </div>
 
-              {/* Theme Toggle */}
-              <div className="w-10 h-10 flex items-center justify-center">
-                <div className="scale-[0.85] origin-center">
-                  <ClientOnly fallback={<div className="w-10 h-10 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+              {/* Theme Toggle - Same size as Language */}
+              <div className="w-9 h-9 xs:w-10 xs:h-10 flex items-center justify-center flex-shrink-0">
+                <div className="scale-[0.8] xs:scale-90 origin-center">
+                  <ClientOnly fallback={<div className="w-9 h-9 xs:w-10 xs:h-10 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                     <ThemeToggle />
                   </ClientOnly>
                 </div>
               </div>
 
-              {/* Premium Close Button */}
+              {/* Premium Close Button - Proportional to toggles */}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-11 h-11 xs:w-12 xs:h-12 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
+                className="w-10 h-10 xs:w-11 xs:h-11 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
                 aria-label="Close menu"
               >
-                <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 xs:w-5.5 xs:h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
           </div>
 
-          {/* FASE 3: Premium Menu Items */}
-          <div className="px-3 xs:px-4 py-4 space-y-1">
+          {/* FASE 3: Premium Menu Items - Centered & Symmetric */}
+          <div className="px-4 xs:px-5 py-5 xs:py-6 space-y-1.5 xs:space-y-2">
             <Link 
               href="/" 
               onClick={() => setIsOpen(false)} 

@@ -5,12 +5,13 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authErr = await requirePermission('proker:edit');
     if (authErr) return authErr;
 
+    const { id } = await params;
     const body = await request.json();
     const { title, description, sekbid_id, start_date, end_date, status } = body;
 
@@ -29,7 +30,7 @@ export async function PUT(
         status: status || 'planned',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -47,16 +48,17 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authErr = await requirePermission('proker:delete');
     if (authErr) return authErr;
 
+    const { id } = await params;
     const { error } = await supabaseAdmin
       .from('program_kerja')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting proker:', error);

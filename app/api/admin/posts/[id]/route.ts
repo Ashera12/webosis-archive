@@ -17,14 +17,15 @@ function mapToAdmin(p: any) {
   };
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { id } = await params;
     const { data, error } = await supabaseAdmin
       .from('posts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(mapToAdmin(data));
@@ -33,11 +34,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
+    const { id } = await params;
     const body = await request.json();
     const update: any = {};
     
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
     
-    const postId = isNaN(Number(params.id)) ? params.id : Number(params.id);
+    const postId = isNaN(Number(id)) ? id : Number(id);
 
     console.log('[admin/posts PUT] Updating post:', { postId, update });
 
@@ -101,14 +103,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { id } = await params;
     const { error } = await supabaseAdmin
       .from('posts')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
     if (error) {
       console.error('[admin/posts DELETE] Error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });

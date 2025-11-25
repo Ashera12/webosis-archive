@@ -97,9 +97,11 @@ function DynamicHeroInternal() {
 
   return (
     <section 
-      className={"hero-section relative min-h-screen flex items-center justify-center pt-16 md:pt-20 pb-16 sm:pb-20 lg:pb-24 " + (bg.imageStyle === 'cover' || !bg.imageUrl ? 'overflow-hidden' : 'overflow-visible')}
-      /* Always apply background - image layers will render on top */
-      style={backgroundStyle}
+      className={"hero-section relative min-h-screen flex items-center justify-center pb-16 sm:pb-20 lg:pb-24 " + (bg.imageStyle === 'cover' || !bg.imageUrl ? 'overflow-hidden' : 'overflow-visible')}
+      style={{
+        ...backgroundStyle,
+        paddingTop: 'max(var(--nav-offset, 80px), env(safe-area-inset-top))'
+      }}
     >
       {/* Image background (render if imageUrl present regardless of mode). Show a debug badge if dev and missing */}
       {bg.imageUrl && (
@@ -148,17 +150,17 @@ function DynamicHeroInternal() {
       {/* Content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="max-w-5xl mx-auto">
-          <h1 className="heading-hero text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight text-center drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] sm:drop-shadow-lg">
+          <h1 className="heading-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight text-center drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
             {displayTitle}
           </h1>
 
           <div className="inline-block mb-6 sm:mb-8 animate-fade-in-up animation-delay-200">
-            <p className="text-base sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/20 sm:bg-white/10 dark:bg-gray-700/50 backdrop-blur-md border border-white/30 dark:border-gray-600/40 text-center drop-shadow-md">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/25 sm:bg-white/20 dark:bg-gray-700/50 backdrop-blur-md border border-white/40 dark:border-gray-600/40 text-center drop-shadow-lg">
               {displaySubtitle}
             </p>
           </div>
 
-          <p className="text-xs sm:text-base md:text-lg lg:text-xl xl:text-2xl text-blue-100 dark:text-gray-200 mb-8 sm:mb-10 lg:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-4 text-center">
+          <p className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-blue-50 dark:text-gray-100 mb-8 sm:mb-10 lg:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-4 text-center drop-shadow-md">
             {displayDescription}
           </p>
 
@@ -166,13 +168,15 @@ function DynamicHeroInternal() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center animate-fade-in-up animation-delay-600 px-4">
             <a 
               href="/about" 
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-yellow-400 hover:bg-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-gray-900 dark:text-gray-900 font-semibold rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg text-sm sm:text-base text-center min-h-[48px] flex items-center justify-center"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-yellow-400 hover:bg-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-gray-900 dark:text-gray-900 font-bold rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-xl text-sm sm:text-base text-center min-h-[48px] flex items-center justify-center"
+              aria-label="Learn more about us"
             >
               {labelAbout}
             </a>
             <a 
               href="/gallery" 
-              className="px-6 sm:px-8 py-3 sm:py-4 bg-white/10 hover:bg-white/20 dark:bg-gray-700/40 dark:hover:bg-gray-600/40 backdrop-blur-sm text-white dark:text-gray-100 font-semibold rounded-full border-2 border-white/30 dark:border-gray-600/40 transition-all duration-300 transform hover:scale-105 text-sm sm:text-base text-center min-h-[48px] flex items-center justify-center"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-white/15 hover:bg-white/25 dark:bg-gray-700/50 dark:hover:bg-gray-600/50 backdrop-blur-md text-white dark:text-gray-100 font-bold rounded-full border-2 border-white/40 dark:border-gray-600/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg text-sm sm:text-base text-center min-h-[48px] flex items-center justify-center"
+              aria-label="View our photo gallery"
             >
               {labelGallery}
             </a>

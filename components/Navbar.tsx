@@ -16,6 +16,32 @@ const Navbar: React.FC = () => {
   const router = useRouter();
   const { data: session } = useSession();
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${window.innerWidth - document.documentElement.clientWidth}px`;
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [isOpen]);
+
+  // ESC key to close mobile menu
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -79,13 +105,28 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className={`navbar-fixed fixed top-0 left-0 w-full z-[100] transition-all duration-300 ${isScrolled
-        ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg border-b border-gray-200/50 dark:border-gray-700/50'
-        : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-md'
-      }`}>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-4 flex justify-between items-center relative z-10">
-        <Link href="/" className="navbar-brand flex items-center space-x-2 sm:space-x-3 group relative z-20">
-          <div className="relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden">
+    <>
+      <style jsx global>{`
+        :root {
+          --nav-offset: 80px;
+        }
+      `}</style>
+      <nav 
+        role="navigation" 
+        aria-label="Main navigation" 
+        className={`navbar-fixed fixed top-4 left-4 right-4 z-[100] transition-all duration-300 rounded-2xl ${
+          isScrolled
+            ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg shadow-2xl border border-gray-200/50 dark:border-gray-700/50'
+            : 'bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-xl border border-gray-200/30 dark:border-gray-700/30'
+        } [padding-top:max(env(safe-area-inset-top),0.75rem)]`}
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center relative z-10">
+          <Link 
+            href="/" 
+            className="navbar-brand flex items-center space-x-2 sm:space-x-3 group relative z-20"
+            aria-label={t('navbar.logoAlt')}
+          >
+            <div className="relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden">
             <img
               src="/images/logo-2.png"
               alt={t('navbar.logoAlt')}
@@ -100,13 +141,13 @@ const Navbar: React.FC = () => {
 
         {/* Desktop Menu */}
         <div className="navbar-nav hidden lg:flex items-center space-x-2 xl:space-x-4 relative z-20">
-          <Link href="/" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.home')}</Link>
-          <Link href="/about" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.about')}</Link>
-          <Link href="/info" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">📰 Info</Link>
-          <Link href="/bidang" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.programKerja')}</Link>
-          <Link href="/gallery" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.gallery')}</Link>
-          <Link href="/our-social-media" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.socialMedia')}</Link>
-          <Link href="/people" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200">{t('navbar.members')}</Link>
+          <Link href="/" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Home">{t('navbar.home')}</Link>
+          <Link href="/about" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="About">{t('navbar.about')}</Link>
+          <Link href="/info" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Info">📰 Info</Link>
+          <Link href="/bidang" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Program Kerja">{t('navbar.programKerja')}</Link>
+          <Link href="/gallery" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Gallery">{t('navbar.gallery')}</Link>
+          <Link href="/our-social-media" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Social Media">{t('navbar.socialMedia')}</Link>
+          <Link href="/people" className="nav-link px-3 py-2 rounded-lg text-sm xl:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200" aria-label="Members">{t('navbar.members')}</Link>
 
           {/* Language Toggle */}
           <div className="ml-4">
@@ -141,12 +182,14 @@ const Navbar: React.FC = () => {
                 <Link
                   href="/admin"
                   className="px-3 py-2 rounded-lg text-sm font-semibold border border-amber-300/60 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition"
+                  aria-label="Dashboard"
                 >
                   {t('navbar.dashboard')}
                 </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: '/' })}
                   className="px-3 py-2 rounded-lg text-sm font-semibold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                  aria-label="Logout"
                 >
                   {t('navbar.logout')}
                 </button>
@@ -179,9 +222,10 @@ const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={toggleMenu}
-            className={`relative p-1.5 sm:p-2 text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg transition-colors duration-300`}
-            aria-label="Toggle navigation menu"
+            className="relative p-1.5 sm:p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}
+            aria-controls="mobile-menu"
           >
             <div className="w-5 h-5 sm:w-6 sm:h-6 flex flex-col justify-center items-center gap-[3px]">
               <span className={`block w-full h-0.5 bg-current rounded-full transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-[5px]' : ''}`} />
@@ -190,11 +234,26 @@ const Navbar: React.FC = () => {
             </div>
           </button>
         </div>
-      </div>
+      </nav>
 
+      {/* Backdrop overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] lg:hidden transition-opacity duration-300"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      
       {/* Mobile Menu Dropdown */}
-      <div className={`lg:hidden mobile-menu-dropdown transition-all duration-300 border-t border-gray-200/50 dark:border-gray-700/50 shadow-lg ${isOpen ? 'max-h-[calc(100vh-3.5rem)] opacity-100 visible' : 'max-h-0 opacity-0 invisible'
-        } overflow-y-auto overflow-x-hidden bg-white/98 dark:bg-gray-900/98 backdrop-blur-lg`}>
+      <div 
+        id="mobile-menu"
+        role="dialog"
+        aria-modal="true"
+        className={`lg:hidden fixed top-[96px] left-4 right-4 z-[95] mobile-menu-dropdown transition-all duration-300 rounded-2xl shadow-2xl ${
+          isOpen ? 'max-h-[calc(100vh-112px)] opacity-100 visible translate-y-0' : 'max-h-0 opacity-0 invisible -translate-y-4'
+        } overflow-y-auto overflow-x-hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50`}
+      >
         <div className="container mx-auto px-3 py-2 space-y-0.5">
           <Link href="/" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm">
             <span className="flex items-center gap-2">
@@ -270,7 +329,7 @@ const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
-    </nav>
+    </>
   );
 };
 

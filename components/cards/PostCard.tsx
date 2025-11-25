@@ -35,6 +35,9 @@ interface PostCardProps {
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const fallbackImage = '/images/default-post.jpg';
   const imageUrl = post.featured_image || fallbackImage;
+  
+  // Tiny blur placeholder (1x1 transparent gray)
+  const blurDataURL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
   return (
     <Link
@@ -53,6 +56,8 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             fill
             priority={index === 0}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            placeholder="blur"
+            blurDataURL={blurDataURL}
             className="object-cover group-hover:scale-110 transition-transform duration-500"
             onError={(e) => {
               const target = e.target as HTMLImageElement;

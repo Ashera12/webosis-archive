@@ -19,6 +19,11 @@ const config: Config = {
         'ds': '12px',
         'ds-lg': '1rem',
         'ds-2xl': '1.25rem',
+        // Premium radius scale
+        'sm': '8px',
+        'md': '12px',
+        'lg': '20px',
+        'xl': '32px',
       },
       boxShadow: {
         'ds-soft': '0 8px 24px rgba(2,6,23,0.06)',
@@ -110,6 +115,23 @@ const config: Config = {
       spacing: {
         'compact-x': '1rem',
         'compact-y': '1.5rem',
+        // Premium spacing scale
+        'xs': '4px',
+        'sm': '8px',
+        'md': '12px',
+        'lg': '20px',
+        'xl': '32px',
+        '2xl': '48px',
+      },
+      borderRadius: {
+        'ds': '12px',
+        'ds-lg': '1rem',
+        'ds-2xl': '1.25rem',
+        // Premium radius scale
+        'sm': '8px',
+        'md': '12px',
+        'lg': '20px',
+        'xl': '32px',
       },
       fontSize: {
         'mobile-hero': '1.75rem',

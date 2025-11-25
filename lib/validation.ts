@@ -33,6 +33,6 @@ export function buildSuccess<T extends object>(code: string, data: T) {
   return { success: true, code, ...data };
 }
 
-export function buildError(code: string, message: string, details?: any) {
+export function buildError(code: string, message: string, details?: unknown) {
   return { success: false, code, message, details };
 }

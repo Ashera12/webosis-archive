@@ -30,23 +30,24 @@ export async function safeJson(res: Response, context?: { url?: string; method?:
       ok: res.ok,
       snippet: raw.slice(0, 500),
       length: raw.length,
-    } as any;
+    };
   }
   try {
     return await res.json();
-  } catch (e: any) {
-    await logError(`JSON parse error (${res.status}): ${e?.message || e}`);
+  } catch (e: unknown) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    await logError(`JSON parse error (${res.status}): ${errorMsg}`);
     return {
       __parseError: true,
       status: res.status,
       ok: res.ok,
-      error: e?.message || String(e),
-    } as any;
+      error: errorMsg,
+    };
   }
 }
 
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
-  const res = await fetch(input as any, init as any);
+  const res = await fetch(input, init);
   if (!res.ok) {
     const url = typeof input === 'string' ? input : (input as URL).toString();
     try {

@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
     
     // Role-based access: restrict admin area to allowed roles
     const allowed = (process.env.ADMIN_ALLOWED_ROLES || 'super_admin,admin,osis').split(',').map(r => r.trim());
-    const userRole = (session.user as any).role;
+    const userRole = session.user.role;
     if (!allowed.includes(userRole)) {
       const url = new URL('/admin/login', request.url);
       url.searchParams.set('error', 'unauthorized');

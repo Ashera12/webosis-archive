@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 
 type TrendItem = {
   id: string;
@@ -57,10 +58,15 @@ const TrendingNow: React.FC<PropsExtended> = ({ items, max = 4, onOpenTrendingAc
       <div className="space-y-3">
         {top.map((it, idx) => (
           <a key={it.id || idx} href={it.url || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-            <div className="w-14 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+            <div className="relative w-14 h-10 bg-gray-100 rounded overflow-hidden flex-shrink-0">
               {it.thumbnail ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.thumbnail} alt={it.title} className="w-full h-full object-cover" />
+                <Image 
+                  src={it.thumbnail} 
+                  alt={it.title} 
+                  fill
+                  sizes="56px"
+                  className="object-cover" 
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400">—</div>
               )}

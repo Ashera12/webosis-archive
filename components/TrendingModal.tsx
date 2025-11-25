@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FaTimes, FaExternalLinkAlt, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import Image from 'next/image';
 
 type TrendItem = {
   id: string;
@@ -61,10 +62,15 @@ export default function TrendingModal({ isOpen, onCloseAction, items }: Props) {
             const pct = delta && it.prevMetric ? Math.round((delta / it.prevMetric) * 100) : null;
             return (
               <a key={it.id} href={it.url || '#'} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800">
-                <div className="w-20 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                <div className="relative w-20 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                   {it.thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={it.thumbnail} alt={it.title} className="w-full h-full object-cover" />
+                    <Image 
+                      src={it.thumbnail} 
+                      alt={it.title} 
+                      fill
+                      sizes="80px"
+                      className="object-cover" 
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400">—</div>
                   )}

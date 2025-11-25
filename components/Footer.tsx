@@ -1,16 +1,69 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart, FaQrcode, FaShareAlt } from 'react-icons/fa';
 import { InstagramIcon, SpotifyIcon, TiktokIcon, YoutubeIcon } from './icons/SocialIcons';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/contexts/ToastContext';
 import { SOCIAL_MEDIA_CONFIG } from '@/lib/socialMediaConfig';
+import QRCode from 'qrcode';
 
 const Footer: React.FC = () => {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [showQR, setShowQR] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState('');
+
+  // Generate QR Code
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(window.location.origin);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showQR && qrCanvasRef.current && currentUrl) {
+      QRCode.toCanvas(qrCanvasRef.current, currentUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      }).catch((err: Error) => {
+        console.error('QR Code generation error:', err);
+      });
+    }
+  }, [showQR, currentUrl]);
+
+  const handleShareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'OSIS SMK Fithrah Insani',
+          text: 'Kunjungi website OSIS SMK Fithrah Insani - Dirgantara',
+          url: currentUrl
+        });
+        showToast('Link berhasil dibagikan!', 'success');
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          copyToClipboard();
+        }
+      }
+    } else {
+      copyToClipboard();
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      showToast('Link disalin ke clipboard!', 'success');
+    }).catch(() => {
+      showToast('Gagal menyalin link', 'error');
+    });
+  };
   
   return (
     <footer
@@ -28,7 +81,7 @@ const Footer: React.FC = () => {
       <div className="relative z-10 py-12 sm:py-16 lg:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Main Footer Content */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-10 sm:mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 mb-10 sm:mb-12">
             {/* Brand Section */}
             <div className="sm:col-span-2 lg:col-span-2">
               <div className="flex items-center space-x-3 mb-4 sm:mb-6">
@@ -196,6 +249,61 @@ const Footer: React.FC = () => {
                   <span className="text-gray-600 dark:text-gray-400">info@smaitfithrahinsani.sch.id</span>
                 </li>
               </ul>
+            </div>
+
+            {/* QR Code Share Section */}
+            <div>
+              <h4 className="heading-secondary text-base sm:text-lg text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+                <FaQrcode className="text-yellow-400" />
+                Share Website
+              </h4>
+              
+              <div className="space-y-4">
+                {/* QR Code Toggle Button */}
+                <button
+                  onClick={() => setShowQR(!showQR)}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <FaQrcode className="text-lg" />
+                  {showQR ? 'Sembunyikan QR' : 'Tampilkan QR Code'}
+                </button>
+
+                {/* QR Code Display with Animation */}
+                <div 
+                  className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                    showQR ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-xl border-2 border-yellow-400/20">
+                    <canvas 
+                      ref={qrCanvasRef}
+                      className="w-full h-auto rounded-lg"
+                    />
+                    <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-3">
+                      Scan QR Code untuk mengakses website
+                    </p>
+                  </div>
+                </div>
+
+                {/* Share Button */}
+                <button
+                  onClick={handleShareLink}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  <FaShareAlt className="text-lg" />
+                  Bagikan Link
+                </button>
+
+                {/* Current URL Display */}
+                {currentUrl && (
+                  <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-3 backdrop-blur-sm">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Website URL:</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 font-mono break-all">
+                      {currentUrl}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

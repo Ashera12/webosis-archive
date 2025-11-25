@@ -46,18 +46,20 @@ export async function DELETE(
     });
 
     // Check if user is authorized to delete
-    const isAdmin = session?.user?.role === 'admin';
+    const userRole = session?.user?.role?.toLowerCase();
+    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole || '');
     const isOwner = session?.user?.id && (session.user.id === comment.user_id || session.user.id === comment.author_id);
     const isAnonymousComment = !comment.user_id && !comment.author_id;
 
     console.log('[Comments API] Permission check:', {
-      isAdmin,
+      userRole,
+      isPrivileged,
       isOwner,
       isAnonymousComment,
-      canDelete: isAdmin || isOwner || isAnonymousComment
+      canDelete: isPrivileged || isOwner || isAnonymousComment
     });
 
-    if (!isAdmin && !isOwner && !isAnonymousComment) {
+    if (!isPrivileged && !isOwner && !isAnonymousComment) {
       return NextResponse.json(
         { error: 'Tidak memiliki izin untuk menghapus komentar ini' },
         { status: 403 }

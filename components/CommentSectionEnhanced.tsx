@@ -224,9 +224,10 @@ export default function CommentSection({
 
   const canDeleteComment = (comment: Comment) => {
     if (!session?.user) return false;
-    const isAdmin = session.user.role === 'admin';
+    const userRole = session.user.role?.toLowerCase();
+    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole || '');
     const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
-    return isAdmin || isOwner;
+    return isPrivileged || isOwner;
   };
 
   const canEditComment = (comment: Comment) => {

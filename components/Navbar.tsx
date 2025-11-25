@@ -13,6 +13,14 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { t } = useTranslation();
+  // Derive short brand name (first two words) for compact mobile display
+  const brandNameFull = t('navbar.brandName');
+  const brandNameShort = React.useMemo(() => {
+    if (!brandNameFull) return '';
+    const tokens = brandNameFull.split(/\s+/).filter(Boolean);
+    if (tokens.length >= 2) return tokens.slice(0, 2).join(' ');
+    return brandNameFull;
+  }, [brandNameFull]);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -142,8 +150,14 @@ const Navbar: React.FC = () => {
               />
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
             </div>
-            <span className="text-[0.65rem] xs:text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent group-hover:from-yellow-700 group-hover:to-amber-700 dark:group-hover:from-yellow-300 dark:group-hover:to-amber-300 transition-all duration-300 leading-tight truncate">
-              {t('navbar.brandName')}
+            {/* Brand full vs short (mobile shows short) */}
+            <span className="flex items-center min-w-0">
+              <span className="block sm:hidden text-[0.65rem] xs:text-[0.7rem] font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[90px]">
+                {brandNameShort}
+              </span>
+              <span className="hidden sm:block text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[180px]">
+                {brandNameFull}
+              </span>
             </span>
           </Link>
 
@@ -292,16 +306,21 @@ const Navbar: React.FC = () => {
                 />
                 <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
               </div>
-              <span className="text-[0.7rem] xs:text-xs xsm:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent truncate">
-                {t('navbar.brandName')}
+              <span className="flex items-center min-w-0">
+                <span className="block sm:hidden text-[0.65rem] xs:text-[0.7rem] font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[84px]">
+                  {brandNameShort}
+                </span>
+                <span className="hidden sm:block text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent leading-tight truncate max-w-[160px]">
+                  {brandNameFull}
+                </span>
               </span>
             </Link>
 
             {/* Controls - Semua auto shrink */}
             <div className="flex items-center gap-1.5 xs:gap-2 flex-shrink-0">
               {/* Language Toggle */}
-              <div className="w-8 h-8 xs:w-9 xs:h-9 xsm:w-9.5 xsm:h-9.5 flex items-center justify-center flex-shrink-0">
-                <div className="scale-[0.7] xs:scale-[0.75] xsm:scale-[0.8] origin-center">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
                   <ClientOnly fallback={<div className="w-8 h-8 xs:w-9 xs:h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                     <LanguageToggle />
                   </ClientOnly>
@@ -309,8 +328,8 @@ const Navbar: React.FC = () => {
               </div>
 
               {/* Theme Toggle */}
-              <div className="w-8 h-8 xs:w-9 xs:h-9 xsm:w-9.5 xsm:h-9.5 flex items-center justify-center flex-shrink-0">
-                <div className="scale-[0.7] xs:scale-[0.75] xsm:scale-[0.8] origin-center">
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
                   <ClientOnly fallback={<div className="w-8 h-8 xs:w-9 xs:h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                     <ThemeToggle />
                   </ClientOnly>

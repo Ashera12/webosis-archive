@@ -148,24 +148,24 @@ function DynamicHeroInternal() {
       )}
 
       {/* Content */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      <div className="container mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="max-w-5xl mx-auto">
-          <h1 className="heading-hero text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-[1.1] sm:leading-tight text-center drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+          <h1 className="heading-hero text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold mb-3 xs:mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-[1.15] xs:leading-[1.1] sm:leading-tight text-center drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
             {displayTitle}
           </h1>
 
-          <div className="inline-block mb-6 sm:mb-8 animate-fade-in-up animation-delay-200">
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 rounded-full bg-white/30 sm:bg-white/25 dark:bg-gray-700/50 backdrop-blur-md border border-white/40 dark:border-gray-600/40 text-center drop-shadow-lg">
+          <div className="inline-block mb-4 xs:mb-5 sm:mb-6 lg:mb-8 animate-fade-in-up animation-delay-200">
+            <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-semibold text-yellow-300 dark:text-yellow-300 px-3 xs:px-4 sm:px-6 lg:px-8 py-1.5 xs:py-2 sm:py-2.5 rounded-full bg-white/30 sm:bg-white/25 dark:bg-gray-700/50 backdrop-blur-md border border-white/40 dark:border-gray-600/40 text-center drop-shadow-lg">
               {displaySubtitle}
             </p>
           </div>
 
-          <p className="text-xs sm:text-sm md:text-base lg:text-lg text-blue-50 dark:text-gray-100 mb-8 sm:mb-10 lg:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-4 text-center drop-shadow-md">
+          <p className="text-[0.7rem] xs:text-xs sm:text-sm md:text-base lg:text-lg text-blue-50 dark:text-gray-100 mb-6 xs:mb-7 sm:mb-8 lg:mb-10 xl:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-3 xs:px-4 text-center drop-shadow-md">
             {displayDescription}
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center animate-fade-in-up animation-delay-600 px-4">
+          <div className="flex flex-col sm:flex-row gap-2.5 xs:gap-3 sm:gap-4 justify-center items-stretch sm:items-center animate-fade-in-up animation-delay-600 px-3 xs:px-4">
             <a 
               href="/about" 
               className="px-6 sm:px-8 py-2.5 sm:py-3.5 bg-yellow-400 hover:bg-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-gray-900 dark:text-gray-900 font-bold rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-xl text-sm sm:text-base text-center min-h-[44px] flex items-center justify-center"

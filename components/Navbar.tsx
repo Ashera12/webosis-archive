@@ -108,27 +108,33 @@ const Navbar: React.FC = () => {
     <>
       <style jsx global>{`
         :root {
-          --nav-offset: max(96px, calc(80px + env(safe-area-inset-top)));
-          --nav-height: 80px;
+          --nav-offset: max(72px, calc(64px + env(safe-area-inset-top)));
+          --nav-height: clamp(56px, 12vw, 72px);
+        }
+        @media (min-width: 640px) {
+          :root {
+            --nav-offset: max(88px, calc(76px + env(safe-area-inset-top)));
+            --nav-height: 76px;
+          }
         }
       `}</style>
       <nav 
         role="navigation" 
         aria-label="Main navigation" 
-        className={`navbar-fixed fixed top-4 left-4 right-4 z-[100] transition-all duration-300 rounded-2xl overflow-hidden ${
+        className={`navbar-fixed fixed top-2 xs:top-3 sm:top-4 left-2 xs:left-3 sm:left-4 right-2 xs:right-3 sm:right-4 z-[100] transition-all duration-300 rounded-xl xs:rounded-2xl overflow-hidden ${
           isScrolled
             ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg shadow-2xl border border-gray-200/50 dark:border-gray-700/50'
             : 'bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-xl border border-gray-200/30 dark:border-gray-700/30'
         }`}
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 0.75rem)' }}
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 0.5rem)' }}
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center relative z-10">
+        <div className="container mx-auto px-2 xs:px-3 sm:px-4 lg:px-8 py-2 xs:py-2.5 sm:py-3 lg:py-4 flex justify-between items-center relative z-10 gap-2">
           <Link 
             href="/" 
-            className="navbar-brand flex items-center space-x-2 sm:space-x-3 group relative z-20"
+            className="navbar-brand flex items-center gap-1.5 xs:gap-2 sm:gap-3 group relative z-20 flex-shrink min-w-0"
             aria-label={t('navbar.logoAlt')}
           >
-            <div className="relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden">
+            <div className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden flex-shrink-0">
               <img
                 src="/images/logo-2.png"
                 alt={t('navbar.logoAlt')}
@@ -136,7 +142,7 @@ const Navbar: React.FC = () => {
               />
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
             </div>
-            <span className="text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent group-hover:from-yellow-700 group-hover:to-amber-700 dark:group-hover:from-yellow-300 dark:group-hover:to-amber-300 transition-all duration-300 whitespace-nowrap leading-tight">
+            <span className="text-[0.65rem] xs:text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent group-hover:from-yellow-700 group-hover:to-amber-700 dark:group-hover:from-yellow-300 dark:group-hover:to-amber-300 transition-all duration-300 leading-tight truncate">
               {t('navbar.brandName')}
             </span>
           </Link>
@@ -201,9 +207,9 @@ const Navbar: React.FC = () => {
         </div>
 
         {/* Mobile Menu Controls */}
-        <div className="lg:hidden flex items-center space-x-2">
+        <div className="lg:hidden flex items-center gap-1 xs:gap-1.5 sm:gap-2 flex-shrink-0">
           {/* Language Toggle for Mobile */}
-          <div className="scale-75 sm:scale-85 origin-right">
+          <div className="scale-[0.65] xs:scale-75 sm:scale-85 origin-right">
             <ClientOnly fallback={
               <div className="w-10 h-6 bg-gray-200 rounded-full animate-pulse" />
             }>
@@ -212,7 +218,7 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Theme Toggle for Mobile */}
-          <div className="scale-75 sm:scale-85 origin-right">
+          <div className="scale-[0.65] xs:scale-75 sm:scale-85 origin-right">
             <ClientOnly fallback={
               <div className="w-7 h-7 bg-gray-200 rounded-full animate-pulse" />
             }>
@@ -224,15 +230,15 @@ const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={toggleMenu}
-            className="relative p-1.5 sm:p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+            className="relative p-1 xs:p-1.5 sm:p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200 flex-shrink-0"
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-menu"
           >
-            <div className="w-5 h-5 sm:w-6 sm:h-6 flex flex-col justify-center items-center gap-[3px]">
-              <span className={`block w-full h-0.5 bg-current rounded-full transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-[5px]' : ''}`} />
-              <span className={`block w-full h-0.5 bg-current rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`} />
-              <span className={`block w-full h-0.5 bg-current rounded-full transition-all duration-300 ${isOpen ? '-rotate-45 -translate-y-[5px]' : ''}`} />
+            <div className="w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 flex flex-col justify-center items-center gap-[2.5px]">
+              <span className={`block w-full h-[1.5px] bg-current rounded-full transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-[4px]' : ''}`} />
+              <span className={`block w-full h-[1.5px] bg-current rounded-full transition-all duration-300 ${isOpen ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`} />
+              <span className={`block w-full h-[1.5px] bg-current rounded-full transition-all duration-300 ${isOpen ? '-rotate-45 -translate-y-[4px]' : ''}`} />
             </div>
           </button>
         </div>
@@ -254,8 +260,8 @@ const Navbar: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation menu"
-        className={`lg:hidden fixed top-[96px] left-4 right-4 z-[95] mobile-menu-dropdown transition-all duration-300 rounded-2xl shadow-2xl ${
-          isOpen ? 'max-h-[calc(100vh-112px)] opacity-100 visible translate-y-0' : 'max-h-0 opacity-0 invisible -translate-y-4'
+        className={`lg:hidden fixed top-[60px] xs:top-[68px] sm:top-[88px] left-2 xs:left-3 sm:left-4 right-2 xs:right-3 sm:right-4 z-[95] mobile-menu-dropdown transition-all duration-300 rounded-xl xs:rounded-2xl shadow-2xl ${
+          isOpen ? 'max-h-[calc(100vh-76px)] xs:max-h-[calc(100vh-84px)] sm:max-h-[calc(100vh-104px)] opacity-100 visible translate-y-0' : 'max-h-0 opacity-0 invisible -translate-y-4'
         } overflow-y-auto overflow-x-hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50`}
       >
         <div className="container mx-auto px-3 py-2 space-y-0.5">

@@ -245,92 +245,202 @@ const Navbar: React.FC = () => {
       </div>
       </nav>
 
-      {/* Backdrop overlay */}
+      {/* FASE 1: Premium Backdrop Wrapper */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 z-[999] lg:hidden transition-all duration-300 ease-out"
+          style={{ 
+            backgroundColor: 'var(--overlay-bg, rgba(0, 0, 0, 0.7))',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)'
+          }}
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
       )}
       
-      {/* Mobile Menu Dropdown */}
+      {/* FASE 2-7: Premium Mobile Menu Panel */}
       <div 
         id="mobile-menu"
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation menu"
-        className={`lg:hidden fixed top-[60px] xs:top-[68px] sm:top-[88px] left-2 xs:left-3 sm:left-4 right-2 xs:right-3 sm:right-4 z-[95] mobile-menu-dropdown transition-all duration-300 rounded-xl xs:rounded-2xl shadow-2xl ${
-          isOpen ? 'max-h-[calc(100vh-76px)] xs:max-h-[calc(100vh-84px)] sm:max-h-[calc(100vh-104px)] opacity-100 visible translate-y-0' : 'max-h-0 opacity-0 invisible -translate-y-4'
-        } overflow-y-auto overflow-x-hidden bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50`}
+        className={`lg:hidden fixed inset-x-0 top-0 z-[1000] transition-all duration-300 ease-out ${
+          isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
+        }`}
       >
-        <div className="container mx-auto px-3 py-2 space-y-0.5">
-          <Link href="/" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to home">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-home w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.home')}</span>
-            </span>
-          </Link>
-          <Link href="/about" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to about">
-            <span className="flex items-center gap-2.5">
-              <i className="fas fa-info-circle w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.about')}</span>
-            </span>
-          </Link>
-          <Link href="/info" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to information center">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-newspaper w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>Pusat Informasi</span>
-            </span>
-          </Link>
-          <Link href="/bidang" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to programs">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-tasks w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.programKerja')}</span>
-            </span>
-          </Link>
-          <Link href="/gallery" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to gallery">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-images w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.gallery')}</span>
-            </span>
-          </Link>
-          <Link href="/our-social-media" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to social media">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-share-alt w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.socialMedia')}</span>
-            </span>
-          </Link>
-          <Link href="/people" onClick={() => setIsOpen(false)} className="mobile-nav-link block px-4 py-3 min-h-[44px] rounded-lg text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600 dark:hover:text-yellow-400 active:bg-yellow-100 dark:active:bg-yellow-900/30 transition-all duration-200 font-medium text-sm" aria-label="Navigate to members">
-            <span className="flex items-center gap-2">
-              <i className="fas fa-users w-4 text-center text-xs" aria-hidden="true"></i>
-              <span>{t('navbar.members')}</span>
-            </span>
-          </Link>
+        {/* Premium Panel Card */}
+        <div 
+          className={`mx-3 xs:mx-4 mt-3 xs:mt-4 pb-8 rounded-2xl md:rounded-3xl border border-white/10 bg-white/90 dark:bg-[#0F172A]/95 backdrop-blur-xl shadow-2xl shadow-black/50 max-h-[84vh] overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out ${
+            isOpen ? 'translate-y-0 opacity-100' : '-translate-y-6 opacity-0'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* FASE 4: Navbar Content Mirror - Header dengan Logo, Toggles & Close */}
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-3 xs:px-4 py-3 flex items-center justify-between gap-2">
+            {/* Logo */}
+            <Link 
+              href="/" 
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2 group flex-shrink min-w-0"
+            >
+              <div className="relative w-8 h-8 xs:w-9 xs:h-9 rounded-full overflow-hidden flex-shrink-0">
+                <img
+                  src="/images/logo-2.png"
+                  alt={t('navbar.logoAlt')}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
+              </div>
+              <span className="text-xs xs:text-sm font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent truncate">
+                {t('navbar.brandName')}
+              </span>
+            </Link>
 
-          {/* Admin / Login mobile actions */}
-          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-2">
+            {/* Controls */}
+            <div className="flex items-center gap-1.5 xs:gap-2 flex-shrink-0">
+              {/* Language Toggle */}
+              <div className="w-9 h-9 flex items-center justify-center">
+                <div className="scale-75 origin-center">
+                  <ClientOnly fallback={<div className="w-9 h-9 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+                    <LanguageToggle />
+                  </ClientOnly>
+                </div>
+              </div>
+
+              {/* Theme Toggle */}
+              <div className="w-10 h-10 flex items-center justify-center">
+                <div className="scale-[0.85] origin-center">
+                  <ClientOnly fallback={<div className="w-10 h-10 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
+                    <ThemeToggle />
+                  </ClientOnly>
+                </div>
+              </div>
+
+              {/* Premium Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="w-11 h-11 xs:w-12 xs:h-12 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
+                aria-label="Close menu"
+              >
+                <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* FASE 3: Premium Menu Items */}
+          <div className="px-3 xs:px-4 py-4 space-y-1">
+            <Link 
+              href="/" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to home"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-home w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.home')}</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/about" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to about"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-info-circle w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.about')}</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/info" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to information center"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-newspaper w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">Pusat Informasi</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/bidang" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to programs"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-tasks w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.programKerja')}</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/gallery" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to gallery"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-images w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.gallery')}</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/our-social-media" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to social media"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-share-alt w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.socialMedia')}</span>
+              </span>
+            </Link>
+
+            <Link 
+              href="/people" 
+              onClick={() => setIsOpen(false)} 
+              className="flex flex-col gap-1 px-3 xs:px-4 py-2.5 xs:py-3 min-h-[44px] rounded-xl text-base font-medium tracking-wide opacity-90 hover:opacity-100 hover:bg-white/5 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200 transition-all duration-200 group"
+              aria-label="Navigate to members"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fas fa-users w-5 text-center text-sm group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors" aria-hidden="true"></i>
+                <span className="group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{t('navbar.members')}</span>
+              </span>
+            </Link>
+          </div>
+
+          {/* FASE 5: Premium Login Button */}
+          <div className="px-3 xs:px-4 mt-6">
             {!session ? (
               <Link
                 href="/admin/login"
                 onClick={() => setIsOpen(false)}
-                className="block w-full py-2 px-4 text-center bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 active:scale-95"
-                aria-label="Login"
+                className="block w-full py-3.5 xs:py-4 px-6 text-center bg-gradient-to-r from-yellow-400 to-yellow-600 text-gray-900 text-base xs:text-lg font-semibold rounded-full shadow-[0_4px_12px_rgba(255,200,0,0.3)] hover:shadow-[0_6px_20px_rgba(255,200,0,0.5)] hover:scale-[1.02] transition-all duration-300 active:scale-95"
+                aria-label="Login to admin panel"
               >
                 LOGIN
               </Link>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Link
                   href="/admin"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 py-2 px-2 text-center border-2 border-amber-400 text-amber-700 dark:text-amber-300 text-xs sm:text-sm font-semibold rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-200 active:scale-95"
+                  className="flex-1 py-3 px-4 text-center border-2 border-yellow-500/60 text-yellow-700 dark:text-yellow-400 text-sm xs:text-base font-semibold rounded-full hover:bg-yellow-500/10 hover:border-yellow-500 transition-all duration-200 active:scale-95"
                 >
                   {t('navbar.dashboard')}
                 </Link>
                 <button
                   onClick={() => { setIsOpen(false); signOut({ callbackUrl: '/' }); }}
-                  className="flex-1 py-2 px-2 text-center bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs sm:text-sm font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 active:scale-95"
+                  className="flex-1 py-3 px-4 text-center bg-gray-200/80 dark:bg-gray-700/80 text-gray-700 dark:text-gray-300 text-sm xs:text-base font-semibold rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 active:scale-95"
                 >
                   {t('navbar.logout')}
                 </button>

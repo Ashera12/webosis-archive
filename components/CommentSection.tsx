@@ -122,7 +122,9 @@ export default function CommentSection({
   const canDeleteComment = (comment: Comment) => {
     if (!session?.user) return false;
     // Admin atau author sendiri bisa hapus
-    return session.user.role === 'admin' || session.user.id === comment.author_id;
+    const isAdmin = session.user.role === 'admin';
+    const isOwner = session.user.id === comment.author_id;
+    return isAdmin || isOwner;
   };
 
   return (

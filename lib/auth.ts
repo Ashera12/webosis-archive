@@ -75,15 +75,19 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials, request) {
+          console.log('[NextAuth] authorize called with email:', credentials?.email);
+          
           // Basic validation + normalization
           const rawEmail = credentials?.email as string | undefined;
           const password = credentials?.password as string | undefined;
           
           if (!rawEmail || !password) {
+            console.log('[NextAuth] Missing email or password');
             await logAuthEvent('warn', { event: 'authorize_missing_fields' });
             throw new Error('Email dan password harus diisi');
           }
           const email = rawEmail.trim().toLowerCase();
+          console.log('[NextAuth] Normalized email:', email);
 
           // rate-limit by normalized email (process-local)
           const attemptKey = `login:${email}`;
@@ -94,6 +98,13 @@ export const authConfig: NextAuthConfig = {
           }
 
           const user = await findUserByEmail(email);
+          
+          console.log('[NextAuth] User lookup result:', { 
+            found: !!user, 
+            hasPassword: !!user?.password_hash,
+            email_verified: user?.email_verified,
+            approved: user?.approved 
+          });
           
           if (!user) {
             incrementAttempts(attemptKey);
@@ -109,7 +120,9 @@ export const authConfig: NextAuthConfig = {
 
           // Dynamically import bcrypt to verify password first
           const bcrypt = (await import('bcryptjs')).default;
+          console.log('[NextAuth] Comparing password...');
           const valid = await bcrypt.compare(password, user.password_hash as string);
+          console.log('[NextAuth] Password valid:', valid);
           
           if (!valid) {
             incrementAttempts(attemptKey);
@@ -149,7 +162,9 @@ export const authConfig: NextAuthConfig = {
             email_verified: user.email_verified
           });
 
-          return { id: user.id, email: user.email, name: user.name ?? undefined, role: user.role ?? undefined };
+          const returnUser = { id: user.id, email: user.email, name: user.name ?? undefined, role: user.role ?? undefined };
+          console.log('[NextAuth] authorize SUCCESS, returning user:', returnUser);
+          return returnUser;
       },
     }),
     // Google({

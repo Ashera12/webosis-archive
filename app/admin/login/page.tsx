@@ -40,13 +40,20 @@ export default function AdminLoginPage() {
       }
       
       // Jika pre-check berhasil, lanjutkan dengan NextAuth signIn
+      console.log('[Login] Calling signIn with credentials...');
       const res = await signIn("credentials", { redirect: false, email, password, callbackUrl: "/admin" });
+      console.log('[Login] signIn response:', { ok: res?.ok, error: res?.error, status: res?.status, url: res?.url });
 
       if (res?.error) {
         // Fallback jika NextAuth tetap return error (seharusnya tidak terjadi karena sudah di-validate)
-        setError('Terjadi kesalahan saat membuat sesi. Silakan coba lagi.');
+        console.error('[Login] NextAuth error:', res.error);
+        setError(res.error || 'Terjadi kesalahan saat membuat sesi. Silakan coba lagi.');
       } else if (res?.ok) {
+        console.log('[Login] Login successful, redirecting to /admin');
         window.location.href = '/admin';
+      } else {
+        console.warn('[Login] Unexpected response:', res);
+        setError('Login gagal dengan status tidak terduga. Silakan coba lagi.');
       }
     } catch (err: any) {
       console.error('[login] error:', err);

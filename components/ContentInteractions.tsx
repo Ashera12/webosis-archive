@@ -42,6 +42,7 @@ export default function ContentInteractions({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [fullUrl, setFullUrl] = useState('');
+  const commentSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -73,8 +74,18 @@ export default function ContentInteractions({
   };
 
   const handleComment = () => {
-    setComments(comments + 1);
     onComment?.();
+    // Scroll to comment section and trigger open
+    if (commentSectionRef.current) {
+      commentSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Trigger click on toggle button after scroll
+      setTimeout(() => {
+        const toggleButton = commentSectionRef.current?.querySelector('button');
+        if (toggleButton) {
+          toggleButton.click();
+        }
+      }, 500);
+    }
   };
 
   const handleShareClick = () => {
@@ -351,11 +362,13 @@ export default function ContentInteractions({
       )}
 
       {/* Comment Section */}
-      <CommentSectionEnhanced
-        contentId={contentId}
-        contentType={contentType}
-        onCommentCountChange={setComments}
-      />
+      <div ref={commentSectionRef}>
+        <CommentSectionEnhanced
+          contentId={contentId}
+          contentType={contentType}
+          onCommentCountChange={setComments}
+        />
+      </div>
     </>
   );
 }

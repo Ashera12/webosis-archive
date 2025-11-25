@@ -62,3 +62,69 @@ export async function DELETE(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    const commentId = params.id;
+    const body = await request.json();
+    const { content } = body;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json(
+        { error: 'Konten tidak boleh kosong' },
+        { status: 400 }
+      );
+    }
+
+    // Get comment to check ownership
+    const { data: comment, error: fetchError } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('id', commentId)
+      .single();
+
+    if (fetchError || !comment) {
+      return NextResponse.json(
+        { error: 'Komentar tidak ditemukan' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is the owner
+    const isOwner = session?.user?.id === comment.author_id;
+
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: 'Tidak memiliki izin untuk mengedit komentar ini' },
+        { status: 403 }
+      );
+    }
+
+    const { data: updatedComment, error: updateError } = await supabase
+      .from('comments')
+      .update({ content: content.trim(), updated_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating comment:', updateError);
+      return NextResponse.json(
+        { error: 'Gagal mengupdate komentar' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ comment: updatedComment });
+  } catch (error) {
+    console.error('Error in PATCH /api/comments/[id]:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

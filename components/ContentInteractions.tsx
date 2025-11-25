@@ -5,7 +5,7 @@ import { FaHeart, FaComment, FaShare, FaQrcode, FaLink, FaWhatsapp, FaFacebook, 
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/contexts/ToastContext';
 import QRCode from 'qrcode';
-import CommentSection from './CommentSection';
+import CommentSectionEnhanced from './CommentSectionEnhanced';
 
 interface ContentInteractionsProps {
   contentId: string;
@@ -351,7 +351,7 @@ export default function ContentInteractions({
       )}
 
       {/* Comment Section */}
-      <CommentSection
+      <CommentSectionEnhanced
         contentId={contentId}
         contentType={contentType}
         onCommentCountChange={setComments}

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     const body = await request.json();
-    const { contentId, contentType, content, authorName } = body;
+    const { contentId, contentType, content, authorName, parentId } = body;
 
     if (!contentId || !contentType || !content) {
       return NextResponse.json(
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       author_name: displayName,
       author_id: session?.user?.id || null,
       is_anonymous: isAnonymous,
+      parent_id: parentId || null,
       created_at: new Date().toISOString()
     };
 
@@ -80,12 +81,19 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating comment:', error);
       return NextResponse.json(
-        { error: 'Gagal menambahkan komentar' },
+        { error: 'Gagal menambahkan komentar', details: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ comment }, { status: 201 });
+    // Add default likes count
+    const commentWithLikes = {
+      ...comment,
+      likes: 0,
+      liked_by_user: false
+    };
+
+    return NextResponse.json({ comment: commentWithLikes }, { status: 201 });
   } catch (error) {
     console.error('Error in POST /api/comments:', error);
     return NextResponse.json(

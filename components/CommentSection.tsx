@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { useToast } from '@/contexts/ToastContext';
-import { FaUser, FaClock, FaTrash, FaPaperPlane } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaClock, FaTrash, FaPaperPlane, FaReply, FaEdit, FaTimes } from 'react-icons/fa';
 
 interface Comment {
   id: string;
@@ -13,6 +13,10 @@ interface Comment {
   author_id?: string;
   is_anonymous: boolean;
   created_at: string;
+  likes?: number;
+  replies?: Comment[];
+  parent_id?: string | null;
+  liked_by_user?: boolean;
 }
 
 interface CommentSectionProps {

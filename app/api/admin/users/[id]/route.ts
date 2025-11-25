@@ -31,9 +31,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     
     // Hash new password if provided
     if (password && password.trim()) {
-      const bcrypt = await import('bcryptjs');
+      const bcrypt = (await import('bcryptjs')).default;
       const hash = await bcrypt.hash(password, 10);
       update.password_hash = hash;
+      console.log('[admin/users/[id] PUT] Password hashed successfully');
     }
 
     console.log('[admin/users/[id] PUT] Updating user:', { id, update, is_active });

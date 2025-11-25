@@ -133,19 +133,45 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    // If error is column doesn't exist, retry without user_id (backward compatibility)
-    if (error && error.message?.includes('user_id')) {
-      console.log('[Comments API] Column user_id not found, retrying without it...');
-      const { user_id, ...dataWithoutUserId } = commentData;
-      
-      const retry = await supabase
-        .from('comments')
-        .insert([dataWithoutUserId])
-        .select()
-        .single();
-      
-      comment = retry.data;
-      error = retry.error;
+    // Handle various schema compatibility issues
+    if (error) {
+      // Case 1: user_id column doesn't exist (old schema)
+      if (error.message?.includes('user_id') || error.code === '42703') {
+        console.log('[Comments API] Column user_id not found, retrying without it...');
+        const { user_id, ...dataWithoutUserId } = commentData;
+        
+        const retry = await supabase
+          .from('comments')
+          .insert([dataWithoutUserId])
+          .select()
+          .single();
+        
+        comment = retry.data;
+        error = retry.error;
+      }
+      // Case 2: author_id FK constraint (auth.users doesn't exist in our setup)
+      // Code 23503 = foreign key violation
+      else if (error.code === '23503' && error.message?.includes('author_id')) {
+        console.log('[Comments API] FK constraint on author_id, using minimal data...');
+        // Retry with only essential fields, let DB defaults handle the rest
+        const minimalData: any = {
+          content_id: contentId,
+          content_type: contentType,
+          content: content.trim(),
+          author_name: displayName,
+          is_anonymous: isAnonymous,
+          parent_id: parentId || null
+        };
+        
+        const retry = await supabase
+          .from('comments')
+          .insert([minimalData])
+          .select()
+          .single();
+        
+        comment = retry.data;
+        error = retry.error;
+      }
     }
 
     if (error) {

@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { getPublishedPosts } from '@/lib/supabase/client';
 import AnimatedSection from './AnimatedSection';
-import Image from 'next/image';
 import Link from 'next/link';
-import { FaCalendar, FaUser, FaEye, FaArrowRight } from 'react-icons/fa';
+import { FaArrowRight } from 'react-icons/fa';
+import { PostCard } from './cards/PostCard';
 
 interface Post {
-  id: number;
+  id: string;
   title: string;
   slug: string;
   excerpt: string;
@@ -94,87 +94,9 @@ export default function LatestPostsSection() {
           </div>
 
           {/* Posts Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-7xl mx-auto mb-12">
             {posts.map((post, index) => (
-              <Link
-                key={post.id}
-                href={`/posts/${post.slug}`}
-                className="group block bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {/* Featured Image */}
-                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-yellow-400/20 to-blue-400/20">
-                  {post.featured_image ? (
-                    <Image
-                      src={post.featured_image}
-                      alt={post.title}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-6xl">
-                      {post.sekbid?.icon || '📰'}
-                    </div>
-                  )}
-                  
-                  {/* Sekbid badge */}
-                  {post.sekbid && (
-                    <div
-                      className="absolute top-4 right-4 px-4 py-2 rounded-full text-white text-sm font-semibold backdrop-blur-sm"
-                      style={{ backgroundColor: `${post.sekbid.color}CC` }}
-                    >
-                      {post.sekbid.icon} {post.sekbid.nama}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  {/* Meta info */}
-                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    <div className="flex items-center gap-1">
-                      <FaCalendar />
-                      <span>{new Date(post.published_at).toLocaleDateString('id-ID')}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FaEye />
-                      <span>{post.views}</span>
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors line-clamp-2">
-                    {post.title}
-                  </h3>
-
-                  {/* Excerpt */}
-                  {post.excerpt && (
-                    <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                      {post.excerpt}
-                    </p>
-                  )}
-
-                  {/* Author */}
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    {post.author && post.author.photo_url ? (
-                      <Image
-                        src={post.author.photo_url}
-                        alt={post.author.name}
-                        width={32}
-                        height={32}
-                        className="rounded-full"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold text-sm">
-                        {(post.author?.name || 'O').charAt(0)}
-                      </div>
-                    )}
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {post.author?.name || 'OSIS'}
-                    </span>
-                  </div>
-                </div>
-              </Link>
+              <PostCard key={post.id} post={post} index={index} />
             ))}
           </div>
 

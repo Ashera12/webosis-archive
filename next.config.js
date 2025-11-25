@@ -69,13 +69,6 @@ const nextConfig = {
     ],
   },
   
-  // Disable ESLint during build to avoid blocking builds for known lint rules.
-  // We still recommend fixing lint issues; this setting lets the production
-  // build proceed while we address them progressively.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
   // Import react-icons lebih cepat
   modularizeImports: {
     'react-icons': {

@@ -47,7 +47,7 @@ function DynamicHeroInternal() {
           setBg(bgData);
         }
       } catch (error) {
-        console.error('Error loading hero content:', error);
+        // Silent fail for background loading
       } finally {
         setLoading(false);
       }
@@ -59,22 +59,8 @@ function DynamicHeroInternal() {
   // Determine if hero should render background
   // Hero always renders its own background (like /about page)
   // Don't rely on body background
-  const shouldRenderHeroBg = true; // Always render background in hero
+  const shouldRenderHeroBg = true;
   
-  // Debug logging
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log('[DynamicHero] Background config:', { 
-      mode: bg.mode, 
-      scope: bg.scope, 
-      selectedPages: bg.selectedPages,
-      shouldRenderHeroBg,
-      hasColor: !!bg.color,
-      hasGradient: !!bg.gradient,
-      hasImage: !!bg.imageUrl,
-      loading
-    });
-  }
-
   // Calculate background style (non-image modes). If an imageUrl exists we let the image layers handle it
   const backgroundStyle = (() => {
     // If we have an imageUrl at all, skip inline background so image divs show
@@ -103,12 +89,11 @@ function DynamicHeroInternal() {
     );
   }
 
-  // Resolve displayed texts: use translations for current language; fallback to CMS for ID
   const displayTitle = language === 'id' ? (content.title || t('home.osisName')) : t('home.osisName');
   const displaySubtitle = language === 'id' ? (content.subtitle || t('home.subtitle')) : t('home.subtitle');
   const displayDescription = language === 'id' ? (content.description || t('home.description')) : t('home.description');
-  const labelAbout = t('about.aboutUs');
-  const labelGallery = t('home.viewGallery');
+  const labelAbout = language === 'id' ? 'Tentang Kami' : 'About Us';
+  const labelGallery = language === 'id' ? 'Lihat Galeri' : 'View Gallery';
 
   return (
     <section 
@@ -163,20 +148,17 @@ function DynamicHeroInternal() {
       {/* Content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="max-w-5xl mx-auto">
-          {/* Title */}
-          <h1 className="heading-hero text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight">
+          <h1 className="heading-hero text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight text-center drop-shadow-lg">
             {displayTitle}
           </h1>
 
-          {/* Subtitle */}
           <div className="inline-block mb-6 sm:mb-8 animate-fade-in-up animation-delay-200">
-            <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/10 dark:bg-gray-700/40 backdrop-blur-sm border border-white/20 dark:border-gray-600/40">
+            <p className="text-base sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/10 dark:bg-gray-700/40 backdrop-blur-md border border-white/20 dark:border-gray-600/40 text-center">
               {displaySubtitle}
             </p>
           </div>
 
-          {/* Description */}
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-blue-100 dark:text-gray-200 mb-8 sm:mb-10 lg:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-4">
+          <p className="text-xs sm:text-base md:text-lg lg:text-xl xl:text-2xl text-blue-100 dark:text-gray-200 mb-8 sm:mb-10 lg:mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400 px-4 text-center">
             {displayDescription}
           </p>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { useTranslation } from '@/hooks/useTranslation';
 
 const GoalsSection: React.FC = () => {
@@ -10,11 +11,14 @@ const GoalsSection: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header Section */}
       <div className="text-center mb-12 sm:mb-16">
-        <div className="relative mb-6 sm:mb-8">
-          <img 
+        <div className="relative mb-6 sm:mb-8 w-full max-w-4xl mx-auto aspect-video rounded-2xl overflow-hidden shadow-2xl">
+          <Image 
             src="/images/our-goals-placeholder.png" 
-            alt="Our Goals" 
-            className="mx-auto w-full max-w-4xl rounded-2xl shadow-2xl" 
+            alt="Our Goals"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1024px"
+            className="object-cover" 
+            priority
           />
         </div>
         

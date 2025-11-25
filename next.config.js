@@ -2,6 +2,11 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Turbopack configuration
+  turbopack: {
+    root: './',
+  },
+  
   // Experimental features consolidated (avoid duplicate keys)
   experimental: {
     serverActions: { bodySizeLimit: '50mb' },

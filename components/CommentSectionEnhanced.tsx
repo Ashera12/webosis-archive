@@ -42,6 +42,21 @@ export default function CommentSection({
   const [replyText, setReplyText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [anonymousCommentIds, setAnonymousCommentIds] = useState<string[]>([]);
+
+  // Load anonymous comment IDs from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('anonymousComments');
+      if (stored) {
+        try {
+          setAnonymousCommentIds(JSON.parse(stored));
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }, []);
 
   // Debug log user role once on mount
   useEffect(() => {
@@ -119,6 +134,13 @@ export default function CommentSection({
         setNewComment('');
         showToast('Komentar berhasil ditambahkan!', 'success');
         onCommentCountChange?.(comments.length + 1);
+        
+        // Track anonymous comment for delete permission
+        if (!session?.user && data.comment.id) {
+          const newIds = [...anonymousCommentIds, data.comment.id];
+          setAnonymousCommentIds(newIds);
+          localStorage.setItem('anonymousComments', JSON.stringify(newIds));
+        }
       } else {
         const error = await safeJson(response, { url: '/api/comments', method: 'POST' }).catch(() => ({ error: 'Gagal menambahkan komentar' }));
         showToast(error.error || 'Gagal menambahkan komentar', 'error');
@@ -155,6 +177,16 @@ export default function CommentSection({
         setReplyText('');
         setReplyTo(null);
         showToast('Reply berhasil ditambahkan!', 'success');
+        
+        // Track anonymous reply
+        if (!session?.user) {
+          const data = await safeJson(response, { url: '/api/comments', method: 'POST' });
+          if (data.comment?.id) {
+            const newIds = [...anonymousCommentIds, data.comment.id];
+            setAnonymousCommentIds(newIds);
+            localStorage.setItem('anonymousComments', JSON.stringify(newIds));
+          }
+        }
       } else {
         showToast('Gagal menambahkan reply', 'error');
       }
@@ -226,7 +258,16 @@ export default function CommentSection({
       });
 
       if (response.ok) {
+        setComments(comments.filter((c: Comment) => c.id !== commentId));
         showToast('Komentar berhasil dihapus', 'success');
+        onCommentCountChange?.(comments.length - 1);
+        
+        // Remove from anonymous tracking
+        if (anonymousCommentIds.includes(commentId)) {
+          const newIds = anonymousCommentIds.filter(id => id !== commentId);
+          setAnonymousCommentIds(newIds);
+          localStorage.setItem('anonymousComments', JSON.stringify(newIds));
+        }
       } else {
         // Revert on error
         setComments(originalComments);
@@ -243,34 +284,22 @@ export default function CommentSection({
   };
 
   const canDeleteComment = (comment: Comment) => {
-    if (!session?.user) return false;
-    
-    // Normalize role for checking (trim whitespace, lowercase)
-    const userRole = session.user.role?.trim()?.toLowerCase() || '';
-    
-    // Check exact match or contains privileged keywords
-    const isPrivileged = 
-      ['admin', 'superadmin', 'osis'].includes(userRole) ||
-      userRole.includes('admin') ||
-      userRole.includes('osis') ||
-      userRole.includes('super');
-    
-    const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
-    
-    // Log for debugging (only for first comment)
-    if (session.user.role && comment === comments[0]) {
-      console.log('[CommentSection] Permission check:', {
-        userId: session.user.id,
-        userRole: session.user.role,
-        normalized: userRole,
-        isPrivileged,
-        isOwner,
-        commentUserId: comment.user_id,
-        commentAuthorId: comment.author_id
-      });
+    // Check if user is logged in with privileged role
+    if (session?.user) {
+      const userRole = session.user.role?.trim()?.toLowerCase() || '';
+      const isPrivileged = 
+        ['admin', 'superadmin', 'osis'].includes(userRole) ||
+        userRole.includes('admin') ||
+        userRole.includes('osis') ||
+        userRole.includes('super');
+      
+      const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
+      
+      return isPrivileged || isOwner;
     }
     
-    return isPrivileged || isOwner;
+    // For anonymous users, check if they created this comment
+    return anonymousCommentIds.includes(comment.id);
   };
 
   const canEditComment = (comment: Comment) => {

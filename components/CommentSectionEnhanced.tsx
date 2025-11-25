@@ -10,7 +10,8 @@ interface Comment {
   id: string;
   content: string;
   author_name: string;
-  author_id?: string | null;
+  author_id?: string | null; // Supabase auth user id (unused for credential users)
+  user_id?: string | null;   // Internal NextAuth user id for ownership
   is_anonymous: boolean;
   created_at: string;
   likes: number;
@@ -42,6 +43,14 @@ export default function CommentSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
+  // Initial fetch for count even before toggling comment list
+  useEffect(() => {
+    if (contentId) {
+      fetchComments();
+    }
+  }, [contentId]);
+
+  // Refresh when opening comments
   useEffect(() => {
     if (showComments && contentId) {
       fetchComments();
@@ -216,13 +225,13 @@ export default function CommentSection({
   const canDeleteComment = (comment: Comment) => {
     if (!session?.user) return false;
     const isAdmin = session.user.role === 'admin';
-    const isOwner = session.user.id === comment.author_id;
+    const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
     return isAdmin || isOwner;
   };
 
   const canEditComment = (comment: Comment) => {
     if (!session?.user) return false;
-    return session.user.id === comment.author_id;
+    return session.user.id === comment.user_id || session.user.id === comment.author_id;
   };
 
   const renderComment = (comment: Comment, isReply: boolean = false) => (

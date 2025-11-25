@@ -112,29 +112,47 @@ export async function POST(request: NextRequest) {
     const isAnonymous = !session?.user?.id;
     const displayName = isAnonymous ? 'Anonymous' : (authorName || session.user.name || 'User');
 
-    const commentData = {
+    // Try with user_id first (new schema), fallback if column doesn't exist
+    let commentData: any = {
       content_id: contentId,
       content_type: contentType,
       content: content.trim(),
       author_name: displayName,
-      author_id: session?.user?.id || null,
+      author_id: null, // keep null to avoid FK to auth.users
+      user_id: !isAnonymous ? session?.user?.id : null,
       is_anonymous: isAnonymous,
       parent_id: parentId || null,
       created_at: new Date().toISOString()
     };
 
-    console.log('[Comments API] Inserting comment:', commentData);
+    console.log('[Comments API] Inserting comment (with user_id):', commentData);
 
-    const { data: comment, error } = await supabase
+    let { data: comment, error } = await supabase
       .from('comments')
       .insert([commentData])
       .select()
       .single();
 
+    // If error is column doesn't exist, retry without user_id (backward compatibility)
+    if (error && error.message?.includes('user_id')) {
+      console.log('[Comments API] Column user_id not found, retrying without it...');
+      const { user_id, ...dataWithoutUserId } = commentData;
+      
+      const retry = await supabase
+        .from('comments')
+        .insert([dataWithoutUserId])
+        .select()
+        .single();
+      
+      comment = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       console.error('[Comments API] Supabase error:', error);
+      console.error('[Comments API] Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { error: 'Gagal menambahkan komentar', details: error.message },
+        { error: 'Gagal menambahkan komentar', details: error.message, code: error.code },
         { status: 500 }
       );
     }

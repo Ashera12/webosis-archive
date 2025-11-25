@@ -12,7 +12,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('[Comments API] DELETE request started for:', params.id);
+    
     const session = await auth();
+    console.log('[Comments API] Session:', {
+      authenticated: !!session?.user,
+      userId: session?.user?.id,
+      role: session?.user?.role
+    });
+    
     const commentId = params.id;
 
     // Get comment to check ownership
@@ -23,41 +31,60 @@ export async function DELETE(
       .single();
 
     if (fetchError || !comment) {
+      console.error('[Comments API] Comment not found:', fetchError);
       return NextResponse.json(
-        { error: 'Komentar tidak ditemukan' },
+        { error: 'Komentar tidak ditemukan', details: fetchError?.message },
         { status: 404 }
       );
     }
 
+    console.log('[Comments API] Comment found:', {
+      id: comment.id,
+      authorId: comment.author_id,
+      userId: comment.user_id,
+      isAnonymous: comment.is_anonymous
+    });
+
     // Check if user is authorized to delete
     const isAdmin = session?.user?.role === 'admin';
-    const isOwner = session?.user?.id === comment.author_id;
+    const isOwner = session?.user?.id && (session.user.id === comment.user_id || session.user.id === comment.author_id);
+    const isAnonymousComment = !comment.user_id && !comment.author_id;
 
-    if (!isAdmin && !isOwner) {
+    console.log('[Comments API] Permission check:', {
+      isAdmin,
+      isOwner,
+      isAnonymousComment,
+      canDelete: isAdmin || isOwner || isAnonymousComment
+    });
+
+    if (!isAdmin && !isOwner && !isAnonymousComment) {
       return NextResponse.json(
         { error: 'Tidak memiliki izin untuk menghapus komentar ini' },
         { status: 403 }
       );
     }
 
+    // Service role key bypasses RLS, so this should work
     const { error: deleteError } = await supabase
       .from('comments')
       .delete()
       .eq('id', commentId);
 
     if (deleteError) {
-      console.error('Error deleting comment:', deleteError);
+      console.error('[Comments API] Delete error:', deleteError);
       return NextResponse.json(
-        { error: 'Gagal menghapus komentar' },
+        { error: 'Gagal menghapus komentar', details: deleteError.message },
         { status: 500 }
       );
     }
 
+    console.log('[Comments API] Comment deleted successfully:', commentId);
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/comments/[id]:', error);
+    console.error('[Comments API] DELETE exception:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     );
   }
@@ -95,7 +122,7 @@ export async function PATCH(
     }
 
     // Check if user is the owner
-    const isOwner = session?.user?.id === comment.author_id;
+    const isOwner = session?.user?.id && (session.user.id === comment.user_id || session.user.id === comment.author_id);
 
     if (!isOwner) {
       return NextResponse.json(

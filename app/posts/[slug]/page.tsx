@@ -5,6 +5,7 @@ import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import MediaRenderer from '@/components/MediaRenderer';
+import ContentInteractions from '@/components/ContentInteractions';
 import Link from 'next/link';
 import { FaArrowLeft, FaCalendar, FaEye, FaUser, FaTag } from 'react-icons/fa';
 
@@ -206,48 +207,21 @@ export default function PostDetailPage() {
             </div>
           )}
 
-          {/* Share Section */}
-          <div className="mt-8 sm:mt-10 md:mt-12 pt-6 sm:pt-8 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-                Bagikan Artikel
-              </h3>
-              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-                <button
-                  onClick={async () => {
-                    const url = window.location.href;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      try {
-                        await navigator.clipboard.writeText(url);
-                        alert('Link berhasil disalin!');
-                      } catch (err) {
-                        console.error('Clipboard error:', err);
-                        alert('Gagal menyalin link. Silakan copy manual.');
-                      }
-                    } else {
-                      // Fallback for browsers without clipboard API
-                      const textarea = document.createElement('textarea');
-                      textarea.value = url;
-                      textarea.style.position = 'fixed';
-                      textarea.style.opacity = '0';
-                      document.body.appendChild(textarea);
-                      textarea.select();
-                      try {
-                        document.execCommand('copy');
-                        alert('Link berhasil disalin!');
-                      } catch (err) {
-                        alert('Gagal menyalin link.');
-                      }
-                      document.body.removeChild(textarea);
-                    }
-                  }}
-                  className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors font-medium text-sm flex-1 sm:flex-initial"
-                >
-                  Salin Link
-                </button>
-              </div>
-            </div>
+          {/* Interaction Section - Like, Comment, Share */}
+          <div className="mt-8 sm:mt-10 md:mt-12 pt-6 sm:pt-8 border-t-2 border-gray-200 dark:border-gray-700">
+            <ContentInteractions
+              contentId={post.id}
+              contentType="post"
+              contentTitle={post.title}
+              contentUrl={`/posts/${post.slug}`}
+              initialLikes={0}
+              initialComments={0}
+              isLiked={false}
+              className="justify-center sm:justify-start"
+            />
           </div>
+
+          {/* Old Share Section - Removed, replaced by ContentInteractions */}
         </div>
       </article>
 

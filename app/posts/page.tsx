@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaNewspaper, FaCalendar, FaEye, FaArrowRight } from 'react-icons/fa';
 import MediaRenderer from '@/components/MediaRenderer';
+import ContentInteractions from '@/components/ContentInteractions';
 import Link from 'next/link';
 
 interface Post {
@@ -192,6 +193,19 @@ export default function PostsPage() {
                     Baca Selengkapnya
                     <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
                   </Link>
+                  
+                  {/* Interactions */}
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <ContentInteractions
+                      contentId={post.id}
+                      contentType="post"
+                      contentTitle={post.title}
+                      contentUrl={`/posts/${post.slug}`}
+                      initialLikes={0}
+                      initialComments={0}
+                      isLiked={false}
+                    />
+                  </div>
                 </div>
               </article>
             ))}

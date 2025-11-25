@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaBullhorn, FaCalendarAlt, FaPoll, FaNewspaper, FaFileAlt } from 'react-icons/fa';
 import MediaRenderer from '@/components/MediaRenderer';
+import ContentInteractions from '@/components/ContentInteractions';
 import Link from 'next/link';
 
 interface Announcement {
@@ -261,6 +262,19 @@ export default function InfoPage() {
                         year: 'numeric',
                       })}
                     </p>
+                    
+                    {/* Interactions */}
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <ContentInteractions
+                        contentId={ann.id}
+                        contentType="announcement"
+                        contentTitle={ann.title}
+                        contentUrl={`/info#announcement-${ann.id}`}
+                        initialLikes={0}
+                        initialComments={0}
+                        isLiked={false}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -325,6 +339,19 @@ export default function InfoPage() {
                           Daftar Sekarang
                         </a>
                       )}
+                      
+                      {/* Interactions */}
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <ContentInteractions
+                          contentId={event.id || uniqueKey}
+                          contentType="event"
+                          contentTitle={event.title}
+                          contentUrl={`/info#event-${event.id || uniqueKey}`}
+                          initialLikes={0}
+                          initialComments={0}
+                          isLiked={false}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
@@ -423,6 +450,19 @@ export default function InfoPage() {
                               </p>
                             )}
                           </div>
+                          
+                          {/* Poll Interactions */}
+                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <ContentInteractions
+                              contentId={poll.id}
+                              contentType="poll"
+                              contentTitle={poll.question}
+                              contentUrl={`/info#poll-${poll.id}`}
+                              initialLikes={0}
+                              initialComments={0}
+                              isLiked={false}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -489,6 +529,20 @@ export default function InfoPage() {
                                   Baca Selengkapnya
                                   <span className="transition-transform group-hover:translate-x-0.5">→</span>
                                 </a>
+                              </div>
+                              
+                              {/* Post Interactions */}
+                              <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                                <ContentInteractions
+                                  contentId={post.id}
+                                  contentType="post"
+                                  contentTitle={post.title}
+                                  contentUrl={`/posts/${post.slug}`}
+                                  initialLikes={0}
+                                  initialComments={0}
+                                  isLiked={false}
+                                  className="scale-90"
+                                />
                               </div>
                             </div>
                           </div>

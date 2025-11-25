@@ -1,0 +1,20 @@
+# Contoh Data Anggota OSIS (members) - Format CSV
+
+id,name,role,jabatan,nama,foto_url,sekbid_id,active
+1,Ahmad Fauzan,ketua,Ketua OSIS,Ahmad Fauzan,https://your-project.supabase.co/storage/v1/object/public/members/ahmad.jpg,1,true
+2,Budi Santoso,wakil,Wakil Ketua,Budi Santoso,https://your-project.supabase.co/storage/v1/object/public/members/budi.jpg,1,true
+3,Citra Dewi,sekretaris,Sekretaris,Citra Dewi,https://your-project.supabase.co/storage/v1/object/public/members/citra.jpg,2,true
+4,Dewi Lestari,bendahara,Bendahara,Dewi Lestari,https://your-project.supabase.co/storage/v1/object/public/members/dewi.jpg,2,true
+5,Eka Putra,anggota,Anggota Sekbid 1,Eka Putra,https://your-project.supabase.co/storage/v1/object/public/members/eka.jpg,1,true
+6,Fajar Hidayat,anggota,Anggota Sekbid 2,Fajar Hidayat,https://your-project.supabase.co/storage/v1/object/public/members/fajar.jpg,2,true
+# Tambahkan anggota lain sesuai kebutuhan
+
+# Cara Import:
+# 1. Masuk Supabase Dashboard → Table Editor → members
+# 2. Klik "Import Data" → Pilih file CSV ini
+# 3. Pastikan mapping kolom sesuai
+# 4. Klik "Import"
+
+# Pastikan kolom sekbid_id sesuai dengan id di tabel sekbid
+# Pastikan foto_url mengarah ke file yang sudah di-upload di bucket members
+# Kolom active = true untuk anggota aktif

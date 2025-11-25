@@ -1,0 +1,38 @@
+name: Apply Supabase SQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Mode to run: preview | apply-non-destructive | apply-all'
+        required: true
+        default: 'preview'
+      confirm:
+        description: "Set to 'YES' to confirm destructive apply when mode=apply-all"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  apply-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run apply runner
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} # lint-ignore: valid GitHub secret
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} # lint-ignore: valid GitHub secret
+          ALLOW_DESTRUCTIVE_SQL: ${{ secrets.ALLOW_DESTRUCTIVE_SQL }} # lint-ignore: valid GitHub secret
+        run: |
+          node tools/run_apply_all.js

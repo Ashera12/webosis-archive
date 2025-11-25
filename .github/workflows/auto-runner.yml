@@ -1,0 +1,22 @@
+name: Auto-run admin ops
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # every 5 minutes
+  workflow_dispatch: {}
+
+jobs:
+  call-auto-runner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call auto_runner endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }} # lint-ignore: secrets context valid in GitHub Actions
+          ADMIN_OPS_TOKEN: ${{ secrets.ADMIN_OPS_TOKEN }} # lint-ignore: secrets context valid in GitHub Actions
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$ADMIN_OPS_TOKEN" ]; then
+            echo "APP_URL or ADMIN_OPS_TOKEN not set in secrets";
+            exit 1;
+          fi
+          echo "Calling $APP_URL/api/admin/auto_runner"
+          curl -s -X POST "$APP_URL/api/admin/auto_runner" -H "x-admin-ops-token: $ADMIN_OPS_TOKEN" -H 'Content-Type: application/json' | jq || true

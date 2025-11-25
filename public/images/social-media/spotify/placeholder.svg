@@ -1,0 +1,24 @@
+<svg width="640" height="640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="spotifyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1DB954;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1AA34A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#spotifyGrad)"/>
+  
+  <!-- Spotify Icon (Sound waves) -->
+  <g transform="translate(320, 280)">
+    <path d="M -150,-60 Q 0,-80 150,-60" fill="none" stroke="white" stroke-width="20" stroke-linecap="round"/>
+    <path d="M -120,-10 Q 0,-25 120,-10" fill="none" stroke="white" stroke-width="20" stroke-linecap="round"/>
+    <path d="M -90,40 Q 0,30 90,40" fill="none" stroke="white" stroke-width="20" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="320" y="480" font-family="Arial, sans-serif" font-size="44" fill="white" text-anchor="middle" font-weight="bold">
+    OSIS SMK Informatika
+  </text>
+  <text x="320" y="540" font-family="Arial, sans-serif" font-size="32" fill="white" text-anchor="middle" opacity="0.9">
+    Podcast / Playlist
+  </text>
+</svg>

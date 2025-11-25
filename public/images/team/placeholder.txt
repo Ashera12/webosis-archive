@@ -1,0 +1,17 @@
+Folder ini untuk menyimpan foto-foto anggota tim OSIS.
+
+Gambar yang diperlukan untuk halaman About:
+
+Pengurus Inti:
+- KO.JPG (Muhammad Hafidz Azzamulhaq - Ketua OSIS)
+- WKO.JPG (Nooraisha Tiara Putri - Wakil Ketua OSIS)
+- SKTO.JPG (I'tisyam Ariqoh Shafa - Sekretaris OSIS)
+- BDHRO.JPG (Rahma Ayuna Nurul Haq - Bendahara OSIS)
+
+Kepala Departemen:
+- farras.JPG (Farras Yusra Juneeta - Kepala Departemen A)
+- adiba.JPG (Adiba Alya Batrisya - Kepala Departemen B)
+- kafka.JPG (Mochammad Kafka Reznia Avicena - Kepala Departemen C)
+- adnan.JPG (Adnan Humam Alfadz - Kepala Departemen D)
+
+Silakan tambahkan foto-foto tersebut ke folder ini.

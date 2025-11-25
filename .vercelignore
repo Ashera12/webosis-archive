@@ -1,0 +1,19 @@
+# Large files and directories to exclude from Vercel deployment
+404.zip
+node_modules/
+.next/
+.git/
+*.log
+.env.local
+.env*.local
+backups/
+tools/
+data/
+*.zip
+*.tar
+*.tar.gz
+test/
+.vscode/
+.github/
+migrations/
+scripts/

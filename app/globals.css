@@ -1,0 +1,437 @@
+
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* stylelint-enable */
+
+/* ===== ROOT VARIABLES ===== */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --gradient-bg: linear-gradient(to bottom, #f9fafb 0%, #ffffff 50%, #f3f4f6 100%);
+
+  /* Core Surfaces */
+  --surface: #ffffff;
+  --surface-alt: #f9fafb;
+  --surface-muted: #f3f4f6;
+  --surface-inset: #eef0f3;
+
+  /* Border & Outline */
+  --border: #d1d5db;
+  --border-alt: #e5e7eb;
+  --border-strong: #9ca3af;
+
+  /* Text Tokens */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-invert: #ffffff;
+
+  /* Brand / Accent */
+  --accent: #d4af37; /* gold */
+  --accent-emphasis: #b58d0f;
+  --accent-soft: #fef3c7;
+
+  /* Status */
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --warning: #f59e0b;
+  --warning-bg: #fef3c7;
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --info: #2563eb;
+  --info-bg: #dbeafe;
+
+  /* Overlay / Backdrop */
+  --overlay: rgba(0,0,0,0.35);
+  --overlay-soft: rgba(0,0,0,0.15);
+  --backdrop-blur: 12px;
+
+  /* Layout spacing */
+  --navbar-height: 64px;
+  --mobile-navbar-height: 56px;
+
+  /* Component Specific */
+  --card-bg: var(--surface);
+  --card-bg-muted: var(--surface-muted);
+  --card-border: var(--border);
+  --button-bg: linear-gradient(to right,#fbbf24,#d97706);
+  --button-bg-hover: linear-gradient(to right,#f59e0b,#b45309);
+  --input-bg: #f3f4f6;
+  --input-bg-focus: #ffffff;
+  --input-border: #d1d5db;
+  --input-border-focus: #b58d0f;
+  --header-backdrop: rgba(255,255,255,0.7);
+  --header-border: rgba(212,175,55,0.18);
+
+  /* Transitions */
+  --transition-fast: 150ms;
+  --transition-medium: 300ms;
+  --transition-slow: 600ms;
+  
+  /* Fluid Typography Scale (clamp for responsive sizing) */
+  --text-xs: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.3vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.4vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1.05rem + 0.5vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 1.15rem + 0.6vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.35rem + 0.8vw, 2rem);
+  --text-3xl: clamp(1.875rem, 1.65rem + 1vw, 2.5rem);
+  --text-4xl: clamp(2.25rem, 1.9rem + 1.5vw, 3rem);
+  
+  /* Spacing Scale (fluid for responsive padding/margin) */
+  --space-xs: clamp(0.5rem, 0.45rem + 0.2vw, 0.75rem);
+  --space-sm: clamp(0.75rem, 0.7rem + 0.3vw, 1rem);
+  --space-md: clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
+  --space-lg: clamp(1.5rem, 1.3rem + 0.8vw, 2rem);
+  --space-xl: clamp(2rem, 1.7rem + 1.2vw, 3rem);
+  --space-2xl: clamp(3rem, 2.5rem + 2vw, 4rem);
+  
+  /* Container Max Width */
+  --container-max: 1280px;
+  --container-padding: clamp(1rem, 3vw, 1.5rem);
+  
+  /* Border Radius Scale */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+}
+
+/* Removed prefers-color-scheme auto override to honor manual toggle */
+/* Light mode explicit class (optional explicit reset when user forces light while system dark) */
+html.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  --gradient-bg: linear-gradient(to bottom, #f9fafb 0%, #ffffff 50%, #f3f4f6 100%);
+
+  --surface: #ffffff;
+  --surface-alt: #f9fafb;
+  --surface-muted: #f3f4f6;
+  --surface-inset: #eef0f3;
+  --border: #d1d5db;
+  --border-alt: #e5e7eb;
+  --border-strong: #9ca3af;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-invert: #ffffff;
+  --accent: #d4af37;
+  --accent-emphasis: #b58d0f;
+  --accent-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --warning: #f59e0b;
+  --warning-bg: #fef3c7;
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --info: #2563eb;
+  --info-bg: #dbeafe;
+  --overlay: rgba(0,0,0,0.35);
+  --overlay-soft: rgba(0,0,0,0.15);
+  --card-bg: var(--surface);
+  --card-bg-muted: var(--surface-muted);
+  --card-border: var(--border);
+  --button-bg: linear-gradient(to right,#fbbf24,#d97706);
+  --button-bg-hover: linear-gradient(to right,#f59e0b,#b45309);
+  --input-bg: #f3f4f6;
+  --input-bg-focus: #ffffff;
+  --input-border: #d1d5db;
+  --input-border-focus: #b58d0f;
+  --header-backdrop: rgba(255,255,255,0.7);
+  --header-border: rgba(212,175,55,0.18);
+}
+
+/* Dark mode via class selector */
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --gradient-bg: linear-gradient(to bottom, #111827 0%, #1f2937 50%, #0f172a 100%);
+
+  --surface: #0f172a;
+  --surface-alt: #1e293b;
+  --surface-muted: #27354a;
+  --surface-inset: #162131;
+  --border: #334155;
+  --border-alt: #1e293b;
+  --border-strong: #475569;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-invert: #0f172a;
+  --accent: #d4af37;
+  --accent-emphasis: #facc15;
+  --accent-soft: rgba(212,175,55,0.15);
+  --danger: #f87171;
+  --danger-bg: rgba(220,38,38,0.15);
+  --warning: #fbbf24;
+  --warning-bg: rgba(234,179,8,0.15);
+  --success: #4ade80;
+  --success-bg: rgba(22,163,74,0.18);
+  --info: #60a5fa;
+  --info-bg: rgba(37,99,235,0.18);
+  --overlay: rgba(0,0,0,0.55);
+  --overlay-soft: rgba(0,0,0,0.35);
+  --card-bg: #1e293b;
+  --card-bg-muted: #162131;
+  --card-border: #334155;
+  --button-bg: linear-gradient(to right,#d97706,#b45309);
+  --button-bg-hover: linear-gradient(to right,#f59e0b,#d97706);
+  --input-bg: #1e293b;
+  --input-bg-focus: #0f172a;
+  --input-border: #334155;
+  --input-border-focus: #d4af37;
+  --header-backdrop: rgba(2,6,23,0.55);
+  --header-border: rgba(212,175,55,0.12);
+}
+
+/* ===== BASE STYLES ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--gradient-bg);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== LAYOUT ===== */
+.page-content {
+  padding-top: clamp(60px, 10vw, 80px);
+  padding-bottom: var(--space-xl);
+  min-height: 100vh;
+}
+
+main {
+  min-height: calc(100vh - 80px);
+}
+
+footer {
+  margin-top: auto;
+}
+
+/* Container utility */
+.container-responsive {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+/* ===== NAVBAR ===== */
+.glass-nav {
+  position: sticky;
+  top: 0;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  background-color: rgba(255,255,255,0.72);
+  border-bottom: 1px solid rgba(212,175,55,0.12);
+  z-index: 60;
+}
+
+.dark .glass-nav {
+  background-color: rgba(2,6,23,0.45);
+  border-bottom: 1px solid rgba(212,175,55,0.06);
+}
+
+/* ===== HERO SECTION ===== */
+.hero-compact {
+  min-height: 60vh;
+}
+
+@media (min-width: 768px) {
+  .hero-compact {
+    min-height: 70vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-compact {
+    min-height: 85vh;
+  }
+}
+
+/* ===== TYPOGRAPHY ===== */
+.heading-primary {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.heading-secondary {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.heading-tertiary {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.text-body {
+  font-size: var(--text-base);
+  line-height: 1.7;
+}
+
+.text-caption {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* ===== CARDS ===== */
+.card-modern {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-md);
+  transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.dark .card-modern {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ===== BUTTONS ===== */
+.btn-primary {
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-base);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px; /* Touch-friendly */
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ===== GRID SYSTEM ===== */
+.grid-responsive {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+  }
+}
+
+/* ===== UTILITIES ===== */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Image optimization */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== BROWSER EXTENSION COMPATIBILITY ===== */
+/* Suppress hydration warnings from password managers and form fillers */
+/* These extensions add attributes like fdprocessedid, data-1p-ignore, etc */
+input[fdprocessedid],
+button[fdprocessedid],
+form[fdprocessedid],
+input[data-1p-ignore],
+input[data-lpignore],
+input[data-form-type] {
+  /* Force reflow to ensure consistency */
+  contain: layout style;
+}
+
+/* Prevent flash of unstyled content (FOUC) */
+html:not(.light):not(.dark) {
+  visibility: hidden;
+}
+
+html.light,
+html.dark {
+  visibility: visible;
+}

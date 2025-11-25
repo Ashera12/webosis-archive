@@ -1,0 +1,28 @@
+<svg width="1080" height="1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="instagramGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#833AB4;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#E1306C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FD1D1D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#instagramGrad)"/>
+  
+  <!-- Instagram Icon -->
+  <g transform="translate(540, 540)">
+    <!-- Camera body -->
+    <rect x="-150" y="-150" width="300" height="300" rx="80" fill="none" stroke="white" stroke-width="20"/>
+    <!-- Camera circle -->
+    <circle cx="0" cy="0" r="80" fill="none" stroke="white" stroke-width="20"/>
+    <!-- Camera dot -->
+    <circle cx="90" cy="-90" r="15" fill="white"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="540" y="850" font-family="Arial, sans-serif" font-size="48" fill="white" text-anchor="middle" font-weight="bold">
+    OSIS SMK Informatika
+  </text>
+  <text x="540" y="920" font-family="Arial, sans-serif" font-size="36" fill="white" text-anchor="middle" opacity="0.9">
+    Instagram Post
+  </text>
+</svg>

@@ -1,0 +1,139 @@
+/**
+ * Global Mobile-First Responsive Utilities
+ * Auto-imported in layout.tsx for consistent mobile UX
+ */
+
+/* Ensure all containers have mobile-friendly padding */
+.container {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* Mobile-optimized text sizes */
+@media (max-width: 640px) {
+  h1 {
+    @apply text-2xl leading-tight;
+  }
+  
+  h2 {
+    @apply text-xl leading-snug;
+  }
+  
+  h3 {
+    @apply text-lg leading-normal;
+  }
+  
+  /* Reduce padding on sections for mobile */
+  section {
+    @apply py-8;
+  }
+  
+  /* Better touch targets for buttons */
+  button:not(.btn-sm),
+  a.btn:not(.btn-sm) {
+    @apply min-h-[44px] px-4 py-2.5;
+  }
+  
+  /* Readable form inputs on mobile */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  textarea,
+  select {
+    @apply text-base min-h-[44px];
+  }
+  
+  /* Prevent horizontal scroll */
+  body {
+    @apply overflow-x-hidden;
+  }
+  
+  /* Stack flex items on mobile by default */
+  .mobile-stack {
+    @apply flex-col;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    @apply px-6;
+  }
+  
+  section {
+    @apply py-12;
+  }
+}
+
+/* Utility classes for common mobile patterns */
+.mobile-hidden {
+  @apply hidden sm:block;
+}
+
+.mobile-only {
+  @apply block sm:hidden;
+}
+
+.mobile-center {
+  @apply text-center sm:text-left;
+}
+
+.mobile-full {
+  @apply w-full sm:w-auto;
+}
+
+/* Touch-friendly spacing */
+.touch-spacing > * + * {
+  @apply mt-3 sm:mt-4;
+}
+
+/* Responsive grid fallback */
+.responsive-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+}
+
+/* Mobile card optimization */
+.card-mobile {
+  @apply rounded-lg p-4 sm:p-6;
+}
+
+/* Ensure images don't overflow on mobile */
+img,
+video {
+  @apply max-w-full h-auto;
+}
+
+/* Better table responsiveness */
+@media (max-width: 640px) {
+  table {
+    @apply text-sm;
+  }
+  
+  /* Force tables to scroll horizontally on mobile */
+  .table-responsive {
+    @apply overflow-x-auto -mx-4 px-4;
+  }
+}
+
+/* Modal improvements for mobile */
+@media (max-width: 640px) {
+  .modal-content,
+  [role="dialog"] {
+    @apply w-full mx-4 max-h-[90vh] overflow-y-auto;
+  }
+}
+
+/* Bottom navigation safe area for mobile */
+.mobile-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+/* Prevent text zoom on input focus (iOS) */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

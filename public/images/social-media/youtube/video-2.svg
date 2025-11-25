@@ -1,0 +1,28 @@
+<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="youtubeGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#CC0000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF0000;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#youtubeGrad2)"/>
+  
+  <!-- Code Icon -->
+  <g transform="translate(640, 300)">
+    <text x="0" y="0" font-family="monospace" font-size="120" fill="white" text-anchor="middle" opacity="0.3">&lt;/&gt;</text>
+  </g>
+  
+  <!-- Play Button -->
+  <g transform="translate(640, 360)">
+    <circle cx="0" cy="0" r="90" fill="white" opacity="0.95"/>
+    <polygon points="-25,-45 -25,45 55,0" fill="#FF0000"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="640" y="600" font-family="Arial, sans-serif" font-size="52" fill="white" text-anchor="middle" font-weight="bold">
+    Workshop & Tutorial
+  </text>
+  <text x="640" y="660" font-family="Arial, sans-serif" font-size="38" fill="white" text-anchor="middle" opacity="0.9">
+    OSIS SMK Informatika
+  </text>
+</svg>

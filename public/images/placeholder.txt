@@ -1,0 +1,11 @@
+Folder ini untuk menyimpan gambar-gambar website.
+
+Gambar yang diperlukan:
+- logo.png (logo OSIS)
+- hero-bg.jpg (background hero section)
+- gallery-1.jpg sampai gallery-4.jpg (foto galeri)
+- our-goals-placeholder.png (gambar untuk section goals)
+- placeholder-about.svg (placeholder untuk halaman about)
+- placeholder-programs.svg (placeholder untuk halaman program kerja)
+
+Silakan tambahkan gambar-gambar tersebut ke folder ini.

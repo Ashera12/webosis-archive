@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Novel Windu Fajrian",
+    "role": "Ketua OSIS",
+    "section": null
+  },
+  {
+    "name": "Qaila Nusaybah Amani",
+    "role": "Wakil Ketua",
+    "section": null
+  },
+  {
+    "name": "Irsyad Muthi Amrullah",
+    "role": "Sekretaris",
+    "section": null
+  },
+  {
+    "name": "Fatiya Kayisah Az-Zahra",
+    "role": "Bendahara",
+    "section": null
+  },
+  { "name": "Nazmia Tsakib Hanani", "role": "Anggota", "section": 1 },
+  { "name": "Muhammad Irsyad Kaamil Pasha", "role": "Anggota", "section": 1 },
+  { "name": "Almer Shaquille Althafurrahman Darmawan", "role": "Anggota", "section": 2 },
+  { "name": "Qaulan Tsakilla", "role": "Anggota", "section": 2 },
+  { "name": "M. Syaddad Muallim", "role": "Anggota", "section": 3 },
+  { "name": "Alfadjri Alifaumi", "role": "Koordinator Sekbid", "section": 3 },
+  { "name": "Darrel Khalfan Gunadi", "role": "Anggota", "section": 4 },
+  { "name": "Resti Dewi Lestari", "role": "Anggota", "section": 4 },
+  { "name": "Nasya Ghalia Muharti", "role": "Anggota", "section": 4 },
+  { "name": "Lian", "role": "Anggota", "section": 5 },
+  { "name": "Najwan Azhiim Muntadzor", "role": "Anggota", "section": 6 },
+  { "name": "Athaya Zanirah Ramadhani", "role": "Anggota", "section": 6 },
+  { "name": "Irga Andreansyah Setiawan", "role": "Anggota", "section": 6 },
+  { "name": "Tsurayya Naqiya Octanary", "role": "Anggota", "section": null },
+  { "name": "Medina Zulfanisa", "role": "Anggota", "section": null },
+  { "name": "Annisa", "role": "Anggota", "section": null },
+  { "name": "Zahra", "role": "Anggota", "section": null },
+  { "name": "Kiki", "role": "Anggota", "section": null },
+  { "name": "Marrisa", "role": "Anggota", "section": null },
+  { "name": "Adzrahaifa Amadea Dwi", "role": "Anggota", "section": null },
+  { "name": "Alifah Shafina Amanda", "role": "Anggota", "section": null },
+  { "name": "Safa Aprilia Ansari", "role": "Anggota", "section": null },
+  { "name": "Raihan Akbar Putra Jaya", "role": "Anggota", "section": null },
+  { "name": "Alvira Alifiah Raiq", "role": "Anggota", "section": null }
+]

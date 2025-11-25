@@ -1,0 +1,161 @@
+:root {
+  --ds-radius: 12px;
+  --ds-space-xs: 6px;
+  --ds-space-sm: 12px;
+  --ds-space-md: 20px;
+  --ds-space-lg: 36px;
+  --ds-text-xxs: 12px;
+  --ds-text-xs: 14px;
+  --ds-text-sm: 15px;
+  --ds-text-md: 18px;
+  --ds-text-lg: 24px;
+  --ds-ease: cubic-bezier(.2,.9,.2,1);
+}
+
+/* Variation A: Minimalism mastery - soft pastel, editorial serif headings */
+.ds-variation-a {
+  --bg: #fbfbfc;
+  --panel: rgba(255,255,255,0.7);
+  --muted: #6b7280;
+  --accent: #7aa3d9; /* soft blue */
+  --heading-font: 'Merriweather', serif;
+  --body-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* Variation B: Design system excellence - warm neutrals, editorial tone */
+.ds-variation-b {
+  --bg: #fbf7f3;
+  --panel: rgba(255,255,255,0.75);
+  --muted: #5b5b5b;
+  --accent: #c49b6d; /* warm sandy */
+  --heading-font: 'Playfair Display', serif;
+  --body-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+/* Dark theme for Variant B — MAC: Master Aesthetic Conductor */
+.ds-variation-b.ds-theme-dark {
+  --bg: #0b0c10; /* deep night */
+  --panel: rgba(20,22,26,0.6);
+  --muted: #94a3b8; /* softened text */
+  --accent: #c9a86a; /* warm gold accent */
+  --heading-font: 'Playfair Display', serif;
+  --body-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+
+  /* MAC-specific adjustments */
+  --mac-shadow-soft: 0 8px 30px rgba(2,6,23,0.6);
+  --mac-glow: 0 0 18px rgba(201,168,106,0.07);
+}
+
+/* Variation C: Interaction sophistication - cool pastel with subtle depth */
+.ds-variation-c {
+  --bg: #f6fbfb;
+  --panel: rgba(255,255,255,0.8);
+  --muted: #6a747a;
+  --accent: #9ac6b6; /* soft teal */
+  --heading-font: 'Georgia', serif;
+  --body-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* Shared tokens */
+.ds-root {
+  background-color: var(--bg);
+  color: #0f172a;
+  font-family: var(--body-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* Adjust color for dark variant */
+.ds-variation-b.ds-theme-dark .ds-root, .ds-variation-b.ds-theme-dark {
+  color: #e6eef6;
+}
+
+.ds-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: calc(var(--ds-space-lg));
+}
+
+.ds-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-lg);
+  align-items: center;
+  min-height: 56vh;
+  border-radius: var(--ds-radius);
+  overflow: hidden;
+}
+/* Dark variant media visual adjustments */
+.ds-variation-b.ds-theme-dark .ds-hero .media {
+  background-image: linear-gradient(180deg, rgba(0,0,0,0.14), rgba(2,6,12,0.28)), url('/hero-placeholder.jpg');
+  box-shadow: var(--mac-shadow-soft), var(--mac-glow);
+}
+
+.ds-hero .media {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.02)), url('/hero-placeholder.jpg');
+  background-size: cover;
+  background-position: center;
+  min-height: 320px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(11,22,34,0.04);
+}
+
+.ds-hero .content {
+  padding: calc(var(--ds-space-md));
+}
+
+.ds-heading {
+  font-family: var(--heading-font);
+  font-size: var(--ds-text-lg);
+  line-height: 1.05;
+  color: #071133;
+  margin-bottom: calc(var(--ds-space-sm));
+}
+/* Heading color adjustments for Variant B dark */
+.ds-variation-b.ds-theme-dark .ds-heading {
+  color: #f8f5ec;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+}
+
+.ds-subtle {
+  color: var(--muted);
+  font-size: var(--ds-text-sm);
+}
+
+.ds-card {
+  background: var(--panel);
+  padding: var(--ds-space-md);
+  border-radius: calc(var(--ds-radius) - 2px);
+}
+
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  transition: transform 200ms var(--ds-ease), box-shadow 200ms var(--ds-ease), opacity 200ms var(--ds-ease);
+  box-shadow: 0 6px 12px rgba(10,20,30,0.06);
+}
+
+.ds-btn:active { transform: translateY(1px) scale(.998); }
+.ds-btn:focus { outline: 3px solid rgba(10,20,30,0.06); }
+/* Button adjustments for MAC dark theme */
+.ds-variation-b.ds-theme-dark .ds-btn {
+  background: linear-gradient(180deg, rgba(202,164,104,1), rgba(196,155,109,1));
+  box-shadow: var(--mac-glow), 0 10px 24px rgba(2,6,12,0.6);
+}
+/* Subtle panel dim for dark */
+.ds-variation-b.ds-theme-dark .ds-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.03);
+}
+/* Make sure lighter text sits on dark background */
+.ds-variation-b.ds-theme-dark { background-color: var(--bg); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ds-hero { grid-template-columns: 1fr; }
+  .ds-hero .media { order: -1; }
+}

@@ -81,7 +81,7 @@ export default function ContentInteractions({
   };
 
   const handleNativeShare = async () => {
-    if (navigator.share) {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
         await navigator.share({
           title: contentTitle,
@@ -211,7 +211,7 @@ export default function ContentInteractions({
             {/* Share Options */}
             <div className="space-y-3">
               {/* Native Share (Mobile) */}
-              {navigator.share && (
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
                 <button
                   onClick={handleNativeShare}
                   className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300 transform hover:scale-105"

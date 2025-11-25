@@ -46,16 +46,19 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
       <div className="h-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-white/20 dark:border-gray-700/50 shadow-lg">
         
         {/* Featured Image with fixed aspect ratio */}
-        <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-yellow-400/10 to-blue-400/10">
+        <div className="relative aspect-[16/9] overflow-hidden bg-gray-100 dark:bg-gray-800">
           <Image
             src={imageUrl}
             alt={post.title}
             fill
+            priority={index === 0}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover group-hover:scale-110 transition-transform duration-500"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
-              target.src = fallbackImage;
+              if (target.src !== fallbackImage) {
+                target.src = fallbackImage;
+              }
             }}
           />
           
@@ -72,7 +75,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6">
+        <div className="p-5 sm:p-6 lg:p-7">
           {/* Meta Info */}
           <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-3">
             <div className="flex items-center gap-1.5">

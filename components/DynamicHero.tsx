@@ -97,7 +97,7 @@ function DynamicHeroInternal() {
 
   return (
     <section 
-      className={"hero-section relative min-h-screen flex items-center justify-center pt-16 md:pt-20 pb-12 sm:pb-16 lg:pb-20 " + (bg.imageStyle === 'cover' || !bg.imageUrl ? 'overflow-hidden' : 'overflow-visible')}
+      className={"hero-section relative min-h-screen flex items-center justify-center pt-16 md:pt-20 pb-16 sm:pb-20 lg:pb-24 " + (bg.imageStyle === 'cover' || !bg.imageUrl ? 'overflow-hidden' : 'overflow-visible')}
       /* Always apply background - image layers will render on top */
       style={backgroundStyle}
     >
@@ -125,8 +125,8 @@ function DynamicHeroInternal() {
             <div
               className="absolute inset-0 pointer-events-none z-0"
               style={{
-                backgroundColor: bg.imageOverlayColor || 'rgba(0,0,0,0.3)',
-                opacity: typeof bg.imageOverlayOpacity === 'number' ? bg.imageOverlayOpacity : 0.3
+                backgroundColor: bg.imageOverlayColor || 'rgba(0,0,0,0.45)',
+                opacity: typeof bg.imageOverlayOpacity === 'number' ? bg.imageOverlayOpacity : 0.45
               }}
             />
           </>
@@ -139,21 +139,21 @@ function DynamicHeroInternal() {
       {/* Animated background particles - Only show when no custom background */}
       {bg.mode === 'none' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-[1]">
-          <div className="absolute top-20 sm:top-32 left-10 sm:left-20 w-48 sm:w-72 h-48 sm:h-72 bg-yellow-400/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-10 sm:bottom-20 right-10 sm:right-20 w-64 sm:w-96 h-64 sm:h-96 bg-blue-400/20 rounded-full blur-3xl animate-pulse delay-75" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[25rem] sm:w-[40rem] h-[25rem] sm:h-[40rem] bg-purple-400/10 rounded-full blur-3xl animate-pulse delay-150" />
+          <div className="absolute top-20 sm:top-32 left-10 sm:left-20 w-48 sm:w-72 h-48 sm:h-72 bg-yellow-400/10 sm:bg-yellow-400/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 sm:bottom-20 right-10 sm:right-20 w-64 sm:w-96 h-64 sm:h-96 bg-blue-400/10 sm:bg-blue-400/20 rounded-full blur-3xl animate-pulse delay-75" />
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[25rem] sm:w-[40rem] h-[25rem] sm:h-[40rem] bg-purple-400/5 sm:bg-purple-400/10 rounded-full blur-3xl animate-pulse delay-150" />
         </div>
       )}
 
       {/* Content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="max-w-5xl mx-auto">
-          <h1 className="heading-hero text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight text-center drop-shadow-lg">
+          <h1 className="heading-hero text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold mb-4 sm:mb-6 text-white dark:text-gray-100 animate-fade-in-up leading-tight text-center drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] sm:drop-shadow-lg">
             {displayTitle}
           </h1>
 
           <div className="inline-block mb-6 sm:mb-8 animate-fade-in-up animation-delay-200">
-            <p className="text-base sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/10 dark:bg-gray-700/40 backdrop-blur-md border border-white/20 dark:border-gray-600/40 text-center">
+            <p className="text-base sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-semibold text-yellow-300 dark:text-yellow-300 px-4 sm:px-6 lg:px-8 py-2 sm:py-3 rounded-full bg-white/20 sm:bg-white/10 dark:bg-gray-700/50 backdrop-blur-md border border-white/30 dark:border-gray-600/40 text-center drop-shadow-md">
               {displaySubtitle}
             </p>
           </div>

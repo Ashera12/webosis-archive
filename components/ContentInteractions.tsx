@@ -5,6 +5,7 @@ import { FaHeart, FaComment, FaShare, FaQrcode, FaLink, FaWhatsapp, FaFacebook, 
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/contexts/ToastContext';
 import QRCode from 'qrcode';
+import CommentSection from './CommentSection';
 
 interface ContentInteractionsProps {
   contentId: string;
@@ -72,8 +73,8 @@ export default function ContentInteractions({
   };
 
   const handleComment = () => {
+    setComments(comments + 1);
     onComment?.();
-    showToast('Fitur komentar akan segera hadir!', 'info');
   };
 
   const handleShareClick = () => {
@@ -348,6 +349,13 @@ export default function ContentInteractions({
           </div>
         </div>
       )}
+
+      {/* Comment Section */}
+      <CommentSection
+        contentId={contentId}
+        contentType={contentType}
+        onCommentCountChange={setComments}
+      />
     </>
   );
 }

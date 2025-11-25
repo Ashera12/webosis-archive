@@ -279,19 +279,19 @@ const Navbar: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation menu"
-        className={`lg:hidden fixed inset-x-0 top-0 z-[1000] transition-all duration-300 ease-out ${
+        className={`lg:hidden fixed inset-0 z-[1000] flex items-center justify-center px-3 xs:px-4 transition-all duration-300 ease-out ${
           isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
         }`}
       >
         {/* Premium Panel Card */}
         <div 
-          className={`mx-3 xs:mx-4 mt-3 xs:mt-4 pb-8 rounded-2xl md:rounded-3xl border border-white/10 bg-white/90 dark:bg-[#0F172A]/95 backdrop-blur-xl shadow-2xl shadow-black/50 max-h-[84vh] overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out ${
+          className={`relative w-full max-w-[560px] mx-auto rounded-2xl md:rounded-3xl border border-white/10 bg-white/90 dark:bg-[#0F172A]/95 backdrop-blur-xl shadow-2xl shadow-black/50 max-h-[86vh] overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out ${
             isOpen ? 'translate-y-0 opacity-100' : '-translate-y-6 opacity-0'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* FASE 4: Header tersusun: Brand + Icon group terpusat, close di kanan */}
-          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-3 xs:px-4 py-2.5 xs:py-3 flex items-center gap-2 xs:gap-3">
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 px-4 xs:px-5 py-3 flex w-full items-center gap-2 xs:gap-3">
             {/* Cluster kiri: Brand + Icons */}
             <div className="flex items-center gap-1.5 xs:gap-2 min-w-0">
               <Link
@@ -318,10 +318,10 @@ const Navbar: React.FC = () => {
               </Link>
 
               {/* Icon group langsung setelah brand */}
-              <div className="flex items-center gap-1 xs:gap-1.5 pl-1 xs:pl-1.5">
+              <div className="flex items-center gap-1.5 xs:gap-2 pl-1 xs:pl-1.5">
                 {/* Language Toggle */}
-                <div className="w-7 h-7 xs:w-8 xs:h-8 flex items-center justify-center flex-shrink-0">
-                  <div className="scale-[0.6] xs:scale-[0.65] sm:scale-[0.7] origin-center">
+                <div className="w-8 h-8 xs:w-9 xs:h-9 flex items-center justify-center flex-shrink-0">
+                  <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
                     <ClientOnly fallback={<div className="w-7 h-7 xs:w-8 xs:h-8 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                       <LanguageToggle />
                     </ClientOnly>
@@ -329,13 +329,15 @@ const Navbar: React.FC = () => {
                 </div>
 
                 {/* Theme Toggle */}
-                <div className="w-7 h-7 xs:w-8 xs:h-8 flex items-center justify-center flex-shrink-0">
-                  <div className="scale-[0.6] xs:scale-[0.65] sm:scale-[0.7] origin-center">
+                <div className="w-8 h-8 xs:w-9 xs:h-9 flex items-center justify-center flex-shrink-0">
+                  <div className="scale-[0.65] xs:scale-[0.7] sm:scale-[0.75] origin-center">
                     <ClientOnly fallback={<div className="w-7 h-7 xs:w-8 xs:h-8 bg-gray-200/50 dark:bg-gray-700/50 rounded-full animate-pulse" />}>
                       <ThemeToggle />
                     </ClientOnly>
                   </div>
                 </div>
+                {/* Divider */}
+                <div className="hidden xs:block h-5 w-px bg-gray-300/50 dark:bg-gray-600/50 mx-0.5" />
               </div>
             </div>
 
@@ -346,10 +348,10 @@ const Navbar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-8 h-8 xs:w-9 xs:h-9 rounded-full border border-yellow-500/40 hover:bg-yellow-500/20 backdrop-blur-md flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 flex-shrink-0"
+                className="w-10 h-10 xs:w-11 xs:h-11 rounded-full border border-yellow-500/50 bg-white/70 dark:bg-[#0F172A]/70 hover:bg-yellow-500/20 backdrop-blur-lg flex items-center justify-center text-gray-800 dark:text-gray-200 hover:text-yellow-600 dark:hover:text-yellow-400 shadow-lg hover:shadow-yellow-500/30 transition-all duration-200 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#0F172A]"
                 aria-label="Close menu"
               >
-                <svg className="w-4 h-4 xs:w-4.5 xs:h-4.5 xsm:w-5 xsm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 xs:w-6 xs:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -357,7 +359,7 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* FASE 3: Premium Menu Items - Adjusted padding for smaller header */}
-          <div className="px-3 xs:px-4 py-4 xs:py-5 space-y-1 xs:space-y-1.5">
+          <div className="px-4 xs:px-5 py-5 xs:py-6 space-y-1.5 xs:space-y-2">
             <Link 
               href="/" 
               onClick={() => setIsOpen(false)} 

@@ -49,8 +49,23 @@ export default function AdminLoginPage() {
         console.error('[Login] NextAuth error:', res.error);
         setError(res.error || 'Terjadi kesalahan saat membuat sesi. Silakan coba lagi.');
       } else if (res?.ok) {
-        console.log('[Login] Login successful, redirecting to /admin');
-        window.location.href = '/admin';
+        console.log('[Login] signIn returned OK, verifying session...');
+        
+        // Wait a bit for session cookie to be set
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verify session exists by checking API
+        const sessionCheck = await fetch('/api/auth/session');
+        const sessionData = await sessionCheck.json();
+        console.log('[Login] Session verification:', sessionData);
+        
+        if (sessionData?.user) {
+          console.log('[Login] Session confirmed, redirecting to /admin');
+          window.location.href = '/admin';
+        } else {
+          console.error('[Login] Session not found after signIn success!');
+          setError('Login berhasil tetapi sesi tidak terbuat. Silakan coba lagi.');
+        }
       } else {
         console.warn('[Login] Unexpected response:', res);
         setError('Login gagal dengan status tidak terduga. Silakan coba lagi.');

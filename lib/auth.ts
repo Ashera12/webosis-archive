@@ -175,20 +175,45 @@ export const authConfig: NextAuthConfig = {
   // Keep sessions short and JWT-based. Adjust maxAge as required by env.
   session: { strategy: 'jwt', maxAge: Number(process.env.NEXTAUTH_SESSION_MAX_AGE ?? 60 * 60 * 8) },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      console.log('[NextAuth] signIn callback triggered:', { 
+        user: user?.email, 
+        hasUser: !!user,
+        account: account?.provider 
+      });
+      // Allow sign in
+      return true;
+    },
+    async jwt({ token, user, trigger }) {
+      console.log('[NextAuth] jwt callback:', { 
+        hasUser: !!user, 
+        trigger,
+        tokenSub: token?.sub 
+      });
       if (user && typeof token === 'object' && token !== null) {
         (token as Record<string, unknown>)['role'] = ((user as unknown) as { role?: string }).role;
         // Ensure the user's id is preserved in the token so server APIs can access it
         (token as Record<string, unknown>)['id'] = ((user as unknown) as { id?: string }).id;
+        console.log('[NextAuth] jwt - Added user to token:', { id: user.id, role: (user as any).role });
       }
       return token;
     },
     async session({ session, token }) {
+            console.log('[NextAuth] session callback:', { 
+              hasSession: !!session,
+              hasToken: !!token,
+              tokenId: (token as any)?.id 
+            });
       if (session.user && typeof token === 'object' && token !== null) {
         ((session.user as unknown) as Record<string, unknown>)['role'] = (token as Record<string, unknown>)['role'];
         // Copy id from token into session.user so server routes can use `session.user.id`
         if ((token as Record<string, unknown>)['id']) {
           ((session.user as unknown) as Record<string, unknown>)['id'] = (token as Record<string, unknown>)['id'];
+                console.log('[NextAuth] session - User in session:', { 
+                  id: (session.user as any).id, 
+                  email: session.user.email,
+                  role: (session.user as any).role 
+                });
         }
       }
       return session;

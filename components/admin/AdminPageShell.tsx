@@ -1,6 +1,10 @@
 "use client";
 import React from 'react';
-import clsx from 'clsx';
+
+// Simple classnames utility
+const clsx = (...classes: (string | boolean | undefined)[]) => {
+  return classes.filter(Boolean).join(' ');
+};
 
 interface AdminPageShellProps {
   icon?: React.ReactNode;

@@ -127,17 +127,17 @@ const Navbar: React.FC = () => {
             aria-label={t('navbar.logoAlt')}
           >
             <div className="relative w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden">
-            <img
-              src="/images/logo-2.png"
-              alt={t('navbar.logoAlt')}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
-          </div>
-          <span className="text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent group-hover:from-yellow-700 group-hover:to-amber-700 dark:group-hover:from-yellow-300 dark:group-hover:to-amber-300 transition-all duration-300 whitespace-nowrap leading-tight">
-            {t('navbar.brandName')}
-          </span>
-        </Link>
+              <img
+                src="/images/logo-2.png"
+                alt={t('navbar.logoAlt')}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400/20 to-amber-500/20 group-hover:scale-125 transition-transform duration-300" />
+            </div>
+            <span className="text-xs sm:text-sm lg:text-base font-bold bg-gradient-to-r from-yellow-600 to-amber-600 dark:from-yellow-400 dark:to-amber-400 bg-clip-text text-transparent group-hover:from-yellow-700 group-hover:to-amber-700 dark:group-hover:from-yellow-300 dark:group-hover:to-amber-300 transition-all duration-300 whitespace-nowrap leading-tight">
+              {t('navbar.brandName')}
+            </span>
+          </Link>
 
         {/* Desktop Menu */}
         <div className="navbar-nav hidden lg:flex items-center space-x-2 xl:space-x-4 relative z-20">
@@ -234,6 +234,7 @@ const Navbar: React.FC = () => {
             </div>
           </button>
         </div>
+      </div>
       </nav>
 
       {/* Backdrop overlay */}

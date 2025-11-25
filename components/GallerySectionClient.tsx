@@ -109,33 +109,58 @@ const GallerySectionClient: React.FC<GallerySectionClientProps> = ({ initialItem
       {/* Gallery Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-        {images.map((image, index) => (
+        {images.map((image, index) => {
+          const isVideo = image.image_url?.match(/\.(mp4|webm|ogg|mov)$/i);
+          
+          return (
           <div
             key={image.id}
             className="group relative overflow-hidden rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:scale-105 active:scale-95"
             onClick={() => openModal(index)}
           >
-            {/* Image */}
+            {/* Media - Image or Video */}
             <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 min-h-[200px] sm:min-h-[250px]">
-              <img
-                src={image.image_url}
-                alt={image.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                crossOrigin="anonymous"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  console.error(`[GalleryClient Thumbnail] Image failed to load:`, {
-                    title: image.title,
-                    url: image.image_url,
-                    index,
-                    error: 'Failed to load'
-                  });
-                }}
-                onLoad={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  console.log(`[GalleryClient Thumbnail] Image loaded successfully:`, image.title);
-                }}
-              />
+              {isVideo ? (
+                <video
+                  src={image.image_url}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  muted
+                  loop
+                  playsInline
+                  onMouseEnter={(e) => e.currentTarget.play()}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.pause();
+                    e.currentTarget.currentTime = 0;
+                  }}
+                  onError={(e) => {
+                    console.error(`[GalleryClient Thumbnail] Video failed to load:`, {
+                      title: image.title,
+                      url: image.image_url,
+                      index
+                    });
+                  }}
+                />
+              ) : (
+                <img
+                  src={image.image_url}
+                  alt={image.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    console.error(`[GalleryClient Thumbnail] Image failed to load:`, {
+                      title: image.title,
+                      url: image.image_url,
+                      index,
+                      error: 'Failed to load'
+                    });
+                  }}
+                  onLoad={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    console.log(`[GalleryClient Thumbnail] Image loaded successfully:`, image.title);
+                  }}
+                />
+              )}
             </div>
 
             {/* Overlay - Always visible on mobile, hover on desktop */}
@@ -158,7 +183,8 @@ const GallerySectionClient: React.FC<GallerySectionClientProps> = ({ initialItem
             {/* Border glow effect */}
             <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition duration-300" />
           </div>
-        ))}
+          );
+        })}
         </div>
       )}
 
@@ -210,7 +236,7 @@ const GallerySectionClient: React.FC<GallerySectionClientProps> = ({ initialItem
             </svg>
           </button>
 
-          {/* Image container */}
+          {/* Media container - Image or Video */}
           <div
             className="relative max-w-4xl max-h-[80vh] w-full h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
@@ -233,27 +259,50 @@ const GallerySectionClient: React.FC<GallerySectionClientProps> = ({ initialItem
               </div>
             )}
 
-            {/* Main image */}
-            <img
-              src={images[selectedImage].image_url}
-              alt={images[selectedImage].title}
-              className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
-                }`}
-              onLoad={() => {
-                console.log('[GalleryClient Modal] Image loaded:', images[selectedImage].title);
-                setImageLoading(false);
-                setImageError(false);
-              }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                console.error('[GalleryClient Modal] Image failed to load:', {
-                  title: images[selectedImage].title,
-                  url: images[selectedImage].image_url
-                });
-                setImageLoading(false);
-                setImageError(true);
-              }}
-            />
+            {/* Main media - Image or Video */}
+            {images[selectedImage].image_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+              <video
+                src={images[selectedImage].image_url}
+                controls
+                autoPlay
+                loop
+                className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                onLoadedData={() => {
+                  console.log('[GalleryClient Modal] Video loaded:', images[selectedImage].title);
+                  setImageLoading(false);
+                  setImageError(false);
+                }}
+                onError={() => {
+                  console.error('[GalleryClient Modal] Video failed to load:', {
+                    title: images[selectedImage].title,
+                    url: images[selectedImage].image_url,
+                    index: selectedImage
+                  });
+                  setImageLoading(false);
+                  setImageError(true);
+                }}
+              />
+            ) : (
+              <img
+                src={images[selectedImage].image_url}
+                alt={images[selectedImage].title}
+                className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                onLoad={() => {
+                  console.log('[GalleryClient Modal] Image loaded:', images[selectedImage].title);
+                  setImageLoading(false);
+                  setImageError(false);
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  console.error('[GalleryClient Modal] Image failed to load:', {
+                    title: images[selectedImage].title,
+                    url: images[selectedImage].image_url
+                  });
+                  setImageLoading(false);
+                  setImageError(true);
+                }}
+              />
+            )}
 
             {/* Image info - only show when image is loaded and no error */}
             {!imageLoading && !imageError && (

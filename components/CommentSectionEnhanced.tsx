@@ -43,6 +43,17 @@ export default function CommentSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
+  // Debug log user role once on mount
+  useEffect(() => {
+    if (session?.user?.role) {
+      console.log('[CommentSection] User role:', {
+        raw: session.user.role,
+        normalized: session.user.role.trim().toLowerCase(),
+        canDeleteAll: ['admin', 'superadmin', 'osis'].includes(session.user.role.trim().toLowerCase())
+      });
+    }
+  }, [session?.user?.role]);
+
   // Initial fetch for count even before toggling comment list
   useEffect(() => {
     if (contentId) {
@@ -204,44 +215,42 @@ export default function CommentSection({
   const handleDeleteComment = async (commentId: string) => {
     if (!confirm('Yakin ingin menghapus komentar ini?')) return;
 
+    // Optimistic UI update for better performance
+    const originalComments = [...comments];
+    setComments(comments.filter((c: Comment) => c.id !== commentId));
+    onCommentCountChange?.(comments.length - 1);
+
     try {
       const response = await apiFetch(`/api/comments/${commentId}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setComments(comments.filter((c: Comment) => c.id !== commentId));
         showToast('Komentar berhasil dihapus', 'success');
-        onCommentCountChange?.(comments.length - 1);
       } else {
+        // Revert on error
+        setComments(originalComments);
+        onCommentCountChange?.(originalComments.length);
         showToast('Gagal menghapus komentar', 'error');
       }
     } catch (error) {
       console.error('Error deleting comment:', error);
+      // Revert on error
+      setComments(originalComments);
+      onCommentCountChange?.(originalComments.length);
       showToast('Gagal menghapus komentar', 'error');
     }
   };
 
   const canDeleteComment = (comment: Comment) => {
     if (!session?.user) return false;
-    const userRole = session.user.role?.toLowerCase();
-    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole || '');
+    
+    // Normalize role for checking (trim whitespace, lowercase)
+    const userRole = session.user.role?.trim()?.toLowerCase() || '';
+    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole);
     const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
-    const canDelete = isPrivileged || isOwner;
     
-    // Debug logging
-    if (session.user.role) {
-      console.log('[CommentSection] Delete permission check:', {
-        commentId: comment.id,
-        userRole: session.user.role,
-        userRoleLower: userRole,
-        isPrivileged,
-        isOwner,
-        canDelete
-      });
-    }
-    
-    return canDelete;
+    return isPrivileged || isOwner;
   };
 
   const canEditComment = (comment: Comment) => {

@@ -45,13 +45,14 @@ export async function DELETE(
     });
 
     // Check if user is authorized to delete
-    const userRole = session?.user?.role?.toLowerCase();
-    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole || '');
+    const userRole = session?.user?.role?.trim()?.toLowerCase() || '';
+    const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole);
     const isOwner = session?.user?.id && (session.user.id === comment.user_id || session.user.id === comment.author_id);
     const isAnonymousComment = !comment.user_id && !comment.author_id;
 
     console.log('[Comments API] Permission check:', {
-      userRole,
+      rawRole: session?.user?.role,
+      normalizedRole: userRole,
       isPrivileged,
       isOwner,
       isAnonymousComment,

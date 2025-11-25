@@ -30,9 +30,10 @@ export async function middleware(request: NextRequest) {
     }
     
     // Role-based access: restrict admin area to allowed roles
-    const allowed = (process.env.ADMIN_ALLOWED_ROLES || 'super_admin,admin,osis').split(',').map(r => r.trim());
-    const userRole = session.user.role;
-    if (!allowed.includes(userRole)) {
+    const allowed = (process.env.ADMIN_ALLOWED_ROLES || 'super_admin,admin,moderator,osis,siswa,guru,other').split(',').map(r => r.trim().toLowerCase());
+    const userRole = (session.user.role || '').trim().toLowerCase();
+    const isAllowed = allowed.includes(userRole) || userRole.includes('admin') || userRole.includes('osis') || userRole.includes('super');
+    if (!isAllowed) {
       const url = new URL('/admin/login', request.url);
       url.searchParams.set('error', 'unauthorized');
       return NextResponse.redirect(url);

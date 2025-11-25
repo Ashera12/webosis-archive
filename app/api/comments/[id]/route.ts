@@ -9,10 +9,11 @@ const supabase = createClient(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('[Comments API] DELETE request started for:', params.id);
+    const { id: commentId } = await context.params;
+    console.log('[Comments API] DELETE request started for:', commentId);
     
     const session = await auth();
     console.log('[Comments API] Session:', {
@@ -20,8 +21,6 @@ export async function DELETE(
       userId: session?.user?.id,
       role: session?.user?.role
     });
-    
-    const commentId = params.id;
 
     // Get comment to check ownership
     const { data: comment, error: fetchError } = await supabase
@@ -94,11 +93,11 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: commentId } = await context.params;
     const session = await auth();
-    const commentId = params.id;
     const body = await request.json();
     const { content } = body;
 

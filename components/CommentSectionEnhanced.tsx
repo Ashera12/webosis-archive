@@ -227,7 +227,21 @@ export default function CommentSection({
     const userRole = session.user.role?.toLowerCase();
     const isPrivileged = ['admin', 'superadmin', 'osis'].includes(userRole || '');
     const isOwner = session.user.id === comment.user_id || session.user.id === comment.author_id;
-    return isPrivileged || isOwner;
+    const canDelete = isPrivileged || isOwner;
+    
+    // Debug logging
+    if (session.user.role) {
+      console.log('[CommentSection] Delete permission check:', {
+        commentId: comment.id,
+        userRole: session.user.role,
+        userRoleLower: userRole,
+        isPrivileged,
+        isOwner,
+        canDelete
+      });
+    }
+    
+    return canDelete;
   };
 
   const canEditComment = (comment: Comment) => {

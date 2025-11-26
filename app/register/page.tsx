@@ -101,19 +101,22 @@ export default function RegisterPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold mb-1" htmlFor="instagram">Instagram (opsional)</label>
-            <input 
-              id="instagram" 
-              type="text" 
-              value={instagramUsername} 
-              onChange={e => {
-                // Remove @ symbol if user types it
-                const value = e.target.value.replace('@', '');
-                setInstagramUsername(value);
-              }} 
-              className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" 
-              placeholder="username_instagram (tanpa @)" 
-            />
-            <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Username Instagram Anda tanpa simbol @</p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">@</span>
+              <input 
+                id="instagram" 
+                type="text" 
+                value={instagramUsername} 
+                onChange={e => {
+                  // Remove @ symbol if user types it (we already show it)
+                  const value = e.target.value.replace(/@/g, '');
+                  setInstagramUsername(value);
+                }} 
+                className="w-full pl-8 pr-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+                placeholder="username_instagram" 
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Masukkan username Instagram Anda</p>
           </div>
           <div>
             <label className="block text-xs font-semibold mb-1" htmlFor="role">Role (Permintaan)</label>

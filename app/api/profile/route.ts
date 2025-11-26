@@ -73,7 +73,8 @@ export async function PUT(request: NextRequest) {
     const update: any = {};
     if (name !== undefined) update.name = name;
     if (username !== undefined) update.nickname = username;
-    if (nisn !== undefined) update.nisn = nisn;
+    // NISN: set to null if empty string to avoid constraint violation
+    if (nisn !== undefined) update.nisn = nisn.trim() === '' ? null : nisn;
     if (unit !== undefined) update.unit_sekolah = unit;
     // kelas column doesn't exist in database, skip it
     if (profile_image !== undefined) update.photo_url = profile_image ?? null;

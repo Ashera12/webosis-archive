@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, role, photo_url, approved, email_verified, created_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, role, photo_url, approved, email_verified, created_at')
       .eq('id', session.user.id)
       .single();
 
@@ -44,7 +44,7 @@ export async function GET() {
       username: data.nickname,
       nisn: data.nisn,
       unit: data.unit_sekolah,
-      kelas: data.kelas,
+      kelas: '', // Column doesn't exist in database
       role: data.role,
       is_active: !!data.approved,
       profile_image: data.photo_url ?? null,
@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     if (username !== undefined) update.nickname = username;
     if (nisn !== undefined) update.nisn = nisn;
     if (unit !== undefined) update.unit_sekolah = unit;
-    if (kelas !== undefined) update.kelas = kelas;
+    // kelas column doesn't exist in database, skip it
     if (profile_image !== undefined) update.photo_url = profile_image ?? null;
     
     // Hash new password if provided
@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
       .from('users')
       .update(update)
       .eq('id', session.user.id)
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, role, photo_url, approved, email_verified, created_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, role, photo_url, approved, email_verified, created_at')
       .single();
 
     if (error) {
@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest) {
       username: data.nickname,
       nisn: data.nisn,
       unit: data.unit_sekolah,
-      kelas: data.kelas,
+      kelas: '', // Column doesn't exist in database
       role: data.role,
       is_active: !!data.approved,
       profile_image: data.photo_url ?? null,

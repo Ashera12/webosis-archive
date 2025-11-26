@@ -174,55 +174,55 @@ export default function UserDashboard() {
                 </div>
               </div>
               
-              {profile?.username && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <FaUserTag className="text-gray-400 text-xl" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Username</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.username}</p>
-                  </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <FaUser className="text-gray-400 text-xl" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Nickname</p>
+                  <p className={`font-medium ${profile?.username ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {profile?.username || 'belum diisi'}
+                  </p>
                 </div>
-              )}
+              </div>
               
-              {profile?.nik && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <FaIdCard className="text-gray-400 text-xl" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">NIK</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.nik}</p>
-                  </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <FaIdCard className="text-gray-400 text-xl" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">NIK (16 digit)</p>
+                  <p className={`font-medium ${profile?.nik ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {profile?.nik || 'belum diisi'}
+                  </p>
                 </div>
-              )}
+              </div>
               
-              {profile?.nisn && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <FaIdCard className="text-gray-400 text-xl" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">NISN</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.nisn}</p>
-                  </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <FaIdCard className="text-gray-400 text-xl" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">NISN (10 digit)</p>
+                  <p className={`font-medium ${profile?.nisn ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {profile?.nisn || 'belum diisi'}
+                  </p>
                 </div>
-              )}
+              </div>
               
-              {profile?.unit && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <FaSchool className="text-gray-400 text-xl" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Unit Sekolah</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.unit}</p>
-                  </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <FaSchool className="text-gray-400 text-xl" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Unit Sekolah</p>
+                  <p className={`font-medium ${profile?.unit ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {profile?.unit || 'belum diisi'}
+                  </p>
                 </div>
-              )}
+              </div>
               
-              {profile?.kelas && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <FaSchool className="text-gray-400 text-xl" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Kelas</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.kelas}</p>
-                  </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <FaSchool className="text-gray-400 text-xl" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Kelas</p>
+                  <p className={`font-medium ${profile?.kelas ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {profile?.kelas || 'belum diisi'}
+                  </p>
                 </div>
-              )}
+              </div>
               
               {profile?.requested_role && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">

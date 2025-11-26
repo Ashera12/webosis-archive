@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const body = await request.json();
-    const { name, role, is_active, profile_image, password, username, nisn, unit, kelas } = body;
+    const { name, role, is_active, profile_image, password, username, nisn, nik, unit, kelas } = body;
 
     // Check if user is editing their own profile
     const isOwnProfile = session.user.id === id;
@@ -85,7 +85,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const update: any = {};
     if (name !== undefined) update.name = name;
     if (username !== undefined) update.nickname = username;
-    if (nisn !== undefined) update.nisn = nisn;
+    if (nisn !== undefined) update.nisn = nisn.trim() === '' ? null : nisn;
+    if (nik !== undefined) update.nik = nik.trim() === '' ? null : nik;
     if (unit !== undefined) update.unit_sekolah = unit;
     if (kelas !== undefined) update.kelas = kelas;
     

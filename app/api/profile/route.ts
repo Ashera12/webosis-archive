@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, kelas, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', session.user.id)
       .single();
 
@@ -68,13 +68,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, profile_image, password, username, nisn, unit, kelas } = body;
+    const { name, profile_image, password, username, nisn, nik, unit, kelas } = body;
 
     const update: any = {};
     if (name !== undefined) update.name = name;
     if (username !== undefined) update.nickname = username;
     // NISN: set to null if empty string to avoid constraint violation
     if (nisn !== undefined) update.nisn = nisn.trim() === '' ? null : nisn;
+    // NIK: set to null if empty string to avoid constraint violation
+    if (nik !== undefined) update.nik = nik.trim() === '' ? null : nik;
     if (unit !== undefined) update.unit_sekolah = unit;
     if (kelas !== undefined) update.kelas = kelas;
     if (profile_image !== undefined) update.photo_url = profile_image ?? null;

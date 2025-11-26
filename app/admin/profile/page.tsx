@@ -25,6 +25,7 @@ export default function ProfilePage() {
     email: '',
     username: '',
     nisn: '',
+    nik: '',
     unit: '',
     kelas: '',
     photo_url: '',
@@ -55,6 +56,7 @@ export default function ProfilePage() {
           email: data.data.email || '',
           username: data.data.username || '',
           nisn: data.data.nisn || '',
+          nik: data.data.nik || '',
           unit: data.data.unit || '',
           kelas: data.data.kelas || '',
           photo_url: data.data.profile_image || data.data.photo_url || '',
@@ -134,6 +136,7 @@ export default function ProfilePage() {
           name: formData.name,
           username: formData.username,
           nisn: formData.nisn,
+          nik: formData.nik,
           unit: formData.unit,
           kelas: formData.kelas,
           profile_image: formData.photo_url,
@@ -327,12 +330,29 @@ export default function ProfilePage() {
           {/* NISN */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <FaIdCard /> NISN
+              <FaIdCard /> NISN (10 digit)
             </label>
             <input
               type="text"
               value={formData.nisn}
               onChange={(e) => setFormData({ ...formData, nisn: e.target.value })}
+              maxLength={10}
+              placeholder="10 digit"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+
+          {/* NIK */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <FaIdCard /> NIK (16 digit)
+            </label>
+            <input
+              type="text"
+              value={formData.nik}
+              onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+              maxLength={16}
+              placeholder="16 digit"
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>

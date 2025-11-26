@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 export const runtime = 'nodejs';
+
+// Create Supabase admin client (bypasses RLS)
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  // Try service role key first, fallback to anon key
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  
+  return createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
 
 // GET /api/profile - Get current user's profile
 export async function GET() {
@@ -11,7 +22,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
       .from('users')
       .select('id, email, name, nickname, nisn, unit_sekolah, kelas, role, photo_url, approved, email_verified, created_at')
       .eq('id', session.user.id)
@@ -76,7 +88,8 @@ export async function PUT(request: NextRequest) {
 
     console.log('[profile PUT] Updating profile:', { id: session.user.id, update });
 
-    const { data, error } = await supabaseAdmin
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
       .from('users')
       .update(update)
       .eq('id', session.user.id)

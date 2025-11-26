@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, nik, unit_sekolah, kelas, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', session.user.id)
       .single();
 
@@ -44,13 +44,18 @@ export async function GET() {
       username: data.nickname,
       nisn: data.nisn,
       unit: data.unit_sekolah,
-      kelas: '', // Column doesn't exist in database
+      nik: data.nik,
       role: data.role,
       is_active: !!data.approved,
       profile_image: data.photo_url ?? null,
       created_at: data.created_at,
       email_verified: !!data.email_verified,
     };
+
+    console.log('[profile GET] User ID:', session.user.id);
+    console.log('[profile GET] Role from database:', data.role);
+    console.log('[profile GET] Role from session:', session.user.role);
+    console.log('[profile GET] Full result:', result);
 
     return NextResponse.json({ success: true, data: result });
   } catch (e: any) {

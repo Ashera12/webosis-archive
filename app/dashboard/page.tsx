@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaGlobe, FaUser, FaChartLine, FaCalendarAlt, FaClock, FaEnvelope, FaIdCard, FaSchool, FaUserTag } from 'react-icons/fa';
@@ -65,6 +65,11 @@ export default function UserDashboard() {
       const res = await fetch(endpoint, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
+      
+      console.log('[Dashboard] loadProfile response:', data);
+      console.log('[Dashboard] Current session role:', session?.user?.role);
+      console.log('[Dashboard] Fetched data role:', data.data?.role);
+      
       if (data.success) {
         const newProfile = {
           name: data.data.name || '',
@@ -85,6 +90,9 @@ export default function UserDashboard() {
         };
         setProfile(newProfile);
         
+        console.log('[Dashboard] Profile set to:', newProfile);
+        console.log('[Dashboard] Comparing roles - Session:', session?.user?.role, 'DB:', data.data.role);
+        
         // Update session if role changed and viewing own profile
         if (!targetUserId && session?.user?.role !== data.data.role) {
           console.log('[Dashboard] Role changed detected!', { 
@@ -92,17 +100,20 @@ export default function UserDashboard() {
             new: data.data.role 
           });
           setRoleChanged(true);
-          await updateSession({
-            ...session,
-            user: {
-              ...session?.user,
-              role: data.data.role,
-              name: data.data.name,
-              image: data.data.profile_image || data.data.photo_url,
+          
+          // Force logout to refresh JWT token with new role
+          setTimeout(async () => {
+            const shouldLogout = confirm(
+              `Role Anda telah diubah oleh admin dari "${session?.user?.role}" menjadi "${data.data.role}".\n\n` +
+              `Untuk mengaktifkan role baru, Anda perlu login ulang.\n\n` +
+              `Klik OK untuk logout sekarang, atau Cancel untuk logout nanti.`
+            );
+            if (shouldLogout) {
+              await signOut({ callbackUrl: '/admin/login' });
+            } else {
+              setRoleChanged(false);
             }
-          });
-          // Auto-hide notification after 10 seconds
-          setTimeout(() => setRoleChanged(false), 10000);
+          }, 1000);
         }
       }
     } catch (error) {
@@ -137,7 +148,7 @@ export default function UserDashboard() {
               <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
               <div>
                 <p className="font-bold">Role Berhasil Diperbarui!</p>
-                <p className="text-sm opacity-90">Role Anda sekarang: {userRole}</p>
+                <p className="text-sm opacity-90">Silakan logout untuk mengaktifkan role baru</p>
               </div>
               <button 
                 onClick={() => setRoleChanged(false)}

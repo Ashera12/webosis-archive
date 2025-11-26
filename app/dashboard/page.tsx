@@ -224,7 +224,7 @@ export default function UserDashboard() {
                 View Public Website
               </Link>
               <Link
-                href="/admin/profile"
+                href={['super_admin', 'admin', 'osis'].includes(userRole) ? '/admin/profile' : '/profile/edit'}
                 className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
               >
                 <FaUser className="text-xl" />
@@ -455,7 +455,7 @@ export default function UserDashboard() {
               Update data pribadi, foto profil, dan informasi lainnya.
             </p>
             <Link
-              href="/admin/profile"
+              href={['super_admin', 'admin', 'osis'].includes(userRole) ? '/admin/profile' : '/profile/edit'}
               className="block text-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
             >
               Edit Profil

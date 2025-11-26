@@ -7,7 +7,7 @@ const nextConfig = {
     root: './',
   },
   
-  // Security headers (CSP without unsafe-eval; allow wasm-unsafe-eval for Next runtime)
+  // Security headers (CSP optimized for Next.js - allow inline scripts for Next runtime)
   async headers() {
     return [
       {
@@ -17,11 +17,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'strict-dynamic' 'wasm-unsafe-eval' https:",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
               "style-src 'self' 'unsafe-inline' https:",
-              "img-src 'self' data: https:",
+              "img-src 'self' data: blob: https:",
               "connect-src 'self' https: wss:",
-              "font-src 'self' https:",
+              "font-src 'self' data: https:",
               "frame-src 'self' https:",
               "base-uri 'self'",
               "form-action 'self' https:"

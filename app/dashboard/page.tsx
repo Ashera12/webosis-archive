@@ -27,11 +27,12 @@ interface UserProfile {
 }
 
 export default function UserDashboard() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const router = useRouter();
   const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     // Parse userId from query if present
@@ -42,21 +43,29 @@ export default function UserDashboard() {
     }
     if (session?.user) {
       loadProfile();
+      
+      // Auto-refresh profile every 30 seconds to detect admin changes
+      const interval = setInterval(() => {
+        loadProfile();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [session]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (showRefreshIndicator = false) => {
     try {
+      if (showRefreshIndicator) setRefreshing(true);
       const idToLoad = targetUserId || session?.user?.id;
       // Use dedicated profile endpoint for own profile, admin endpoint for viewing others
       const endpoint = targetUserId && targetUserId !== session?.user?.id 
         ? `/api/admin/users/${idToLoad}`
         : '/api/profile';
-      const res = await fetch(endpoint);
+      const res = await fetch(endpoint, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
       if (data.success) {
-        setProfile({
+        const newProfile = {
           name: data.data.name || '',
           email: data.data.email || '',
           role: data.data.role || '',
@@ -72,12 +81,27 @@ export default function UserDashboard() {
           approved: data.data.approved || false,
           updated_at: data.data.updated_at || '',
           sekbid_id: data.data.sekbid_id || null,
-        });
+        };
+        setProfile(newProfile);
+        
+        // Update session if role changed and viewing own profile
+        if (!targetUserId && session?.user?.role !== data.data.role) {
+          await updateSession({
+            ...session,
+            user: {
+              ...session?.user,
+              role: data.data.role,
+              name: data.data.name,
+              image: data.data.profile_image || data.data.photo_url,
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
+      if (showRefreshIndicator) setRefreshing(false);
     }
   };
 
@@ -153,6 +177,14 @@ export default function UserDashboard() {
                 <FaUser className="text-xl" />
                 My Profile
               </Link>
+              <button
+                onClick={() => loadProfile(true)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <FaClock className={`text-xl ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh Data'}
+              </button>
             </div>
           </div>
         </div>

@@ -33,8 +33,8 @@ function validatePassword(pw: string): string | null {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    let { email, password, name, nickname, role: requestedRole, unit_sekolah, nik, nisn, kelas } = body as { 
-      email?: string; password?: string; name?: string; nickname?: string; role?: string; unit_sekolah?: string; nik?: string; nisn?: string; kelas?: string
+    let { email, password, name, nickname, role: requestedRole, unit_sekolah, nik, nisn, kelas, instagram_username } = body as { 
+      email?: string; password?: string; name?: string; nickname?: string; role?: string; unit_sekolah?: string; nik?: string; nisn?: string; kelas?: string; instagram_username?: string
     };
 
     if (!email || !password) {
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     nik = (nik || '').trim();
     nisn = (nisn || '').trim();
     kelas = (kelas || '').trim();
+    instagram_username = (instagram_username || '').trim().replace('@', ''); // Remove @ if user includes it
     requestedRole = (requestedRole || '').trim().toLowerCase();
 
     // Validate extra fields
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
         kelas: kelas || null,
         nik: nik || null,
         nisn: nisn || null,
+        instagram_username: instagram_username || null,
         requested_role: requestedRole || null,
         password_hash: hash,
         role: 'pending',

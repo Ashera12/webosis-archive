@@ -10,6 +10,7 @@ interface Member {
   name: string;
   role: string;
   photo_url?: string | null;
+  instagram_username?: string | null;
   sekbid?: { id: number; name: string; color?: string; icon?: string } | null;
   quote?: string | null;
   display_order?: number;
@@ -49,6 +50,7 @@ export default async function PeoplePage() {
           position: cleanRole,
           description: m.quote || '',
           image: m.photo_url || '/images/placeholder.svg',
+          instagram_username: m.instagram || m.instagram_username || undefined,
           department: m.sekbid?.name || undefined,
           departmentId: m.sekbid?.id ?? null,
           displayOrder: m.display_order || 0,

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data, error } = await supabaseAdmin
       .from('users')
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, instagram_username, kelas, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       nik: data.nik,
       unit: data.unit_sekolah,
       kelas: '', // Column doesn't exist
+      instagram_username: data.instagram_username,
       requested_role: data.requested_role,
       role: data.role,
       is_active: !!data.approved,
@@ -71,7 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const body = await request.json();
-    const { name, role, is_active, profile_image, password, username, nisn, nik, unit, kelas } = body;
+    const { name, role, is_active, profile_image, password, username, nisn, nik, unit, kelas, instagram_username } = body;
 
     // Check if user is editing their own profile
     const isOwnProfile = session.user.id === id;
@@ -89,6 +90,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (nik !== undefined) update.nik = nik.trim() === '' ? null : nik;
     if (unit !== undefined) update.unit_sekolah = unit;
     if (kelas !== undefined) update.kelas = kelas;
+    if (instagram_username !== undefined) {
+      const cleaned = instagram_username.trim().replace('@', '');
+      update.instagram_username = cleaned === '' ? null : cleaned;
+    }
     
     // Only admins can change role and is_active
     if (!isOwnProfile) {
@@ -126,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .from('users')
       .update(update)
       .eq('id', id)
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, instagram_username, kelas, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .single();
 
     if (error) {
@@ -145,6 +150,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       nik: data.nik,
       unit: data.unit_sekolah,
       kelas: data.kelas || '',
+      instagram_username: data.instagram_username,
       requested_role: data.requested_role,
       role: data.role,
       is_active: !!data.approved,

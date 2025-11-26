@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, nik, unit_sekolah, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, instagram_username, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', session.user.id)
       .single();
 
@@ -45,6 +45,7 @@ export async function GET() {
       nisn: data.nisn,
       unit: data.unit_sekolah,
       nik: data.nik,
+      instagram_username: data.instagram_username,
       role: data.role,
       is_active: !!data.approved,
       profile_image: data.photo_url ?? null,
@@ -73,7 +74,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, profile_image, password, username, nisn, nik, unit, kelas } = body;
+    const { name, profile_image, password, username, nisn, nik, unit, kelas, instagram_username } = body;
 
     const update: any = {};
     if (name !== undefined) update.name = name;
@@ -84,6 +85,11 @@ export async function PUT(request: NextRequest) {
     if (nik !== undefined) update.nik = nik.trim() === '' ? null : nik;
     if (unit !== undefined) update.unit_sekolah = unit;
     if (kelas !== undefined) update.kelas = kelas;
+    if (instagram_username !== undefined) {
+      // Remove @ symbol and set to null if empty
+      const cleaned = instagram_username.trim().replace('@', '');
+      update.instagram_username = cleaned === '' ? null : cleaned;
+    }
     if (profile_image !== undefined) update.photo_url = profile_image ?? null;
     
     // Hash new password if provided
@@ -101,7 +107,7 @@ export async function PUT(request: NextRequest) {
       .from('users')
       .update(update)
       .eq('id', session.user.id)
-      .select('id, email, name, nickname, nisn, unit_sekolah, role, photo_url, approved, email_verified, created_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, instagram_username, role, photo_url, approved, email_verified, created_at')
       .single();
 
     if (error) {
@@ -115,8 +121,10 @@ export async function PUT(request: NextRequest) {
       name: data.name,
       username: data.nickname,
       nisn: data.nisn,
+      nik: data.nik,
       unit: data.unit_sekolah,
       kelas: '', // Column doesn't exist in database
+      instagram_username: data.instagram_username,
       role: data.role,
       is_active: !!data.approved,
       profile_image: data.photo_url ?? null,

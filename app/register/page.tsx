@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [kelas, setKelas] = useState('');
   const [nik, setNik] = useState('');
   const [nisn, setNisn] = useState('');
+  const [instagramUsername, setInstagramUsername] = useState('');
   const [requestedRole, setRequestedRole] = useState('siswa');
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, nickname, unit_sekolah: unitSekolah, kelas, nik, nisn, role: requestedRole })
+        body: JSON.stringify({ email, password, name, nickname, unit_sekolah: unitSekolah, kelas, nik, nisn, instagram_username: instagramUsername, role: requestedRole })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -97,6 +98,22 @@ export default function RegisterPage() {
               <label className="block text-xs font-semibold mb-1" htmlFor="nisn">NISN</label>
               <input id="nisn" type="text" value={nisn} onChange={e => setNisn(e.target.value)} maxLength={10} className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="10 digit" />
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1" htmlFor="instagram">Instagram (opsional)</label>
+            <input 
+              id="instagram" 
+              type="text" 
+              value={instagramUsername} 
+              onChange={e => {
+                // Remove @ symbol if user types it
+                const value = e.target.value.replace('@', '');
+                setInstagramUsername(value);
+              }} 
+              className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" 
+              placeholder="username_instagram (tanpa @)" 
+            />
+            <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">Username Instagram Anda tanpa simbol @</p>
           </div>
           <div>
             <label className="block text-xs font-semibold mb-1" htmlFor="role">Role (Permintaan)</label>

@@ -12,6 +12,7 @@ interface MemberProp {
   position: string;
   description: string;
   image: string;
+  instagram_username?: string;
   // normalize to undefined for client components
   department?: string;
   departmentId?: number | null;

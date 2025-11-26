@@ -60,8 +60,20 @@ export default function AdminLoginPage() {
         console.log('[Login] Session verification:', sessionData);
         
         if (sessionData?.user) {
-          console.log('[Login] Session confirmed, redirecting to /admin');
-          window.location.href = '/admin';
+          console.log('[Login] Session confirmed, checking role for redirect');
+          
+          // Redirect based on role
+          const userRole = (sessionData.user.role || '').toLowerCase();
+          const adminRoles = ['super_admin', 'admin', 'moderator', 'osis'];
+          const isAdmin = adminRoles.some(role => userRole.includes(role));
+          
+          if (isAdmin) {
+            console.log('[Login] Admin user, redirecting to /admin');
+            window.location.href = '/admin';
+          } else {
+            console.log('[Login] Non-admin user, redirecting to /dashboard');
+            window.location.href = '/dashboard';
+          }
         } else {
           console.error('[Login] Session not found after signIn success!');
           setError('Login berhasil tetapi sesi tidak terbuat. Silakan coba lagi.');

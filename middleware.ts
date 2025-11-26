@@ -29,16 +29,44 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     
-    // Role-based access: restrict admin area to allowed roles
-    const allowed = (process.env.ADMIN_ALLOWED_ROLES || 'super_admin,admin,moderator,osis,siswa,guru,other').split(',').map(r => r.trim().toLowerCase());
+    // Role-based access: admin, moderator, osis, super_admin get full access
+    const adminRoles = ['super_admin', 'admin', 'moderator', 'osis'];
     const userRole = (session.user.role || '').trim().toLowerCase();
-    const isAllowed = allowed.includes(userRole) || userRole.includes('admin') || userRole.includes('osis') || userRole.includes('super');
-    if (!isAllowed) {
-      const url = new URL('/admin/login', request.url);
-      url.searchParams.set('error', 'unauthorized');
+    const isAdmin = adminRoles.some(role => userRole.includes(role));
+    
+    // Allow profile page for all authenticated users
+    if (pathname === '/admin/profile') {
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+    
+    // Redirect non-admin users to dashboard
+    if (!isAdmin) {
+      const url = new URL('/dashboard', request.url);
       return NextResponse.redirect(url);
     }
-    // User authorized
+    
+    // Admin user authorized
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+  
+  // Check authentication for dashboard route
+  if (pathname.startsWith('/dashboard')) {
+    const session = await auth();
+    
+    if (!session?.user) {
+      const url = new URL('/admin/login', request.url);
+      url.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(url);
+    }
+    
     return NextResponse.next({
       request: {
         headers: requestHeaders,

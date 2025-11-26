@@ -61,7 +61,8 @@ export async function GET() {
       }));
 
     console.log(`[admin/users GET] Returning ${users.length} users${usingFallback ? ' (anon fallback)' : ''}`);
-    return NextResponse.json({ users, fallback: usingFallback });
+    // Return array directly for backward compatibility
+    return NextResponse.json(users);
   } catch (e: any) {
     console.error('[admin/users GET] Unexpected error', e);
     return NextResponse.json({ error: e.message || 'Failed to fetch users' }, { status: 500 });

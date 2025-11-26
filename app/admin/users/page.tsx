@@ -14,6 +14,7 @@ interface User {
   name: string | null;
   nickname?: string | null;
   unit_sekolah?: string | null;
+  kelas?: string | null;
   nik?: string | null;
   nisn?: string | null;
   requested_role?: string | null;

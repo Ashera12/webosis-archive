@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .from('users')
       .update(update)
       .eq('id', id)
-      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, role, photo_url, approved, email_verified, created_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .single();
 
     if (error) {
@@ -134,12 +134,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       name: data.name,
       username: data.nickname,
       nisn: data.nisn,
+      nik: data.nik,
       unit: data.unit_sekolah,
-      kelas: data.kelas,
+      kelas: '', // Column doesn't exist
+      requested_role: data.requested_role,
       role: data.role,
       is_active: !!data.approved,
+      approved: !!data.approved,
       profile_image: data.photo_url ?? null,
+      photo_url: data.photo_url ?? null,
       created_at: data.created_at,
+      updated_at: data.updated_at,
       last_login: null as string | null,
       email_verified: !!data.email_verified,
     };

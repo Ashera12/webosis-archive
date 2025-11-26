@@ -14,8 +14,10 @@ interface UserProfile {
   role: string;
   username?: string;
   nisn?: string;
+  nik?: string;
   unit?: string;
   kelas?: string;
+  requested_role?: string;
   photo_url?: string;
   created_at?: string;
   email_verified?: boolean;
@@ -58,10 +60,12 @@ export default function UserDashboard() {
           name: data.data.name || '',
           email: data.data.email || '',
           role: data.data.role || '',
-          username: data.data.username || '',
+          username: data.data.username || data.data.nickname || '',
           nisn: data.data.nisn || '',
-          unit: data.data.unit || '',
+          nik: data.data.nik || '',
+          unit: data.data.unit || data.data.unit_sekolah || '',
           kelas: data.data.kelas || '',
+          requested_role: data.data.requested_role || '',
           photo_url: data.data.profile_image || data.data.photo_url || '',
           created_at: data.data.created_at || '',
           email_verified: data.data.email_verified || false,
@@ -180,6 +184,16 @@ export default function UserDashboard() {
                 </div>
               )}
               
+              {profile?.nik && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <FaIdCard className="text-gray-400 text-xl" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">NIK</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{profile.nik}</p>
+                  </div>
+                </div>
+              )}
+              
               {profile?.nisn && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <FaIdCard className="text-gray-400 text-xl" />
@@ -206,6 +220,16 @@ export default function UserDashboard() {
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Kelas</p>
                     <p className="font-medium text-gray-900 dark:text-white">{profile.kelas}</p>
+                  </div>
+                </div>
+              )}
+              
+              {profile?.requested_role && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <FaUserTag className="text-gray-400 text-xl" />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Role Diminta</p>
+                    <p className="font-medium text-gray-900 dark:text-white capitalize">{profile.requested_role}</p>
                   </div>
                 </div>
               )}

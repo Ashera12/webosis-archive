@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, unit_sekolah, role, photo_url, approved, email_verified, created_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', session.user.id)
       .single();
 

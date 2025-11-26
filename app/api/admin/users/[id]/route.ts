@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data, error } = await supabaseAdmin
       .from('users')
-      .select('id, email, name, nickname, nisn, unit_sekolah, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const body = await request.json();
-    const { name, role, is_active, profile_image, password, username, nisn, unit } = body;
+    const { name, role, is_active, profile_image, password, username, nisn, unit, kelas } = body;
 
     // Check if user is editing their own profile
     const isOwnProfile = session.user.id === id;
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (username !== undefined) update.nickname = username;
     if (nisn !== undefined) update.nisn = nisn;
     if (unit !== undefined) update.unit_sekolah = unit;
-    // kelas column doesn't exist in database - skip it
+    if (kelas !== undefined) update.kelas = kelas;
     
     // Only admins can change role and is_active
     if (!isOwnProfile) {
@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .from('users')
       .update(update)
       .eq('id', id)
-      .select('id, email, name, nickname, nisn, unit_sekolah, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, unit_sekolah, kelas, nik, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .single();
 
     if (error) {

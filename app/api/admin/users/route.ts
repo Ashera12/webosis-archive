@@ -31,7 +31,7 @@ export async function GET() {
 
     const { data, error } = await client
       .from('users')
-      .select('id, email, name, nickname, unit_sekolah, nik, nisn, requested_role, role, photo_url, approved, rejected, rejection_reason, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, unit_sekolah, kelas, nik, nisn, requested_role, role, photo_url, approved, rejected, rejection_reason, email_verified, created_at, updated_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -47,6 +47,7 @@ export async function GET() {
         name: u.name ?? null,
         nickname: u.nickname ?? null,
         unit_sekolah: u.unit_sekolah ?? null,
+        kelas: u.kelas ?? null,
         nik: u.nik ?? null,
         nisn: u.nisn ?? null,
         requested_role: u.requested_role ?? null,

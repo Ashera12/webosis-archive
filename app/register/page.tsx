@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [unitSekolah, setUnitSekolah] = useState('');
+  const [kelas, setKelas] = useState('');
   const [nik, setNik] = useState('');
   const [nisn, setNisn] = useState('');
   const [requestedRole, setRequestedRole] = useState('siswa');
@@ -29,7 +30,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, nickname, unit_sekolah: unitSekolah, nik, nisn, role: requestedRole })
+        body: JSON.stringify({ email, password, name, nickname, unit_sekolah: unitSekolah, kelas, nik, nisn, role: requestedRole })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -82,6 +83,10 @@ export default function RegisterPage() {
           <div>
             <label className="block text-xs font-semibold mb-1" htmlFor="unit_sekolah">Unit Sekolah</label>
             <input id="unit_sekolah" type="text" value={unitSekolah} onChange={e => setUnitSekolah(e.target.value)} className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="SMP / SMA / SMK" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1" htmlFor="kelas">Kelas (opsional)</label>
+            <input id="kelas" type="text" value={kelas} onChange={e => setKelas(e.target.value)} className="w-full px-3 py-2 rounded-lg border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Contoh: X IPA 1, XI IPS 2" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

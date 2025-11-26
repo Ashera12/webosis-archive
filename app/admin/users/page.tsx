@@ -102,6 +102,11 @@ export default function UsersPage() {
   const [formData, setFormData] = useState({
     email: '',
     name: '',
+    nickname: '',
+    unit_sekolah: '',
+    kelas: '',
+    nik: '',
+    nisn: '',
     role: 'siswa',
     password: '',
     is_active: true,
@@ -264,6 +269,11 @@ export default function UsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingId ? {
           name: formData.name,
+          nickname: formData.nickname,
+          unit_sekolah: formData.unit_sekolah,
+          kelas: formData.kelas,
+          nik: formData.nik,
+          nisn: formData.nisn,
           role: formData.role,
           is_active: formData.is_active,
           profile_image: formData.profile_image,
@@ -295,6 +305,11 @@ export default function UsersPage() {
       setFormData({
         email: '',
         name: '',
+        nickname: '',
+        unit_sekolah: '',
+        kelas: '',
+        nik: '',
+        nisn: '',
         role: 'siswa',
         password: '',
         is_active: true,
@@ -312,6 +327,11 @@ export default function UsersPage() {
     setFormData({
       email: item.email,
       name: item.name || '',
+      nickname: item.nickname || '',
+      unit_sekolah: item.unit_sekolah || '',
+      kelas: item.kelas || '',
+      nik: item.nik || '',
+      nisn: item.nisn || '',
       role: item.role,
       password: '',
       is_active: item.is_active,
@@ -394,6 +414,11 @@ export default function UsersPage() {
                 setFormData({
                   email: '',
                   name: '',
+                  nickname: '',
+                  unit_sekolah: '',
+                  kelas: '',
+                  nik: '',
+                  nisn: '',
                   role: 'siswa',
                   password: '',
                   is_active: true,
@@ -498,6 +523,79 @@ export default function UsersPage() {
                       placeholder="user@example.com"
                       required
                       disabled={!!editingId}
+                    />
+                  </div>
+                </div>
+
+                {/* Nickname & Unit Sekolah */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Nama Panggilan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nickname}
+                      onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-purple-200 dark:focus:ring-purple-900 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Contoh: Budi"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Unit Sekolah
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.unit_sekolah}
+                      onChange={(e) => setFormData({ ...formData, unit_sekolah: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-purple-200 dark:focus:ring-purple-900 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="SMP / SMA / SMK"
+                    />
+                  </div>
+                </div>
+
+                {/* Kelas, NIK & NISN */}
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Kelas
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.kelas}
+                      onChange={(e) => setFormData({ ...formData, kelas: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-purple-200 dark:focus:ring-purple-900 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="X IPA 1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      NIK (16 digit)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nik}
+                      onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                      maxLength={16}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-purple-200 dark:focus:ring-purple-900 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="16 digit"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      NISN (10 digit)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nisn}
+                      onChange={(e) => setFormData({ ...formData, nisn: e.target.value })}
+                      maxLength={10}
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-purple-200 dark:focus:ring-purple-900 focus:border-purple-500 transition-all bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="10 digit"
                     />
                   </div>
                 </div>

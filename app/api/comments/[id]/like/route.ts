@@ -9,11 +9,11 @@ const supabase = createClient(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: commentId } = await params;
     const session = await auth();
-    const commentId = params.id;
     const userId = session?.user?.id || 'anonymous';
 
     // Check if user already liked

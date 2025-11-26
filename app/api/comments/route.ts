@@ -59,13 +59,15 @@ export async function GET(request: NextRequest) {
       (comments || []).map(async (comment) => {
         // Get author role from users table
         let authorRole = null;
+         let authorPhotoUrl = null;
         if (comment.user_id) {
           const { data: userData } = await supabase
             .from('users')
-            .select('role')
+             .select('role, photo_url')
             .eq('id', comment.user_id)
             .single();
           authorRole = userData?.role || null;
+           authorPhotoUrl = userData?.photo_url || null;
         }
 
         // Get like count
@@ -85,6 +87,7 @@ export async function GET(request: NextRequest) {
         return {
           ...comment,
           author_role: authorRole,
+           author_photo_url: authorPhotoUrl,
           likes: count || 0,
           liked_by_user: !!userLike
         };

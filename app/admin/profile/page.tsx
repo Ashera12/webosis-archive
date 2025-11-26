@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FaUser, FaEnvelope, FaLock, FaCamera, FaSave, FaTimes, FaIdCard, FaSchool, FaUserTag } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaCamera, FaSave, FaTimes, FaIdCard, FaSchool, FaUserTag, FaSpinner } from 'react-icons/fa';
 import { useToast } from '@/contexts/ToastContext';
 import RoleBadge from '@/components/RoleBadge';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+const ImageCropperModal = dynamic(() => import('@/components/ImageCropperModal'), { ssr: false });
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -15,6 +18,8 @@ export default function ProfilePage() {
   
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -60,43 +65,58 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      showToast('File terlalu besar! Maksimal 5MB', 'error');
+      showToast('❌ File terlalu besar! Maksimal 5MB', 'error');
       return;
     }
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      showToast('File harus berupa gambar!', 'error');
+      showToast('❌ File harus berupa gambar!', 'error');
       return;
     }
 
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      setTempImageSrc(objectUrl);
+      setShowCropper(true);
+      showToast('⏳ Siapkan pemotongan gambar…', 'info');
+    } catch (error) {
+      console.error('Photo select error:', error);
+      showToast('❌ Gagal memproses gambar untuk cropping', 'error');
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setShowCropper(false);
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'profile-photos');
+    showToast('⏳ Mengunggah foto profil…', 'info');
+
+    const fd = new FormData();
+    fd.append('file', croppedBlob, 'profile.jpg');
+    fd.append('folder', 'profile-photos');
 
     try {
       const res = await fetch('/api/upload', {
         method: 'POST',
-        body: formData,
+        body: fd,
       });
 
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      
+
       if (data.success && data.publicUrl) {
         setFormData(prev => ({ ...prev, photo_url: data.publicUrl }));
-        showToast('Foto berhasil diupload!', 'success');
+        showToast('✅ Foto berhasil diunggah!', 'success');
+      } else {
+        showToast('❌ Respons unggah tidak valid', 'error');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      showToast('Gagal upload foto', 'error');
+      showToast('❌ Gagal mengunggah foto', 'error');
     } finally {
       setUploading(false);
     }
@@ -124,7 +144,7 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (data.success) {
-        showToast('Profil berhasil diperbarui!', 'success');
+        showToast('✅ Profil berhasil diperbarui!', 'success');
         // Update session
         await update({
           ...session,
@@ -137,7 +157,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Update error:', error);
-      showToast('Gagal memperbarui profil', 'error');
+      showToast('❌ Gagal memperbarui profil', 'error');
     } finally {
       setLoading(false);
     }
@@ -148,12 +168,12 @@ export default function ProfilePage() {
 
     // Validate passwords
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast('Password baru tidak cocok!', 'error');
+      showToast('❌ Password baru tidak cocok!', 'error');
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      showToast('Password minimal 8 karakter!', 'error');
+      showToast('❌ Password minimal 8 karakter!', 'error');
       return;
     }
 
@@ -172,7 +192,7 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (data.success) {
-        showToast('Password berhasil diubah!', 'success');
+        showToast('✅ Password berhasil diubah!', 'success');
         setPasswordData({
           currentPassword: '',
           newPassword: '',
@@ -182,7 +202,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Password change error:', error);
-      showToast('Gagal mengubah password', 'error');
+      showToast('❌ Gagal mengubah password', 'error');
     } finally {
       setLoading(false);
     }
@@ -197,12 +217,24 @@ export default function ProfilePage() {
   }
 
   return (
+    <>
+    {showCropper && (
+      <ImageCropperModal
+      imageSrc={tempImageSrc}
+      onCancel={() => {
+        setShowCropper(false);
+        setTempImageSrc('');
+      }}
+      onCropComplete={handleCropComplete}
+      aspectRatio={1}
+    />
+    )}
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white text-3xl font-bold">
               {formData.photo_url ? (
                 <Image
                   src={formData.photo_url}
@@ -214,14 +246,19 @@ export default function ProfilePage() {
               ) : (
                 formData.name.charAt(0).toUpperCase()
               )}
+              {uploading && (
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <FaSpinner className="animate-spin text-white text-2xl" />
+                </div>
+              )}
             </div>
-            <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full cursor-pointer shadow-lg">
+            <label className="absolute bottom-0 right-0 bg-gradient-to-br from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white p-2 rounded-full cursor-pointer shadow-lg disabled:opacity-60">
               <FaCamera />
               <input
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handlePhotoUpload}
+                onChange={handlePhotoSelect}
                 disabled={uploading}
               />
             </label>
@@ -234,6 +271,9 @@ export default function ProfilePage() {
               <RoleBadge role={session.user.role} size="md" />
             </div>
             <p className="text-gray-600 dark:text-gray-400">{formData.email}</p>
+            {uploading && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Mengunggah foto…</p>
+            )}
           </div>
         </div>
       </div>
@@ -333,14 +373,14 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-br from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 disabled:opacity-60 text-white rounded-lg font-medium transition-colors"
           >
             <FaSave /> {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="flex items-center gap-2 px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 px-6 py-2 bg-gray-500 hover:bg-gray-600 disabled:opacity-60 text-white rounded-lg font-medium transition-colors"
           >
             <FaTimes /> Batal
           </button>
@@ -394,7 +434,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-br from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 disabled:opacity-60 text-white rounded-lg font-medium transition-colors"
             >
               <FaLock /> {loading ? 'Mengubah...' : 'Ubah Password'}
             </button>
@@ -402,5 +442,6 @@ export default function ProfilePage() {
         )}
       </div>
     </div>
+    </>
   );
 }

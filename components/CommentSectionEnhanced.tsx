@@ -6,6 +6,7 @@ import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { FaHeart, FaRegHeart, FaClock, FaTrash, FaPaperPlane, FaReply, FaEdit, FaTimes, FaCheck, FaCommentAlt } from 'react-icons/fa';
 import RoleBadge from './RoleBadge';
+import Image from 'next/image';
 
 interface Comment {
   id: string;
@@ -14,6 +15,7 @@ interface Comment {
   author_id?: string | null; // Supabase auth user id (unused for credential users)
   user_id?: string | null;   // Internal NextAuth user id for ownership
   author_role?: string | null; // User role for badge display
+  author_photo_url?: string | null; // User profile photo
   is_anonymous: boolean;
   created_at: string;
   likes: number;
@@ -318,12 +320,22 @@ export default function CommentSection({
     >
       <div className="flex items-start gap-3">
         {/* Avatar */}
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden ${
           comment.is_anonymous 
             ? 'bg-gray-400' 
             : 'bg-gradient-to-br from-blue-500 to-purple-600'
         }`}>
-          {comment.is_anonymous ? '?' : comment.author_name.charAt(0).toUpperCase()}
+          {!comment.is_anonymous && comment.author_photo_url ? (
+            <Image
+              src={comment.author_photo_url}
+              alt={comment.author_name}
+              width={40}
+              height={40}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            comment.is_anonymous ? '?' : comment.author_name.charAt(0).toUpperCase()
+          )}
         </div>
         
         <div className="flex-1 min-w-0">

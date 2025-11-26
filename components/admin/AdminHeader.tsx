@@ -7,6 +7,7 @@ import { FaBell, FaUser, FaChevronDown, FaMoon, FaSun, FaSearch } from 'react-ic
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
 import RoleBadge from '@/components/RoleBadge';
+import Image from 'next/image';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -50,6 +51,7 @@ export default function AdminHeader() {
   const userName = session?.user?.name || 'Admin';
   const userEmail = session?.user?.email || 'admin@osis.com';
   const userRole = session?.user?.role || 'User';
+  const userPhoto = session?.user?.image || '';
   const userInitial = userName.charAt(0).toUpperCase();
 
   return (
@@ -137,8 +139,18 @@ export default function AdminHeader() {
               onClick={() => setShowProfile(!showProfile)}
               className="flex items-center space-x-3 p-2 pr-4 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 transition-all shadow-lg"
             >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-inner text-xl font-bold" style={{ background: 'var(--card-bg)', border: `1px solid var(--card-border)` }}>
-                {userInitial}
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-inner text-xl font-bold overflow-hidden" style={{ background: 'var(--card-bg)', border: `1px solid var(--card-border)` }}>
+                {userPhoto ? (
+                  <Image
+                    src={userPhoto}
+                    alt={userName}
+                    width={40}
+                    height={40}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  userInitial
+                )}
               </div>
               <div className="text-left hidden sm:block">
                 <div className="flex items-center gap-2">

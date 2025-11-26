@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -33,7 +35,8 @@ export default function RegisterPage() {
       if (!res.ok) {
         setStatus(`❌ ${data.error || 'Registrasi gagal.'}`);
       } else {
-        setStatus('✅ Akun dibuat. Cek email untuk verifikasi. Setelah verifikasi, tunggu persetujuan admin.');
+        // Redirect to waiting verification page
+        router.push('/waiting-verification');
       }
     } catch (err: any) {
       setStatus('❌ Terjadi kesalahan jaringan.');

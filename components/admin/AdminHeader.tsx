@@ -6,6 +6,7 @@ import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaBell, FaUser, FaChevronDown, FaMoon, FaSun, FaSearch } from 'react-icons/fa';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageToggle from '@/components/LanguageToggle';
+import RoleBadge from '@/components/RoleBadge';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -140,7 +141,10 @@ export default function AdminHeader() {
                 {userInitial}
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-bold text-slate-900">{userName}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-slate-900">{userName}</p>
+                  <RoleBadge role={userRole} size="sm" showLabel={false} />
+                </div>
                 <p className="text-xs text-slate-700">{userRole} · {language.toUpperCase()} · {theme === 'dark' ? 'Dark' : 'Light'}</p>
               </div>
               <FaChevronDown className="text-slate-900 text-sm" />
@@ -150,7 +154,10 @@ export default function AdminHeader() {
             {showProfile && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl shadow-2xl overflow-hidden" style={{ background: 'var(--surface-alt)', border: `1px solid var(--border)` }}>
                 <div className="p-4 bg-gradient-to-r from-yellow-400 to-amber-500">
-                  <p className="font-bold text-slate-900">{userName}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-bold text-slate-900">{userName}</p>
+                    <RoleBadge role={userRole} size="sm" />
+                  </div>
                   <p className="text-sm text-slate-700">{userEmail}</p>
                 </div>
                 <div className="p-2">

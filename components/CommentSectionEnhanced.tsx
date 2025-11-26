@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { FaHeart, FaRegHeart, FaClock, FaTrash, FaPaperPlane, FaReply, FaEdit, FaTimes, FaCheck, FaCommentAlt } from 'react-icons/fa';
+import RoleBadge from './RoleBadge';
 
 interface Comment {
   id: string;
@@ -12,6 +13,7 @@ interface Comment {
   author_name: string;
   author_id?: string | null; // Supabase auth user id (unused for credential users)
   user_id?: string | null;   // Internal NextAuth user id for ownership
+  author_role?: string | null; // User role for badge display
   is_anonymous: boolean;
   created_at: string;
   likes: number;
@@ -331,6 +333,9 @@ export default function CommentSection({
               <span className="font-semibold text-gray-900 dark:text-white">
                 {comment.author_name}
               </span>
+              {!comment.is_anonymous && comment.author_role && (
+                <RoleBadge role={comment.author_role} size="sm" showLabel={false} />
+              )}
               {comment.is_anonymous && (
                 <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded">
                   Anonymous

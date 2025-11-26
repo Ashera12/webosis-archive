@@ -57,6 +57,17 @@ export async function GET(request: NextRequest) {
     // Fetch like counts and user's likes for each comment
     const commentsWithLikes = await Promise.all(
       (comments || []).map(async (comment) => {
+        // Get author role from users table
+        let authorRole = null;
+        if (comment.user_id) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', comment.user_id)
+            .single();
+          authorRole = userData?.role || null;
+        }
+
         // Get like count
         const { count } = await supabase
           .from('comment_likes')
@@ -73,6 +84,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...comment,
+          author_role: authorRole,
           likes: count || 0,
           liked_by_user: !!userLike
         };

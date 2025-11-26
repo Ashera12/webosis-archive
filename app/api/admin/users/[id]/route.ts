@@ -27,7 +27,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .eq('id', id)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[admin/users/[id] GET] Supabase error:', error);
+      throw error;
+    }
     if (!data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -49,18 +52,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ success: true, data: result });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to fetch user' }, { status: 500 });
+    console.error('[admin/users/[id] GET] Exception:', e);
+    return NextResponse.json({ error: e.message || 'Failed to fetch user', details: e.toString() }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const authErr = await requirePermission('users:edit');
-    if (authErr) return authErr;
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { id } = await params;
     const body = await request.json();
     const { name, role, is_active, profile_image, password, username, nisn, unit, kelas } = body;
+
+    // Check if user is editing their own profile
+    const isOwnProfile = session.user.id === id;
+    
+    // If not own profile, require admin permission
+    if (!isOwnProfile) {
+      const authErr = await requirePermission('users:edit');
+      if (authErr) return authErr;
+    }
 
     const update: any = {};
     if (name !== undefined) update.name = name;
@@ -68,14 +83,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (nisn !== undefined) update.nisn = nisn;
     if (unit !== undefined) update.unit_sekolah = unit;
     if (kelas !== undefined) update.kelas = kelas;
-    if (role !== undefined) update.role = ALLOWED_ROLES.has(role) ? role : undefined;
-    if (is_active !== undefined) {
-      update.approved = !!is_active;
-      // Clear rejection when approving AND ensure email is verified
-      if (is_active) {
-        update.rejected = false;
-        update.rejection_reason = null;
-        update.email_verified = true; // Ensure verified when approving
+    
+    // Only admins can change role and is_active
+    if (!isOwnProfile) {
+      if (role !== undefined) update.role = ALLOWED_ROLES.has(role) ? role : undefined;
+      if (is_active !== undefined) {
+        update.approved = !!is_active;
+        // Clear rejection when approving AND ensure email is verified
+        if (is_active) {
+          update.rejected = false;
+          update.rejection_reason = null;
+          update.email_verified = true; // Ensure verified when approving
+        }
       }
     }
     if (profile_image !== undefined) update.photo_url = profile_image ?? null;

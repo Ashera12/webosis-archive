@@ -662,19 +662,6 @@ export default function UsersPage() {
                         <FaTrash size={14} />
                       </button>
                     </div>
-                    {/* View Dashboard button (admin can view specific user's dashboard) */}
-                    <div className="absolute bottom-3 right-3">
-                      <a
-                        href={`/dashboard?userId=${user.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-1.5"
-                        title="Lihat dashboard user ini"
-                      >
-                        <FaEye size={12} />
-                        Dashboard
-                      </a>
-                    </div>
                   </div>
 
                   {/* User Info */}
@@ -721,6 +708,20 @@ export default function UsersPage() {
                         Login: {new Date(user.last_login).toLocaleDateString('id-ID')}
                       </p>
                     )}
+
+                    {/* View Dashboard Button - Prominent at bottom of card */}
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <a
+                        href={`/dashboard?userId=${user.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 group"
+                        title="Lihat dashboard user ini"
+                      >
+                        <FaEye size={16} className="group-hover:scale-110 transition-transform" />
+                        Lihat Dashboard User
+                      </a>
+                    </div>
                   </div>
                 </div>
               );

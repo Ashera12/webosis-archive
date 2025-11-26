@@ -33,6 +33,7 @@ export default function UserDashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [roleChanged, setRoleChanged] = useState(false);
 
   useEffect(() => {
     // Parse userId from query if present
@@ -86,6 +87,11 @@ export default function UserDashboard() {
         
         // Update session if role changed and viewing own profile
         if (!targetUserId && session?.user?.role !== data.data.role) {
+          console.log('[Dashboard] Role changed detected!', { 
+            old: session?.user?.role, 
+            new: data.data.role 
+          });
+          setRoleChanged(true);
           await updateSession({
             ...session,
             user: {
@@ -95,6 +101,8 @@ export default function UserDashboard() {
               image: data.data.profile_image || data.data.photo_url,
             }
           });
+          // Auto-hide notification after 10 seconds
+          setTimeout(() => setRoleChanged(false), 10000);
         }
       }
     } catch (error) {
@@ -122,6 +130,25 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Role Change Notification */}
+        {roleChanged && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              <div>
+                <p className="font-bold">Role Berhasil Diperbarui!</p>
+                <p className="text-sm opacity-90">Role Anda sekarang: {userRole}</p>
+              </div>
+              <button 
+                onClick={() => setRoleChanged(false)}
+                className="ml-4 text-white/80 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Welcome Header */}
         <div className="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 rounded-2xl shadow-2xl p-8 text-slate-900">
           <div className="flex flex-col md:flex-row items-center gap-6">

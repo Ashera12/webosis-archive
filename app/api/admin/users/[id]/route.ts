@@ -92,7 +92,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     
     // Only admins can change role and is_active
     if (!isOwnProfile) {
-      if (role !== undefined) update.role = ALLOWED_ROLES.has(role) ? role : undefined;
+      if (role !== undefined) {
+        if (!ALLOWED_ROLES.has(role)) {
+          console.error('[admin/users/[id] PUT] Invalid role:', role);
+          return NextResponse.json({ error: `Invalid role: ${role}` }, { status: 400 });
+        }
+        update.role = role;
+        console.log('[admin/users/[id] PUT] Role will be updated to:', role);
+      }
       if (is_active !== undefined) {
         update.approved = !!is_active;
         // Clear rejection when approving AND ensure email is verified
@@ -127,7 +134,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       throw error;
     }
     
-    console.log('[admin/users/[id] PUT] SUCCESS - approved value:', data.approved, 'is_active will be:', !!data.approved);
+    console.log('[admin/users/[id] PUT] SUCCESS - Role:', data.role, 'Approved:', data.approved, 'is_active will be:', !!data.approved);
 
     const result = {
       id: data.id,
@@ -137,7 +144,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       nisn: data.nisn,
       nik: data.nik,
       unit: data.unit_sekolah,
-      kelas: '', // Column doesn't exist
+      kelas: data.kelas || '',
       requested_role: data.requested_role,
       role: data.role,
       is_active: !!data.approved,

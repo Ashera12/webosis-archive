@@ -41,6 +41,19 @@ export default function UserDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const q = params.get('userId');
+      
+      // Check if user is trying to view another user's dashboard
+      if (q && q !== session?.user?.id) {
+        const currentRole = session?.user?.role;
+        const allowedRoles = ['super_admin', 'admin', 'osis'];
+        
+        // If not authorized role, redirect to own dashboard
+        if (!allowedRoles.includes(currentRole || '')) {
+          router.push('/dashboard');
+          return;
+        }
+      }
+      
       setTargetUserId(q);
     }
     if (session?.user) {

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import Link from 'next/link';
 import {
@@ -40,6 +42,10 @@ interface ErrorSummary {
 }
 
 export default function AdminDashboard() {
+  const { data: session, status } = useSession();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
+
   const [errorSummary, setErrorSummary] = useState<ErrorSummary>({
     total: 0,
     critical: 0,
@@ -50,6 +56,16 @@ export default function AdminDashboard() {
   const [loadingErrors, setLoadingErrors] = useState(true);
 
   useEffect(() => {
+    if (status === 'unauthenticated') {
+      redirect('/admin/login');
+      return;
+    }
+    
+    if (status === 'authenticated' && !canAccessAdminPanel) {
+      redirect('/404');
+      return;
+    }
+
     async function fetchErrorSummary() {
       try {
         const res = await apiFetch('/api/admin/errors?summary=true');
@@ -108,8 +124,10 @@ export default function AdminDashboard() {
       }
     }
     
-    fetchErrorSummary();
-  }, []);
+    if (status === 'authenticated' && canAccessAdminPanel) {
+      fetchErrorSummary();
+    }
+  }, [status, canAccessAdminPanel]);
   const stats: StatCard[] = [
     {
       title: 'Total Posts',

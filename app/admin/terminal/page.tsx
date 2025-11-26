@@ -1,10 +1,27 @@
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 import TerminalRunner from '@/components/admin/TerminalRunner';
 import { FaTerminal } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 
 export default function AdminTerminalPage() {
+  const { data: session, status } = useSession();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      redirect('/admin/login');
+      return;
+    }
+    if (status === 'authenticated' && !canAccessAdminPanel) {
+      redirect('/404');
+      return;
+    }
+  }, [status, canAccessAdminPanel]);
+
   return (
     <AdminPageShell
       icon={<FaTerminal className="w-8 h-8" />}

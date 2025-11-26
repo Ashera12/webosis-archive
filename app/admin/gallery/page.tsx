@@ -33,6 +33,8 @@ interface Sekbid {
 
 export default function GalleryPage() {
   const { data: session, status } = useSession();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sekbids, setSekbids] = useState<Sekbid[]>([]);
@@ -108,11 +110,16 @@ export default function GalleryPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       redirect('/admin/login');
+      return;
     }
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && !canAccessAdminPanel) {
+      redirect('/404');
+      return;
+    }
+    if (status === 'authenticated' && canAccessAdminPanel) {
       fetchData();
     }
-  }, [status, fetchData]);
+  }, [status, fetchData, canAccessAdminPanel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

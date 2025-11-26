@@ -60,6 +60,8 @@ const PRIORITY_CONFIG = {
 
 export default function AnnouncementsPage() {
   const { data: session, status } = useSession();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -90,11 +92,16 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       redirect('/admin/login');
+      return;
     }
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && !canAccessAdminPanel) {
+      redirect('/404');
+      return;
+    }
+    if (status === 'authenticated' && canAccessAdminPanel) {
       fetchData();
     }
-  }, [status, fetchData]);
+  }, [status, fetchData, canAccessAdminPanel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

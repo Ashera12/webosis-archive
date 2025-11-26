@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 import ImageUploadField from '@/components/ImageUploadField';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaCog, FaRobot, FaDatabase, FaPalette, FaEye, FaSave, FaChevronDown, FaChevronUp, FaKey, FaTools, FaDownload, FaImage, FaTint, FaMagic, FaCopy, FaSun, FaMoon } from 'react-icons/fa';
@@ -81,6 +83,9 @@ const SETTINGS_GROUPS = {
 };
 
 export default function AdminSettingsPage() {
+  const { data: session, status } = useSession();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     ai: true,
     admin: false,
@@ -398,9 +403,19 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
-    loadTemplates();
-    loadSettings();
-  }, []);
+    if (status === 'unauthenticated') {
+      redirect('/admin/login');
+      return;
+    }
+    if (status === 'authenticated' && !canAccessAdminPanel) {
+      redirect('/404');
+      return;
+    }
+    if (status === 'authenticated' && canAccessAdminPanel) {
+      loadTemplates();
+      loadSettings();
+    }
+  }, [status, canAccessAdminPanel]);
 
   return (
     <AdminPageShell

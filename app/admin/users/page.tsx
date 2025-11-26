@@ -113,19 +113,42 @@ export default function UsersPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      console.log('[Admin Users] Fetching...');
-      const response = await fetch('/api/admin/users');
+      console.log('[Admin Users] Fetching from /api/admin/users...');
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      });
+      
+      console.log('[Admin Users] Response status:', response.status);
+      
       if (!response.ok) {
         const errJson = await response.json().catch(()=>({}));
-        throw new Error(errJson.error || errJson.message || 'Failed to fetch');
+        console.error('[Admin Users] API Error:', errJson);
+        throw new Error(errJson.error || errJson.message || `HTTP ${response.status}`);
       }
+      
       const data = await response.json();
-      console.log('[Admin Users] Response:', data);
+      console.log('[Admin Users] Raw response:', data);
+      console.log('[Admin Users] Is array?', Array.isArray(data));
+      console.log('[Admin Users] Data length:', Array.isArray(data) ? data.length : (data.users?.length || 0));
+      
+      // Handle both array and object response formats
       const list = Array.isArray(data) ? data : (data.users || []);
+      console.log('[Admin Users] Final list:', list.length, 'users');
+      
+      if (list.length === 0) {
+        console.warn('[Admin Users] No users returned from API');
+      }
+      
       setItems(list);
       setFallbackMode(!Array.isArray(data) && !!data.fallback);
     } catch (error) {
-      console.error('[Admin Users] Error:', error);
+      console.error('[Admin Users] Fetch error:', error);
+      console.error('[Admin Users] Error stack:', (error as Error).stack);
+      alert('Gagal memuat data users: ' + (error as Error).message);
       setItems([]);
     } finally {
       setLoading(false);
@@ -631,6 +654,21 @@ export default function UsersPage() {
                         <FaTrash size={14} />
                       </button>
                     </div>
+                    {/* View Dashboard button for non-admin users */}
+                    {!['super_admin', 'admin', 'moderator', 'osis'].includes(user.role) && (
+                      <div className="absolute bottom-3 right-3">
+                        <a
+                          href="/dashboard"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-1.5"
+                          title="Lihat halaman dashboard user"
+                        >
+                          <FaEye size={12} />
+                          Dashboard
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {/* User Info */}

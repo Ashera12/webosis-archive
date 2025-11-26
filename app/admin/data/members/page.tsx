@@ -113,14 +113,15 @@ export default function MembersAdminPage() {
       setLoading(true);
       
       // Fetch sekbids
+      console.log('[Members Admin] Fetching sekbids...');
       const sekbidRes = await apiFetch('/api/admin/sekbid');
       if (sekbidRes.ok) {
         const sekbidData = await safeJson(sekbidRes, { url: '/api/admin/sekbid', method: 'GET' });
-        console.log('[Admin] Fetched sekbids:', sekbidData);
+        console.log('[Members Admin] Fetched sekbids:', sekbidData);
         // API returns array directly, not wrapped in object
         setSekbids(Array.isArray(sekbidData) ? sekbidData : []);
       } else {
-        console.error('Failed to fetch sekbids:', sekbidRes.status);
+        console.error('[Members Admin] Failed to fetch sekbids:', sekbidRes.status);
       }
 
       // Fetch members
@@ -129,12 +130,16 @@ export default function MembersAdminPage() {
         url += `&sekbid_id=${filterSekbid}`;
       }
       
-      console.log('[Admin] Fetching members from:', url);
+      console.log('[Members Admin] Fetching members from:', url);
       const memberRes = await apiFetch(url);
+      
+      console.log('[Members Admin] Response status:', memberRes.status);
+      console.log('[Members Admin] Response ok:', memberRes.ok);
       
       if (memberRes.ok) {
         const memberData = await safeJson(memberRes, { url, method: 'GET' });
-        console.log('[Admin] Received members:', memberData.members?.length || 0);
+        console.log('[Members Admin] Raw response:', memberData);
+        console.log('[Members Admin] Members count:', memberData.members?.length || 0);
         
         // Normalize API field names
         const normalized = (memberData.members || []).map((m: any) => ({
@@ -152,6 +157,8 @@ export default function MembersAdminPage() {
           class: m.class ?? '',
         }));
 
+        console.log('[Members Admin] Normalized members:', normalized.length);
+
         // Sort members
         const sorted = normalized.slice().sort((a: Member, b: Member) => {
           const aSek = a.sekbid_id === null || a.sekbid_id === undefined ? 7 : a.sekbid_id;
@@ -162,17 +169,27 @@ export default function MembersAdminPage() {
           return aOrder - bOrder;
         });
 
+        console.log('[Members Admin] Final sorted members:', sorted.length);
         setMembers(sorted);
       } else if (memberRes.status === 401) {
-        console.error('[Admin] Unauthorized - please login');
+        console.error('[Members Admin] Unauthorized - please login');
         alert('Session expired. Please login again.');
-        window.location.href = '/auth/signin';
+        window.location.href = '/admin/login';
+      } else if (memberRes.status === 404) {
+        console.error('[Members Admin] 404 Not Found - API endpoint tidak ada');
+        alert('API endpoint /api/admin/members tidak ditemukan. Periksa routing.');
+        setMembers([]);
       } else {
         const error = await safeJson(memberRes, { url, method: 'GET' }).catch(() => ({ error: 'Unknown error' }));
-        console.error('[Admin] Failed to fetch members:', memberRes.status, error);
+        console.error('[Members Admin] Failed to fetch members:', memberRes.status, error);
+        alert(`Gagal memuat members: ${memberRes.status} - ${error.error || 'Unknown error'}`);
+        setMembers([]);
       }
     } catch (error) {
-      console.error('[Admin] Error fetching data:', error);
+      console.error('[Members Admin] Error fetching data:', error);
+      console.error('[Members Admin] Error stack:', (error as Error).stack);
+      alert('Terjadi kesalahan saat memuat data: ' + (error as Error).message);
+      setMembers([]);
     } finally {
       setLoading(false);
     }

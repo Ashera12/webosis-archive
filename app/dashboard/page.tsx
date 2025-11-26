@@ -23,10 +23,17 @@ interface UserProfile {
 export default function UserDashboard() {
   const { data: session } = useSession();
   const router = useRouter();
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Parse userId from query if present
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('userId');
+      setTargetUserId(q);
+    }
     if (session?.user) {
       loadProfile();
     }
@@ -34,7 +41,8 @@ export default function UserDashboard() {
 
   const loadProfile = async () => {
     try {
-      const res = await fetch(`/api/admin/users/${session?.user?.id}`);
+      const idToLoad = targetUserId || session?.user?.id;
+      const res = await fetch(`/api/admin/users/${idToLoad}`);
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
       if (data.success) {

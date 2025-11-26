@@ -18,6 +18,10 @@ interface UserProfile {
   kelas?: string;
   photo_url?: string;
   created_at?: string;
+  email_verified?: boolean;
+  approved?: boolean;
+  updated_at?: string;
+  sekbid_id?: number;
 }
 
 export default function UserDashboard() {
@@ -60,6 +64,10 @@ export default function UserDashboard() {
           kelas: data.data.kelas || '',
           photo_url: data.data.profile_image || data.data.photo_url || '',
           created_at: data.data.created_at || '',
+          email_verified: data.data.email_verified || false,
+          approved: data.data.approved || false,
+          updated_at: data.data.updated_at || '',
+          sekbid_id: data.data.sekbid_id || null,
         });
       }
     } catch (error) {
@@ -231,7 +239,7 @@ export default function UserDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Status Akun</p>
-                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">Aktif</p>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{profile?.approved ? 'Disetujui' : 'Menunggu Persetujuan'}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
                     <FaUser className="text-white text-xl" />
@@ -243,7 +251,7 @@ export default function UserDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-600 dark:text-green-400 font-medium">Email Verification</p>
-                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">Verified</p>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{profile?.email_verified ? 'Verified' : 'Unverified'}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
                     <FaEnvelope className="text-white text-xl" />
@@ -262,6 +270,22 @@ export default function UserDashboard() {
                   </div>
                 </div>
               </div>
+
+              {profile?.updated_at && (
+                <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900/20 dark:to-slate-800/20 rounded-lg border-l-4 border-slate-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Terakhir Diperbarui</p>
+                      <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
+                        {new Date(profile.updated_at).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-slate-500 rounded-full flex items-center justify-center">
+                      <FaClock className="text-white text-xl" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

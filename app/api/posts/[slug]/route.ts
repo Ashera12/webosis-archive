@@ -22,7 +22,14 @@ export async function GET(
     // Fetch post by slug
     const { data: post, error } = await supabase
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        author:users!author_id (
+          id,
+          name,
+          photo_url
+        )
+      `)
       .eq('slug', slug)
       .eq('status', 'published')
       .single();

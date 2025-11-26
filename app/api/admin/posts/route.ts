@@ -24,7 +24,14 @@ export async function GET() {
     console.log('[admin/posts GET] Fetching from database...');
     const { data, error } = await supabaseAdmin
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        author:users!author_id (
+          id,
+          name,
+          photo_url
+        )
+      `)
       .order('created_at', { ascending: false })
       .limit(100);
       

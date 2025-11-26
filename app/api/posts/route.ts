@@ -9,7 +9,14 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        author:users!author_id (
+          id,
+          name,
+          photo_url
+        )
+      `)
       .eq('status', 'published')
       // Supabase JS order options do not support nullsLast in this version; removed for type safety
       .order('published_at', { ascending: false });

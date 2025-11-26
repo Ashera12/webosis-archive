@@ -46,7 +46,7 @@ export default function ProfilePage() {
 
   const loadUserProfile = async () => {
     try {
-      const res = await fetch(`/api/admin/users/${session?.user?.id}`);
+      const res = await fetch('/api/profile');
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
       if (data.success) {
@@ -127,7 +127,7 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/admin/users/${session?.user?.id}`, {
+      const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -180,7 +180,7 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/admin/users/${session?.user?.id}`, {
+      const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -42,7 +42,11 @@ export default function UserDashboard() {
   const loadProfile = async () => {
     try {
       const idToLoad = targetUserId || session?.user?.id;
-      const res = await fetch(`/api/admin/users/${idToLoad}`);
+      // Use dedicated profile endpoint for own profile, admin endpoint for viewing others
+      const endpoint = targetUserId && targetUserId !== session?.user?.id 
+        ? `/api/admin/users/${idToLoad}`
+        : '/api/profile';
+      const res = await fetch(endpoint);
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
       if (data.success) {

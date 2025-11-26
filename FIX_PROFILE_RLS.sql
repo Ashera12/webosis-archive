@@ -14,15 +14,15 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "users_select_own" ON users
   FOR SELECT
   TO authenticated
-  USING (auth.uid()::text = id);
+  USING (id = auth.uid()::text);
 
 -- Allow users to update their own profile (except role and approval status)
 CREATE POLICY "users_update_own" ON users
   FOR UPDATE
   TO authenticated
-  USING (auth.uid()::text = id)
+  USING (id = auth.uid()::text)
   WITH CHECK (
-    auth.uid()::text = id
+    id = auth.uid()::text
     -- Prevent users from changing their own role or approval status
     AND (
       role = (SELECT role FROM users WHERE id = auth.uid()::text)
@@ -57,5 +57,3 @@ CREATE POLICY "users_update_admin" ON users
       AND role IN ('super_admin', 'admin', 'osis')
     )
   );
-
-COMMIT;

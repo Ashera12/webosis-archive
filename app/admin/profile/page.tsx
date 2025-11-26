@@ -66,13 +66,13 @@ export default function ProfilePage() {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      showToast('error', 'File terlalu besar! Maksimal 5MB');
+      showToast('File terlalu besar! Maksimal 5MB', 'error');
       return;
     }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      showToast('error', 'File harus berupa gambar!');
+      showToast('File harus berupa gambar!', 'error');
       return;
     }
 
@@ -92,11 +92,11 @@ export default function ProfilePage() {
       
       if (data.success && data.publicUrl) {
         setFormData(prev => ({ ...prev, photo_url: data.publicUrl }));
-        showToast('success', 'Foto berhasil diupload!');
+        showToast('Foto berhasil diupload!', 'success');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      showToast('error', 'Gagal upload foto');
+      showToast('Gagal upload foto', 'error');
     } finally {
       setUploading(false);
     }
@@ -124,7 +124,7 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (data.success) {
-        showToast('success', 'Profil berhasil diperbarui!');
+        showToast('Profil berhasil diperbarui!', 'success');
         // Update session
         await update({
           ...session,
@@ -137,7 +137,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Update error:', error);
-      showToast('error', 'Gagal memperbarui profil');
+      showToast('Gagal memperbarui profil', 'error');
     } finally {
       setLoading(false);
     }
@@ -148,12 +148,12 @@ export default function ProfilePage() {
 
     // Validate passwords
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast('error', 'Password baru tidak cocok!');
+      showToast('Password baru tidak cocok!', 'error');
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      showToast('error', 'Password minimal 8 karakter!');
+      showToast('Password minimal 8 karakter!', 'error');
       return;
     }
 
@@ -172,7 +172,7 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (data.success) {
-        showToast('success', 'Password berhasil diubah!');
+        showToast('Password berhasil diubah!', 'success');
         setPasswordData({
           currentPassword: '',
           newPassword: '',
@@ -182,7 +182,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Password change error:', error);
-      showToast('error', 'Gagal mengubah password');
+      showToast('Gagal mengubah password', 'error');
     } finally {
       setLoading(false);
     }

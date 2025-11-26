@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     
     // Users can only view their own profile unless they have admin permission
     if (session.user.id !== id) {
-      const authErr = await requirePermission('users:view');
+      const authErr = await requirePermission('users:read');
       if (authErr) return authErr;
     }
 

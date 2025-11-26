@@ -424,6 +424,7 @@ export default function UsersPage() {
                   kelas: '',
                   nik: '',
                   nisn: '',
+                  instagram_username: '',
                   role: 'siswa',
                   password: '',
                   is_active: true,

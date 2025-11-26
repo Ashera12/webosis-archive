@@ -88,6 +88,9 @@ const ROLE_CONFIG = {
 
 export default function UsersPage() {
   const { data: session, status } = useSession();
+  // Client-side role guard: only allow roles with users:read
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canReadUsers = ['super_admin','admin','guru'].includes(role);
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [fallbackMode, setFallbackMode] = useState(false);
@@ -160,9 +163,15 @@ export default function UsersPage() {
       redirect('/admin/login');
     }
     if (status === 'authenticated') {
+      if (!canReadUsers) {
+        // Prevent hitting API with insufficient permission; redirect politely
+        alert('Anda tidak memiliki izin untuk melihat daftar user.');
+        redirect('/dashboard');
+        return;
+      }
       fetchData();
     }
-  }, [status, fetchData]);
+  }, [status, fetchData, canReadUsers]);
 
   // Realtime subscription for users table (INSERT/UPDATE/DELETE)
   useEffect(() => {

@@ -16,6 +16,11 @@ interface Sekbid {
 
 export default function SekbidManagementPage() {
   const { data: session, status } = useSession();
+  
+  // STRICT: Only super_admin, admin, osis can access admin panel
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
+  
   const [items, setItems] = useState<Sekbid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -42,11 +47,16 @@ export default function SekbidManagementPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       redirect('/admin/login');
+      return;
     }
     if (status === 'authenticated') {
+      if (!canAccessAdminPanel) {
+        redirect('/404');
+        return;
+      }
       fetchData();
     }
-  }, [status, fetchData]);
+  }, [status, fetchData, canAccessAdminPanel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaInstagram, FaEnvelope } from 'react-icons/fa';
 import Image from 'next/image';
@@ -29,6 +31,12 @@ interface Member {
 }
 
 export default function MembersAdminPage() {
+    const { data: session, status } = useSession();
+    
+    // STRICT: Only super_admin, admin, osis can access admin panel
+    const role = ((session?.user as any)?.role || '').toLowerCase();
+    const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
+    
     // Helper: reset form to default values
     function resetForm() {
       setFormData({
@@ -197,8 +205,18 @@ export default function MembersAdminPage() {
 
   // Fetch data on mount and when filterSekbid changes
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (status === 'unauthenticated') {
+      redirect('/admin/login');
+      return;
+    }
+    if (status === 'authenticated') {
+      if (!canAccessAdminPanel) {
+        redirect('/404');
+        return;
+      }
+      fetchData();
+    }
+  }, [fetchData, status, canAccessAdminPanel]);
   // ...existing code...
 
   // --- File upload handler (must be above onDrop) ---

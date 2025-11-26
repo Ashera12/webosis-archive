@@ -142,16 +142,22 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'polls:read',
   ],
   
-  // OSIS: Content contributor (can create/edit, no delete). Similar to editor.
+  // OSIS: Full admin powers (same as admin role)
   osis: [
-    'posts:read', 'posts:create', 'posts:edit',
-    'events:read', 'events:create', 'events:edit',
-    'gallery:read', 'gallery:create', 'gallery:edit',
-    'members:read',
-    'sekbid:read',
-    'proker:read', 'proker:create', 'proker:edit',
-    'announcements:read', 'announcements:create', 'announcements:edit',
-    'polls:read', 'polls:create', 'polls:edit',
+    // Content (full CRUD)
+    'posts:read', 'posts:create', 'posts:edit', 'posts:delete',
+    'events:read', 'events:create', 'events:edit', 'events:delete',
+    'gallery:read', 'gallery:create', 'gallery:edit', 'gallery:delete',
+    // Data (full CRUD)
+    'members:read', 'members:create', 'members:edit', 'members:delete',
+    'sekbid:read', 'sekbid:create', 'sekbid:edit', 'sekbid:delete',
+    'proker:read', 'proker:create', 'proker:edit', 'proker:delete',
+    'announcements:read', 'announcements:create', 'announcements:edit', 'announcements:delete',
+    'polls:read', 'polls:create', 'polls:edit', 'polls:delete',
+    // Users (read and approve)
+    'users:read', 'users:approve',
+    // System (read-only)
+    'settings:read',
   ],
   
   // Siswa: Read-only everywhere (same as viewer)

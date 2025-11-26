@@ -88,9 +88,9 @@ const ROLE_CONFIG = {
 
 export default function UsersPage() {
   const { data: session, status } = useSession();
-  // Client-side role guard: only allow roles with users:read
+  // STRICT: Only super_admin, admin, osis can access admin users panel
   const role = ((session?.user as any)?.role || '').toLowerCase();
-  const canReadUsers = ['super_admin','admin','guru'].includes(role);
+  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [fallbackMode, setFallbackMode] = useState(false);
@@ -163,15 +163,14 @@ export default function UsersPage() {
       redirect('/admin/login');
     }
     if (status === 'authenticated') {
-      if (!canReadUsers) {
-        // Prevent hitting API with insufficient permission; redirect politely
-        alert('Anda tidak memiliki izin untuk melihat daftar user.');
-        redirect('/dashboard');
+      if (!canAccessAdminPanel) {
+        // Unauthorized access - redirect to 404
+        redirect('/404');
         return;
       }
       fetchData();
     }
-  }, [status, fetchData, canReadUsers]);
+  }, [status, fetchData, canAccessAdminPanel]);
 
   // Realtime subscription for users table (INSERT/UPDATE/DELETE)
   useEffect(() => {

@@ -29,12 +29,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     
-    // Role-based access: admin, moderator, osis, super_admin get full access
-    const adminRoles = ['super_admin', 'admin', 'moderator', 'osis'];
+    // STRICT: Only super_admin, admin, osis can access admin panel
+    const adminRoles = ['super_admin', 'admin', 'osis'];
     const userRole = (session.user.role || '').trim().toLowerCase();
-    const isAdmin = adminRoles.some(role => userRole.includes(role));
+    const isAdmin = adminRoles.includes(userRole);
     
-    // Allow profile page for all authenticated users
+    // Exception: Allow /admin/profile for all authenticated users to edit own profile
     if (pathname === '/admin/profile') {
       return NextResponse.next({
         request: {
@@ -43,10 +43,10 @@ export async function middleware(request: NextRequest) {
       });
     }
     
-    // Redirect non-admin users to dashboard
+    // Redirect non-admin users to 404 (no info leak)
     if (!isAdmin) {
-      const url = new URL('/dashboard', request.url);
-      return NextResponse.redirect(url);
+      const url = new URL('/404', request.url);
+      return NextResponse.rewrite(url);
     }
     
     // Admin user authorized

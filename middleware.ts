@@ -29,11 +29,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     
-    // STRICT: Only super_admin, admin, osis can access admin panel
-    const adminRoles = ['super_admin', 'admin', 'osis'];
-    const userRole = (session.user.role || '').trim().toLowerCase();
-    const isAdmin = adminRoles.includes(userRole);
-    
     // Exception: Allow /admin/profile for all authenticated users to edit own profile
     if (pathname === '/admin/profile') {
       return NextResponse.next({
@@ -43,10 +38,54 @@ export async function middleware(request: NextRequest) {
       });
     }
     
-    // Redirect non-admin users to 404 (no info leak)
+    // STRICT: Fetch current role from database (not session) to ensure latest role is used
+    let userRole = (session.user.role || '').trim().toLowerCase();
+    
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const supabase = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+      
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (userData?.role) {
+        userRole = userData.role.trim().toLowerCase();
+        console.log('[Middleware] Fetched fresh role from DB:', { 
+          userId: session.user.id, 
+          sessionRole: session.user.role, 
+          dbRole: userData.role,
+          pathname 
+        });
+      }
+    } catch (error) {
+      console.error('[Middleware] Error fetching role from DB:', error);
+    }
+    
+    // Only super_admin, admin, osis can access admin panel
+    const adminRoles = ['super_admin', 'admin', 'osis'];
+    const isAdmin = adminRoles.includes(userRole);
+    
+    console.log('[Middleware] Admin access check:', {
+      pathname,
+      userId: session.user.id,
+      email: session.user.email,
+      userRole,
+      isAdmin,
+      adminRoles
+    });
+    
+    // Redirect non-admin users to dashboard
     if (!isAdmin) {
-      const url = new URL('/404', request.url);
-      return NextResponse.rewrite(url);
+      console.log('[Middleware] Redirecting non-admin to dashboard:', { userRole, pathname });
+      const url = new URL('/dashboard', request.url);
+      return NextResponse.redirect(url);
     }
     
     // Admin user authorized

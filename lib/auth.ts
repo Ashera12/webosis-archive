@@ -200,28 +200,31 @@ export const authConfig: NextAuthConfig = {
         console.log('[NextAuth] jwt - Added user to token:', { id: user.id, role: (user as any).role });
       }
       
-      // On update trigger or periodically, refresh role from database
-      if (trigger === 'update' || !user) {
+      // ALWAYS refresh role from database to ensure it's current
+      // This ensures role changes take effect immediately after re-login
+      const userId = (token as any)?.id || token?.sub;
+      if (userId) {
         try {
-          const userId = (token as any)?.id || token?.sub;
-          if (userId) {
-            const { createClient } = await import('@supabase/supabase-js');
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-            const supabase = createClient(supabaseUrl, serviceKey, {
-              auth: { persistSession: false, autoRefreshToken: false }
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+          const supabase = createClient(supabaseUrl, serviceKey, {
+            auth: { persistSession: false, autoRefreshToken: false }
+          });
+          
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', userId)
+            .single();
+          
+          if (userData?.role) {
+            (token as Record<string, unknown>)['role'] = userData.role;
+            console.log('[NextAuth] jwt - Refreshed role from DB:', { 
+              userId, 
+              previousRole: (token as any)?.role,
+              newRole: userData.role 
             });
-            
-            const { data: userData } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', userId)
-              .single();
-            
-            if (userData?.role) {
-              (token as Record<string, unknown>)['role'] = userData.role;
-              console.log('[NextAuth] jwt - Refreshed role from DB:', { userId, role: userData.role });
-            }
           }
         } catch (error) {
           console.error('[NextAuth] jwt - Error refreshing role:', error);

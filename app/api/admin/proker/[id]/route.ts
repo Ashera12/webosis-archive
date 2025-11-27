@@ -3,6 +3,37 @@ import { auth } from '@/lib/auth';
 import { requirePermission } from '@/lib/apiAuth';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authErr = await requirePermission('proker:read');
+    if (authErr) return authErr;
+
+    const { id } = await params;
+
+    const { data, error } = await supabaseAdmin
+      .from('program_kerja')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: 'Program kerja not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('[GET /api/admin/proker/[id]] Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

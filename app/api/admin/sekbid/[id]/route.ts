@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/apiAuth';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authErr = await requirePermission('sekbid:read');
+    if (authErr) return authErr;
+
+    const { id } = await params;
+
+    const { data, error } = await supabaseAdmin
+      .from('sekbid')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: 'Sekbid not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ sekbid: data });
+  } catch (error: any) {
+    console.error('[GET /api/admin/sekbid/[id]] Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

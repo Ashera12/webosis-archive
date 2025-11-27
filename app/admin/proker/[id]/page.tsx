@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { redirect, useRouter } from 'next/navigation';
+import { redirect, useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaSave, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
@@ -21,12 +21,9 @@ interface Proker {
   status: 'planned' | 'ongoing' | 'completed' | 'cancelled';
 }
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function EditProkerPage({ params }: PageProps) {
+export default function EditProkerPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
   const { data: session, status } = useSession();
   const [prokerId, setProkerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +39,9 @@ export default function EditProkerPage({ params }: PageProps) {
   });
 
   useEffect(() => {
-    params.then(p => setProkerId(p.id));
-  }, [params]);
+    const id = (routeParams as any)?.id;
+    if (typeof id === 'string') setProkerId(id);
+  }, [routeParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 
-export default function ResetPasswordTokenPage({ params }: { params: Promise<{ token: string }> }) {
+export default function ResetPasswordTokenPage() {
   const router = useRouter();
-  const { token } = use(params);
+  const routeParams = useParams<{ token: string }>();
+  const token = (routeParams as any)?.token || '';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [status, setStatus] = useState<string | null>(null);
@@ -12,8 +13,9 @@ export default function ResetPasswordTokenPage({ params }: { params: Promise<{ t
   const [validFormat, setValidFormat] = useState(true);
 
   useEffect(() => {
-    // Basic token format validation (hex expected)
-    setValidFormat(/^[a-f0-9]{64}$/.test(token));
+    if (typeof token === 'string') {
+      setValidFormat(/^[a-f0-9]{64}$/.test(token));
+    }
   }, [token]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -47,7 +49,7 @@ export default function ResetPasswordTokenPage({ params }: { params: Promise<{ t
   return (
     <div className="max-w-md mx-auto mt-16 p-6 bg-white dark:bg-gray-900 rounded-xl shadow border dark:border-gray-700">
       <h1 className="text-xl font-bold mb-4">Reset Password</h1>
-      {!validFormat && (
+      {!validFormat && token && (
         <div className="text-sm text-red-600 mb-4">Token format tidak valid.</div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">

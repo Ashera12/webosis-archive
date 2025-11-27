@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { redirect, useRouter } from 'next/navigation';
+import { redirect, useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaSave, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
@@ -16,12 +16,9 @@ interface Event {
   published: boolean;
 }
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function EditEventPage({ params }: PageProps) {
+export default function EditEventPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
   const { data: session, status } = useSession();
   const [eventId, setEventId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +33,9 @@ export default function EditEventPage({ params }: PageProps) {
   });
 
   useEffect(() => {
-    params.then(p => setEventId(p.id));
-  }, [params]);
+    const id = (routeParams as any)?.id;
+    if (typeof id === 'string') setEventId(id);
+  }, [routeParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

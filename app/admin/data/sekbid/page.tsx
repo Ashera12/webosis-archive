@@ -24,6 +24,8 @@ export default function SekbidManagementPage() {
   
   const [items, setItems] = useState<Sekbid[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorCode, setErrorCode] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
@@ -34,12 +36,24 @@ export default function SekbidManagementPage() {
 
   const fetchData = useCallback(async () => {
     try {
+      setErrorCode(null);
+      setErrorMessage(null);
       const response = await apiFetch('/api/admin/sekbid');
-      if (!response.ok) throw new Error('Failed to fetch');
+      if (!response.ok) {
+        setErrorCode(response.status);
+        let msg = 'Gagal memuat data';
+        try {
+          const body = await response.json();
+          msg = body?.message || body?.error || msg;
+        } catch {}
+        setErrorMessage(msg);
+        return; // stop further processing
+      }
       const data = await safeJson(response, { url: '/api/admin/sekbid', method: 'GET' }).catch(() => ({ sekbid: [] }));
       setItems(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching sekbid:', error);
+      setErrorMessage('Kesalahan jaringan atau server');
     } finally {
       setLoading(false);
     }
@@ -139,6 +153,15 @@ export default function SekbidManagementPage() {
         </button>
       )}
     >
+      {errorCode && (
+        <div className="mb-6 p-4 rounded-xl border-2 bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700 text-red-700 dark:text-red-300">
+          <p className="font-semibold mb-1">Error {errorCode}</p>
+          <p className="text-sm">{errorMessage}</p>
+          {errorCode === 401 && <p className="text-xs mt-2">Sesi kadaluarsa. Silakan login ulang.</p>}
+          {errorCode === 403 && <p className="text-xs mt-2">Role Anda belum memiliki izin 'sekbid:read'. Pastikan role di DB sudah sinkron.</p>}
+          {errorCode === 404 && <p className="text-xs mt-2">Endpoint tidak ditemukan di deployment. Gunakan /api/debug/routes untuk verifikasi daftar halaman.</p>}
+        </div>
+      )}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">

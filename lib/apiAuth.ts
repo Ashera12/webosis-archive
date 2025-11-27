@@ -23,12 +23,20 @@ export async function requirePermission(permission: Permission) {
   
   const userRole = (session.user as any).role;
   
+  console.log('[requirePermission]', { 
+    userEmail: session.user.email,
+    sessionRole: userRole, 
+    permission, 
+    hasPermission: hasPermission(userRole, permission) 
+  });
+  
   if (!hasPermission(userRole, permission)) {
     return NextResponse.json(
       { 
         error: 'Forbidden', 
         message: 'Anda tidak memiliki izin untuk melakukan aksi ini',
-        required_permission: permission 
+        required_permission: permission,
+        your_role: userRole
       },
       { status: 403 }
     );

@@ -188,14 +188,46 @@ export const authConfig: NextAuthConfig = {
       console.log('[NextAuth] jwt callback:', { 
         hasUser: !!user, 
         trigger,
-        tokenSub: token?.sub 
+        tokenSub: token?.sub,
+        currentRole: (token as any)?.role
       });
+      
+      // On sign in, add user data to token
       if (user && typeof token === 'object' && token !== null) {
         (token as Record<string, unknown>)['role'] = ((user as unknown) as { role?: string }).role;
         // Ensure the user's id is preserved in the token so server APIs can access it
         (token as Record<string, unknown>)['id'] = ((user as unknown) as { id?: string }).id;
         console.log('[NextAuth] jwt - Added user to token:', { id: user.id, role: (user as any).role });
       }
+      
+      // On update trigger or periodically, refresh role from database
+      if (trigger === 'update' || !user) {
+        try {
+          const userId = (token as any)?.id || token?.sub;
+          if (userId) {
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+            const supabase = createClient(supabaseUrl, serviceKey, {
+              auth: { persistSession: false, autoRefreshToken: false }
+            });
+            
+            const { data: userData } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', userId)
+              .single();
+            
+            if (userData?.role) {
+              (token as Record<string, unknown>)['role'] = userData.role;
+              console.log('[NextAuth] jwt - Refreshed role from DB:', { userId, role: userData.role });
+            }
+          }
+        } catch (error) {
+          console.error('[NextAuth] jwt - Error refreshing role:', error);
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {

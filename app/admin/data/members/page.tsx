@@ -26,6 +26,7 @@ interface Member {
   instagram: string | null;
   email: string | null;
   quote: string | null;
+  kelas?: string | null;
   display_order: number;
   is_active: boolean;
 }
@@ -67,7 +68,7 @@ export default function MembersAdminPage() {
         quote: member.quote || null,
         display_order: member.display_order ?? 0,
         is_active: member.is_active !== false,
-        class: '',
+        class: member.kelas || '',
       });
       setPhotoPath(null);
     }
@@ -162,7 +163,7 @@ export default function MembersAdminPage() {
           quote: m.quote ?? m.quotes ?? '',
           display_order: m.display_order ?? m.order_index ?? 0,
           is_active: m.is_active ?? m.active ?? true,
-          class: m.class ?? '',
+          kelas: m.kelas ?? m.class ?? '',
         }));
 
         console.log('[Members Admin] Normalized members:', normalized.length);

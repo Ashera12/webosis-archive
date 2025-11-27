@@ -408,7 +408,6 @@ export default function AdminSettingsPage() {
       return;
     }
     if (status === 'authenticated' && !canAccessAdminPanel) {
-      redirect('/404');
       return;
     }
     if (status === 'authenticated' && canAccessAdminPanel) {

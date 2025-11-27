@@ -102,7 +102,6 @@ export default function ProkerPage() {
       return;
     }
     if (status === 'authenticated' && !canAccessAdminPanel) {
-      redirect('/404');
       return;
     }
     if (status === 'authenticated' && canAccessAdminPanel) {

@@ -17,7 +17,6 @@ export default function AdminTerminalPage() {
       return;
     }
     if (status === 'authenticated' && !canAccessAdminPanel) {
-      redirect('/404');
       return;
     }
   }, [status, canAccessAdminPanel]);

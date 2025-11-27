@@ -62,7 +62,6 @@ export default function AdminDashboard() {
     }
     
     if (status === 'authenticated' && !canAccessAdminPanel) {
-      redirect('/404');
       return;
     }
 

@@ -171,8 +171,6 @@ export default function UsersPage() {
     }
     if (status === 'authenticated') {
       if (!canAccessAdminPanel) {
-        // Unauthorized access - redirect to 404
-        redirect('/404');
         return;
       }
       fetchData();

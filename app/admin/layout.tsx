@@ -1,6 +1,10 @@
 import AdminLayoutClient from '@/components/admin/AdminLayoutClient';
 import { auth } from '@/lib/auth';
 
+// Force admin subtree to be dynamic to avoid static optimization issues on Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminLayout({
   children,
 }: {

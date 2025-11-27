@@ -112,14 +112,11 @@ export default function GalleryPage() {
       redirect('/admin/login');
       return;
     }
-    if (status === 'authenticated' && !canAccessAdminPanel) {
-      redirect('/404');
-      return;
-    }
-    if (status === 'authenticated' && canAccessAdminPanel) {
+    if (status === 'authenticated') {
+      // Middleware controls role-based access; avoid client-side 404.
       fetchData();
     }
-  }, [status, fetchData, canAccessAdminPanel]);
+  }, [status, fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

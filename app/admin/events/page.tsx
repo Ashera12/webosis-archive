@@ -83,13 +83,10 @@ export default function EventsPage() {
       return;
     }
     if (status === 'authenticated') {
-      if (!canAccessAdminPanel) {
-        redirect('/404');
-        return;
-      }
+      // Middleware enforces role; avoid client-side 404 redirect
       fetchData();
     }
-  }, [status, fetchData, canAccessAdminPanel]);
+  }, [status, fetchData]);
 
   const handleImageChange = async (imageUrl: string, file: File) => {
     setUploading(true);

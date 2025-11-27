@@ -68,13 +68,10 @@ export default function PostsPage() {
       return;
     }
     if (status === 'authenticated') {
-      if (!canAccessAdminPanel) {
-        redirect('/404');
-        return;
-      }
+      // Access control enforced by middleware; avoid client-side 404 race.
       fetchData();
     }
-  }, [status, fetchData, canAccessAdminPanel]);
+  }, [status, fetchData]);
 
   const handleImageChange = async (imageUrl: string, file: File) => {
     try {

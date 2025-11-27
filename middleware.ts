@@ -17,6 +17,12 @@ export async function middleware(request: NextRequest) {
       },
     });
   }
+
+  // Legacy path redirect: /admin/content -> /admin/posts (unified content management)
+  if (pathname === '/admin/content') {
+    const url = new URL('/admin/posts', request.url);
+    return NextResponse.redirect(url);
+  }
   
   // Check authentication for admin routes
   if (pathname.startsWith('/admin')) {

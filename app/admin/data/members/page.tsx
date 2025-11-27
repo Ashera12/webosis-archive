@@ -211,13 +211,11 @@ export default function MembersAdminPage() {
       return;
     }
     if (status === 'authenticated') {
-      if (!canAccessAdminPanel) {
-        redirect('/404');
-        return;
-      }
+      // Middleware already enforced role access; avoid client-side 404 redirects
+      // that were causing production 404 flashes on Vercel due to hydration delay.
       fetchData();
     }
-  }, [fetchData, status, canAccessAdminPanel]);
+  }, [fetchData, status]);
   // ...existing code...
 
   // --- File upload handler (must be above onDrop) ---

@@ -69,6 +69,22 @@ Write-Host "[INFO] Testing $($urls.Count) admin routes..." -ForegroundColor Cyan
 
 $results = foreach ($u in $urls) { Invoke-SafeRequest -Url $u }
 
+# Preflight status
+$preflightUrl = "$BaseUrl/api/debug/preflight"
+Write-Host "\n[INFO] Fetching preflight status from $preflightUrl" -ForegroundColor Cyan
+$preflight = Invoke-SafeRequest -Url $preflightUrl
+if ($preflight.StatusCode -eq 200) {
+    try {
+        $pfJson = $preflight.Body | ConvertFrom-Json
+        Write-Host "[INFO] Effective Role: $($pfJson.effective_role) (session=$($pfJson.session_role) db=$($pfJson.db_role))" -ForegroundColor Green
+        if ($pfJson.role_mismatch) { Write-Host "[WARN] Role mismatch detected" -ForegroundColor Yellow }
+        if ($pfJson.missing_canonicals.Count -gt 0) { Write-Host "[WARN] Missing canonical pages: $($pfJson.missing_canonicals -join ', ')" -ForegroundColor Yellow }
+        Write-Host "[INFO] Permissions ($($pfJson.permissions.Count)) : $($pfJson.permissions -join ', ')" -ForegroundColor Cyan
+    } catch { Write-Host "[ERROR] Failed to parse preflight JSON" -ForegroundColor Red }
+} else {
+    Write-Host "[WARN] Preflight endpoint returned status $($preflight.StatusCode)" -ForegroundColor Yellow
+}
+
 # Summary table
 $summary = $results | Select-Object Url, StatusCode, Length, @{n='Is404';e={ $_.StatusCode -eq 404 }}
 

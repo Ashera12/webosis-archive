@@ -28,11 +28,21 @@ function collectAdminPages(): string[] {
   }
 }
 
+const ADMIN_DEBUG_ROLES = new Set(['super_admin','admin','osis']);
+const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS !== 'false';
+
 export async function GET() {
+  if (!DEBUG_ENABLED) {
+    return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+  }
   const session = await auth();
   const authenticated = !!session?.user;
-  const sessionRole = (session?.user as any)?.role || null;
+  const sessionRole = (session?.user as any)?.role?.toLowerCase() || null;
   const userId = (session?.user as any)?.id || null;
+
+  if (!authenticated || !ADMIN_DEBUG_ROLES.has(sessionRole || '')) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
 
   // Fresh DB role fetch (reuse logic similar to apiAuth without importing its cache to keep this endpoint lightweight)
   let dbRole: string | null = null;
@@ -61,8 +71,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     timestamp,
-    authenticated,
-    user: authenticated ? { id: userId, email: session?.user?.email } : null,
+    user: { id: userId, email: session?.user?.email },
     session_role: sessionRole,
     db_role: dbRole,
     effective_role: effectiveRole,

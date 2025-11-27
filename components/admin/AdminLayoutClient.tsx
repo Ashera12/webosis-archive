@@ -37,6 +37,7 @@ function RoleStatusBanner() {
     );
   }
   if (!data) return null;
+  if (!data || !data.ok) return null;
 
   const mismatch = data.role_mismatch;
   const missing = (data.missing_canonicals || []) as string[];

@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+
+const ADMIN_DEBUG_ROLES = new Set(['super_admin','admin','osis']);
+const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS !== 'false';
 
 // Enumerate admin pages at runtime. Helps distinguish true 404 vs permission issues in production.
 // NOTE: Uses filesystem; if Vercel build output paths differ, this still lists built pages present in /app.
@@ -55,6 +59,15 @@ function collectAdminPages(baseDir: string): { path: string; kind: string }[] {
 }
 
 export async function GET() {
+  if (!DEBUG_ENABLED) {
+    // Hide endpoint entirely if disabled
+    return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+  }
+  const session = await auth();
+  const role = (session?.user as any)?.role?.toLowerCase();
+  if (!session?.user || !ADMIN_DEBUG_ROLES.has(role)) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const root = process.cwd();
     const adminDir = path.join(root, 'app', 'admin');

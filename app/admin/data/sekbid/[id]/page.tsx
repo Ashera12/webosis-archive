@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { redirect, useRouter } from 'next/navigation';
+import { redirect, useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaSave, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
@@ -13,12 +13,9 @@ interface Sekbid {
   display_order: number;
 }
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function EditSekbidPage({ params }: PageProps) {
+export default function EditSekbidPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
   const { data: session, status } = useSession();
   const [sekbidId, setSekbidId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,10 +26,11 @@ export default function EditSekbidPage({ params }: PageProps) {
     display_order: 0
   });
 
-  // Unwrap async params
+  // Read id from route params (client-safe)
   useEffect(() => {
-    params.then(p => setSekbidId(p.id));
-  }, [params]);
+    const id = (routeParams as any)?.id;
+    if (typeof id === 'string') setSekbidId(id);
+  }, [routeParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

@@ -297,7 +297,10 @@ export default function AdminSidebar() {
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-slate-800/50 backdrop-blur-sm border-t border-slate-700">
           <button
-            onClick={() => signOut({ callbackUrl: '/admin/login', redirect: true })}
+            onClick={() => {
+              const origin = typeof window !== 'undefined' ? window.location.origin : '';
+              signOut({ callbackUrl: `${origin}/`, redirect: true });
+            }}
             className={`
               group w-full flex items-center space-x-3 px-4 py-3 rounded-xl
               bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white

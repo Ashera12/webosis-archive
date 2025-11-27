@@ -209,7 +209,7 @@ const Navbar: React.FC = () => {
                   {t('navbar.dashboard')}
                 </Link>
                 <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={() => signOut({ callbackUrl: `${window.location.origin}/` })}
                   className="px-3 py-2 rounded-lg text-sm font-semibold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
                   aria-label="Logout"
                 >
@@ -466,7 +466,7 @@ const Navbar: React.FC = () => {
                   {t('navbar.dashboard')}
                 </Link>
                 <button
-                  onClick={() => { setIsOpen(false); signOut({ callbackUrl: '/' }); }}
+                  onClick={() => { setIsOpen(false); signOut({ callbackUrl: `${window.location.origin}/` }); }}
                   className="flex-1 py-3 px-4 text-center bg-gray-200/80 dark:bg-gray-700/80 text-gray-700 dark:text-gray-300 text-sm xs:text-base font-semibold rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 active:scale-95"
                 >
                   {t('navbar.logout')}

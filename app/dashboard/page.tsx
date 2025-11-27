@@ -124,7 +124,8 @@ export default function UserDashboard() {
               `Klik OK untuk logout sekarang, atau Cancel untuk logout nanti.`
             );
             if (shouldLogout) {
-              await signOut({ callbackUrl: '/admin/login' });
+              const origin = typeof window !== 'undefined' ? window.location.origin : '';
+              await signOut({ callbackUrl: `${origin}/` });
             } else {
               setRoleChanged(false);
             }

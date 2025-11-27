@@ -44,7 +44,8 @@ export default function AdminHeader() {
   const unreadCount = notifications.filter((n) => n.status !== 'reviewed').length;
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/admin/login', redirect: true });
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    await signOut({ callbackUrl: `${origin}/`, redirect: true });
   };
 
   // User display data from session

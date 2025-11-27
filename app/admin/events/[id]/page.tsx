@@ -35,7 +35,6 @@ export default function EditEventPage({ params }: PageProps) {
     published: false
   });
 
-  // Unwrap async params
   useEffect(() => {
     params.then(p => setEventId(p.id));
   }, [params]);
@@ -59,7 +58,7 @@ export default function EditEventPage({ params }: PageProps) {
       if (!response.ok) {
         if (response.status === 404) {
           alert('Event tidak ditemukan');
-          router.push('/admin/content/events');
+          router.push('/admin/events');
           return;
         }
         throw new Error('Failed to fetch event');
@@ -102,7 +101,7 @@ export default function EditEventPage({ params }: PageProps) {
       }
       
       alert('Event berhasil diupdate!');
-      router.push('/admin/content/events');
+      router.push('/admin/events');
     } catch (error: any) {
       console.error('Error saving event:', error);
       alert(error.message || 'Gagal menyimpan event');
@@ -126,7 +125,7 @@ export default function EditEventPage({ params }: PageProps) {
       }
       
       alert('Event berhasil dihapus!');
-      router.push('/admin/content/events');
+      router.push('/admin/events');
     } catch (error: any) {
       console.error('Error deleting event:', error);
       alert(error.message || 'Gagal menghapus event');
@@ -149,7 +148,7 @@ export default function EditEventPage({ params }: PageProps) {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-6">
             <button
-              onClick={() => router.push('/admin/content/events')}
+              onClick={() => router.push('/admin/events')}
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               <FaArrowLeft />
@@ -268,7 +267,7 @@ export default function EditEventPage({ params }: PageProps) {
               
               <button
                 type="button"
-                onClick={() => router.push('/admin/content/events')}
+                onClick={() => router.push('/admin/events')}
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Batal

@@ -41,7 +41,6 @@ export default function EditProkerPage({ params }: PageProps) {
     status: 'planned' as 'planned' | 'ongoing' | 'completed' | 'cancelled'
   });
 
-  // Unwrap async params
   useEffect(() => {
     params.then(p => setProkerId(p.id));
   }, [params]);
@@ -78,7 +77,7 @@ export default function EditProkerPage({ params }: PageProps) {
       if (!response.ok) {
         if (response.status === 404) {
           alert('Program kerja tidak ditemukan');
-          router.push('/admin/content/proker');
+          router.push('/admin/proker');
           return;
         }
         throw new Error('Failed to fetch proker');
@@ -125,7 +124,7 @@ export default function EditProkerPage({ params }: PageProps) {
       }
       
       alert('Program kerja berhasil diupdate!');
-      router.push('/admin/content/proker');
+      router.push('/admin/proker');
     } catch (error: any) {
       console.error('Error saving proker:', error);
       alert(error.message || 'Gagal menyimpan program kerja');
@@ -149,7 +148,7 @@ export default function EditProkerPage({ params }: PageProps) {
       }
       
       alert('Program kerja berhasil dihapus!');
-      router.push('/admin/content/proker');
+      router.push('/admin/proker');
     } catch (error: any) {
       console.error('Error deleting proker:', error);
       alert(error.message || 'Gagal menghapus program kerja');
@@ -172,7 +171,7 @@ export default function EditProkerPage({ params }: PageProps) {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-6">
             <button
-              onClick={() => router.push('/admin/content/proker')}
+              onClick={() => router.push('/admin/proker')}
               className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               <FaArrowLeft />
@@ -288,7 +287,7 @@ export default function EditProkerPage({ params }: PageProps) {
               
               <button
                 type="button"
-                onClick={() => router.push('/admin/content/proker')}
+                onClick={() => router.push('/admin/proker')}
                 className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Batal

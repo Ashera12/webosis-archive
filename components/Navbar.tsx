@@ -202,7 +202,7 @@ const Navbar: React.FC = () => {
             ) : (
               <>
                 <Link
-                  href="/admin"
+                  href={['super_admin', 'admin', 'osis'].includes(session?.user?.role || '') ? '/admin' : '/dashboard'}
                   className="px-3 py-2 rounded-lg text-sm font-semibold border border-amber-300/60 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition"
                   aria-label="Dashboard"
                 >
@@ -459,7 +459,7 @@ const Navbar: React.FC = () => {
             ) : (
               <div className="flex gap-3">
                 <Link
-                  href="/admin"
+                  href={['super_admin', 'admin', 'osis'].includes(session?.user?.role || '') ? '/admin' : '/dashboard'}
                   onClick={() => setIsOpen(false)}
                   className="flex-1 py-3 px-4 text-center border-2 border-yellow-500/60 text-yellow-700 dark:text-yellow-400 text-sm xs:text-base font-semibold rounded-full hover:bg-yellow-500/10 hover:border-yellow-500 transition-all duration-200 active:scale-95"
                 >

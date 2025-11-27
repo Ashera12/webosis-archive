@@ -297,9 +297,26 @@ export default function UsersPage() {
             ? { ...item, ...result.data, is_active: !!result.data.is_active }
             : item
         ));
+        
+        // If role was changed, show important notice
+        const oldRole = items.find(u => u.id === editingId)?.role;
+        const newRole = result.data.role;
+        if (oldRole && newRole && oldRole !== newRole) {
+          alert(
+            `✅ User berhasil disimpan!\n\n` +
+            `⚠️ PENTING: Role berubah dari "${oldRole}" ke "${newRole}".\n\n` +
+            `User harus:\n` +
+            `1. REFRESH browser (F5 atau Ctrl+R)\n` +
+            `2. Atau LOGOUT dan LOGIN kembali\n\n` +
+            `Baru role baru akan aktif!`
+          );
+        } else {
+          alert('User berhasil disimpan!');
+        }
+      } else {
+        alert('User berhasil disimpan!');
       }
       
-      alert('User berhasil disimpan!');
       await fetchData(); // Still fetch to ensure consistency
       setShowForm(false);
       setEditingId(null);

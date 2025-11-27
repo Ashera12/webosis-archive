@@ -172,8 +172,13 @@ export const authConfig: NextAuthConfig = {
     //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     // }),
   ],
-  // Keep sessions short and JWT-based. Adjust maxAge as required by env.
-  session: { strategy: 'jwt', maxAge: Number(process.env.NEXTAUTH_SESSION_MAX_AGE ?? 60 * 60 * 8) },
+  // Keep sessions short and JWT-based. Force refresh frequently to pick up role changes.
+  // In production, consider 15-30 minutes. For testing role changes, use 5 minutes.
+  session: { 
+    strategy: 'jwt', 
+    maxAge: 5 * 60, // 5 minutes - user must refresh to see role changes
+    updateAge: 60, // Update session every 60 seconds to check for role changes
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       console.log('[NextAuth] signIn callback triggered:', { 
@@ -200,8 +205,8 @@ export const authConfig: NextAuthConfig = {
         console.log('[NextAuth] jwt - Added user to token:', { id: user.id, role: (user as any).role });
       }
       
-      // ALWAYS refresh role from database to ensure it's current
-      // This ensures role changes take effect immediately after re-login
+      // ALWAYS refresh role from database on EVERY jwt callback to ensure it's current
+      // This ensures role changes take effect on next page load/refresh
       const userId = (token as any)?.id || token?.sub;
       if (userId) {
         try {
@@ -214,17 +219,30 @@ export const authConfig: NextAuthConfig = {
           
           const { data: userData } = await supabase
             .from('users')
-            .select('role')
+            .select('role, approved, email_verified')
             .eq('id', userId)
             .single();
           
           if (userData?.role) {
+            const oldRole = (token as any)?.role;
             (token as Record<string, unknown>)['role'] = userData.role;
-            console.log('[NextAuth] jwt - Refreshed role from DB:', { 
-              userId, 
-              previousRole: (token as any)?.role,
-              newRole: userData.role 
-            });
+            (token as Record<string, unknown>)['approved'] = userData.approved;
+            (token as Record<string, unknown>)['email_verified'] = userData.email_verified;
+            
+            if (oldRole !== userData.role) {
+              console.log('[NextAuth] jwt - ROLE CHANGED in DB:', { 
+                userId, 
+                oldRole,
+                newRole: userData.role 
+              });
+            } else {
+              console.log('[NextAuth] jwt - Refreshed role from DB:', { 
+                userId, 
+                role: userData.role,
+                approved: userData.approved,
+                email_verified: userData.email_verified
+              });
+            }
           }
         } catch (error) {
           console.error('[NextAuth] jwt - Error refreshing role:', error);

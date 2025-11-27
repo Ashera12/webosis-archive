@@ -17,6 +17,7 @@ interface Comment {
   author_role?: string | null; // User role for badge display
   author_photo_url?: string | null; // User profile photo
   instagram_username?: string | null; // User Instagram username
+  kelas?: string | null; // User class
   is_anonymous: boolean;
   created_at: string;
   likes: number;
@@ -364,6 +365,11 @@ export default function CommentSection({
                   </svg>
                   IG
                 </button>
+              )}
+              {!comment.is_anonymous && comment.kelas && (
+                <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded">
+                  {comment.kelas}
+                </span>
               )}
               {comment.is_anonymous && (
                 <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded">

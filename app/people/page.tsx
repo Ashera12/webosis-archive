@@ -51,6 +51,7 @@ export default async function PeoplePage() {
           description: m.quote || '',
           image: m.photo_url || '/images/placeholder.svg',
           instagram_username: m.instagram || m.instagram_username || undefined,
+          kelas: m.kelas || undefined,
           department: m.sekbid?.name || undefined,
           departmentId: m.sekbid?.id ?? null,
           displayOrder: m.display_order || 0,

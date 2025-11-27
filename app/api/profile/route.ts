@@ -25,7 +25,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name, nickname, nisn, nik, unit_sekolah, instagram_username, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
+      .select('id, email, name, nickname, nisn, nik, unit_sekolah, kelas, instagram_username, requested_role, role, photo_url, approved, email_verified, created_at, updated_at')
       .eq('id', session.user.id)
       .single();
 
@@ -44,6 +44,7 @@ export async function GET() {
       username: data.nickname,
       nisn: data.nisn,
       unit: data.unit_sekolah,
+      kelas: data.kelas,
       nik: data.nik,
       instagram_username: data.instagram_username,
       role: data.role,

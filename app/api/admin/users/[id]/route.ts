@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       nisn: data.nisn,
       nik: data.nik,
       unit: data.unit_sekolah,
-      kelas: '', // Column doesn't exist
+      kelas: data.kelas || '',
       instagram_username: data.instagram_username,
       requested_role: data.requested_role,
       role: data.role,

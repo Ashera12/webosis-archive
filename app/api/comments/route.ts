@@ -60,14 +60,16 @@ export async function GET(request: NextRequest) {
         // Get author role from users table
         let authorRole = null;
          let authorPhotoUrl = null;
+         let instagramUsername = null;
         if (comment.user_id) {
           const { data: userData } = await supabase
             .from('users')
-             .select('role, photo_url')
+             .select('role, photo_url, instagram_username')
             .eq('id', comment.user_id)
             .single();
           authorRole = userData?.role || null;
            authorPhotoUrl = userData?.photo_url || null;
+           instagramUsername = userData?.instagram_username || null;
         }
 
         // Get like count
@@ -88,6 +90,7 @@ export async function GET(request: NextRequest) {
           ...comment,
           author_role: authorRole,
            author_photo_url: authorPhotoUrl,
+           instagram_username: instagramUsername,
           likes: count || 0,
           liked_by_user: !!userLike
         };

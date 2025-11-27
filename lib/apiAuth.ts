@@ -3,9 +3,45 @@
  * Middleware functions to check permissions in API routes
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from './auth';
 import { hasPermission, hasAnyPermission, hasAllPermissions, type Permission } from './rbac';
+
+// Lightweight in-memory role cache to minimize DB hits when many API calls
+// Keyed by userId, stores { role, expires }
+const roleCache = new Map<string, { role: string; expires: number }>();
+const ROLE_CACHE_TTL_MS = 30_000; // 30 seconds
+
+async function fetchFreshRole(userId: string): Promise<string | null> {
+  const cached = roleCache.get(userId);
+  const now = Date.now();
+  if (cached && cached.expires > now) {
+    return cached.role;
+  }
+  try {
+    const { supabaseAdmin } = await import('./supabase/server');
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    if (error) return null;
+    const role = (data?.role || '').trim().toLowerCase();
+    if (role) {
+      roleCache.set(userId, { role, expires: now + ROLE_CACHE_TTL_MS });
+      return role;
+    }
+    return null;
+  } catch (e) {
+    console.error('[apiAuth] fetchFreshRole error:', e);
+    return null;
+  }
+}
+
+function resolveEffectiveRole(sessionRole: string | undefined | null, freshRole: string | null): string | null {
+  // Prefer fresh DB role when available; fallback to session role
+  return (freshRole || sessionRole || null);
+}
 
 /**
  * Check if current user has a specific permission
@@ -13,35 +49,47 @@ import { hasPermission, hasAnyPermission, hasAllPermissions, type Permission } f
  */
 export async function requirePermission(permission: Permission) {
   const session = await auth();
-  
+
   if (!session?.user) {
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Login diperlukan' },
       { status: 401 }
     );
   }
-  
-  const userRole = (session.user as any).role;
-  
-  console.log('[requirePermission]', { 
+
+  const sessionRole = (session.user as any).role;
+  const userId = (session.user as any).id;
+  let freshRole: string | null = null;
+
+  if (userId) {
+    freshRole = await fetchFreshRole(userId);
+  }
+
+  const effectiveRole = resolveEffectiveRole(sessionRole, freshRole);
+
+  console.log('[requirePermission]', {
     userEmail: session.user.email,
-    sessionRole: userRole, 
-    permission, 
-    hasPermission: hasPermission(userRole, permission) 
+    sessionRole,
+    freshRole,
+    effectiveRole,
+    permission,
+    hasPermission: hasPermission(effectiveRole || undefined, permission)
   });
-  
-  if (!hasPermission(userRole, permission)) {
+
+  if (!hasPermission(effectiveRole || undefined, permission)) {
     return NextResponse.json(
-      { 
-        error: 'Forbidden', 
+      {
+        error: 'Forbidden',
         message: 'Anda tidak memiliki izin untuk melakukan aksi ini',
         required_permission: permission,
-        your_role: userRole
+        session_role: sessionRole,
+        db_role: freshRole,
+        effective_role: effectiveRole
       },
       { status: 403 }
     );
   }
-  
+
   return null; // Authorized
 }
 
@@ -50,27 +98,33 @@ export async function requirePermission(permission: Permission) {
  */
 export async function requireAnyPermission(permissions: Permission[]) {
   const session = await auth();
-  
+
   if (!session?.user) {
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Login diperlukan' },
       { status: 401 }
     );
   }
-  
-  const userRole = (session.user as any).role;
-  
-  if (!hasAnyPermission(userRole, permissions)) {
+
+  const sessionRole = (session.user as any).role;
+  const userId = (session.user as any).id;
+  const freshRole = userId ? await fetchFreshRole(userId) : null;
+  const effectiveRole = resolveEffectiveRole(sessionRole, freshRole);
+
+  if (!hasAnyPermission(effectiveRole || undefined, permissions)) {
     return NextResponse.json(
-      { 
-        error: 'Forbidden', 
+      {
+        error: 'Forbidden',
         message: 'Anda tidak memiliki izin untuk melakukan aksi ini',
-        required_permissions: permissions 
+        required_permissions: permissions,
+        session_role: sessionRole,
+        db_role: freshRole,
+        effective_role: effectiveRole
       },
       { status: 403 }
     );
   }
-  
+
   return null; // Authorized
 }
 
@@ -79,27 +133,33 @@ export async function requireAnyPermission(permissions: Permission[]) {
  */
 export async function requireAllPermissions(permissions: Permission[]) {
   const session = await auth();
-  
+
   if (!session?.user) {
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Login diperlukan' },
       { status: 401 }
     );
   }
-  
-  const userRole = (session.user as any).role;
-  
-  if (!hasAllPermissions(userRole, permissions)) {
+
+  const sessionRole = (session.user as any).role;
+  const userId = (session.user as any).id;
+  const freshRole = userId ? await fetchFreshRole(userId) : null;
+  const effectiveRole = resolveEffectiveRole(sessionRole, freshRole);
+
+  if (!hasAllPermissions(effectiveRole || undefined, permissions)) {
     return NextResponse.json(
-      { 
-        error: 'Forbidden', 
+      {
+        error: 'Forbidden',
         message: 'Anda tidak memiliki izin untuk melakukan aksi ini',
-        required_permissions: permissions 
+        required_permissions: permissions,
+        session_role: sessionRole,
+        db_role: freshRole,
+        effective_role: effectiveRole
       },
       { status: 403 }
     );
   }
-  
+
   return null; // Authorized
 }
 

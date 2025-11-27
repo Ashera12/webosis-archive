@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
 
     incForgot(email);
 
-    const host = req.headers.get('host') || 'localhost:3000';
+    const host = req.headers.get('host') || process.env.NEXT_PUBLIC_BASE_URL || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
     const proto = host.includes('localhost') ? 'http' : 'https';
     const base = `${proto}://${host}`;
     const resetLink = `${base}/admin/reset-password/${rawToken}`;

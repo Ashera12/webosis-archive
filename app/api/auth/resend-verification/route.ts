@@ -61,7 +61,8 @@ export async function POST(req: NextRequest){
     inc(key);
 
     // Send email (with dev exposure if mailer not configured)
-    const host = req.headers.get('host') || 'localhost:3000';
+    const host = req.headers.get('host') || process.env.NEXT_PUBLIC_BASE_URL || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
     const proto = host.includes('localhost') ? 'http' : 'https';
     const link = `${proto}://${host}/verify-email/${rawToken}`;
     // Use public logo URL from env, fallback to localhost for dev

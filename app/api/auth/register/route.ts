@@ -145,7 +145,8 @@ export async function POST(req: NextRequest) {
     incReg(attemptKey);
 
     // Send verification email (or expose link in dev if mailer not configured)
-    const host = req.headers.get('host') || 'localhost:3000';
+    const host = req.headers.get('host') || process.env.NEXT_PUBLIC_BASE_URL || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
     const proto = host.includes('localhost') ? 'http' : 'https';
     const base = `${proto}://${host}`;
     const verificationLink = `${base}/verify-email/${rawToken}`;

@@ -17,9 +17,10 @@ interface Sekbid {
 export default function SekbidManagementPage() {
   const { data: session, status } = useSession();
   
-  // STRICT: Only super_admin, admin, osis can access admin panel
-  const role = ((session?.user as any)?.role || '').toLowerCase();
-  const canAccessAdminPanel = ['super_admin','admin','osis'].includes(role);
+  // Access control is already enforced by middleware for /admin routes.
+  // We avoid client-side 404 redirects to prevent race conditions where the
+  // session is available but the role hasn't populated yet on first hydration.
+  // This previously caused super_admin to see a 404 on Vercel.
   
   const [items, setItems] = useState<Sekbid[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,13 +51,10 @@ export default function SekbidManagementPage() {
       return;
     }
     if (status === 'authenticated') {
-      if (!canAccessAdminPanel) {
-        redirect('/404');
-        return;
-      }
+      // Role already validated by middleware; just load data.
       fetchData();
     }
-  }, [status, fetchData, canAccessAdminPanel]);
+  }, [status, fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

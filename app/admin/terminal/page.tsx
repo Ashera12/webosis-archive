@@ -6,10 +6,6 @@ import TerminalRunner from '@/components/admin/TerminalRunner';
 import { FaTerminal } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function AdminTerminalPage() {
   const { data: session, status } = useSession();
   const role = ((session?.user as any)?.role || '').toLowerCase();

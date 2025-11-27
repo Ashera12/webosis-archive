@@ -9,10 +9,6 @@ import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface Sekbid {
   id: number;
   name?: string;

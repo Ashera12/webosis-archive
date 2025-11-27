@@ -6,10 +6,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { FaBullhorn, FaPlus, FaEdit, FaTrash, FaTimes, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface Announcement {
   id: string;
   title: string;

@@ -7,10 +7,6 @@ import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaTools, FaDatabase, FaSync, FaTrash, FaFileExport, FaFileImport, FaCheckCircle } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function ToolsPage() {
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState<string | null>(null);

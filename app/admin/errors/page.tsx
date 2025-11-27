@@ -4,10 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaBug, FaRobot, FaCheck, FaExclamationTriangle, FaCode, FaSync } from 'react-icons/fa';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface ErrorLog {
   id: string;
   error_type: string;

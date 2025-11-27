@@ -20,10 +20,6 @@ import {
 } from 'react-icons/fa';
 import AdminNotifications from './AdminNotifications';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface StatCard {
   title: string;
   value: string | number;

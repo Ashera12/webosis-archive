@@ -9,10 +9,6 @@ import ImageUploadField from '@/components/ImageUploadField';
 import { FaCalendarAlt, FaPlus, FaEdit, FaTrash, FaTimes, FaMapMarkerAlt, FaLink, FaClock, FaImage } from 'react-icons/fa';
 import MediaRenderer from '@/components/MediaRenderer';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface Event {
   id: string;
   title: string;

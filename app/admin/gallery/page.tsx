@@ -11,10 +11,6 @@ import { FaImage, FaPlus, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
 import ImageUploadField from '@/components/ImageUploadField';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface GalleryItem {
   id: string;
   title: string;

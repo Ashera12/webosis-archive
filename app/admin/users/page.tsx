@@ -8,10 +8,6 @@ import { uploadWithProgress } from '@/lib/client/uploadWithProgress';
 import ImageUploadField from '@/components/ImageUploadField';
 import { FaUsers, FaPlus, FaEdit, FaTrash, FaTimes, FaUserShield, FaUserCheck, FaBan, FaEnvelope, FaIdCard, FaClock, FaEye, FaSchool, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface User {
   id: string;
   email: string;

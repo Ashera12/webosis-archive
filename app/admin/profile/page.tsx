@@ -9,10 +9,6 @@ import RoleBadge from '@/components/RoleBadge';
 import Image from 'next/image';
 import dynamicImport from 'next/dynamic';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 const ImageCropperModal = dynamicImport(() => import('@/components/ImageCropperModal'), { ssr: false });
 
 export default function ProfilePage() {

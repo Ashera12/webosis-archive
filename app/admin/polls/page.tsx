@@ -6,10 +6,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { FaPoll, FaPlus, FaEdit, FaTrash, FaTimes, FaChartBar } from 'react-icons/fa';
 import { apiFetch, safeJson } from '@/lib/safeFetch';
 
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface PollOption {
   id: string;
   option_text: string;

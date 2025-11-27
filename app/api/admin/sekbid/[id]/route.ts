@@ -4,13 +4,12 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authErr = await requirePermission('sekbid:read');
     if (authErr) return authErr;
-
-    const { id } = params;
+    const { id } = await params;
     console.log('[API sekbid/:id][GET] invoked', { id, at: new Date().toISOString() });
 
     const { data, error } = await supabaseAdmin
@@ -37,12 +36,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authErr = await requirePermission('sekbid:edit');
     if (authErr) return authErr;
-    const { id } = params;
+    const { id } = await params;
     console.log('[API sekbid/:id][PUT] invoked', { id, at: new Date().toISOString() });
     const body = await request.json();
     const { name, description, display_order } = body;
@@ -80,12 +79,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authErr = await requirePermission('sekbid:delete');
     if (authErr) return authErr;
-    const { id } = params;
+    const { id } = await params;
     console.log('[API sekbid/:id][DELETE] invoked', { id, at: new Date().toISOString() });
 
     const { error } = await supabaseAdmin

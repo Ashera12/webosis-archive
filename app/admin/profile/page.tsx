@@ -7,9 +7,13 @@ import { FaUser, FaEnvelope, FaLock, FaCamera, FaSave, FaTimes, FaIdCard, FaScho
 import { useToast } from '@/contexts/ToastContext';
 import RoleBadge from '@/components/RoleBadge';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-const ImageCropperModal = dynamic(() => import('@/components/ImageCropperModal'), { ssr: false });
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const ImageCropperModal = dynamicImport(() => import('@/components/ImageCropperModal'), { ssr: false });
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();

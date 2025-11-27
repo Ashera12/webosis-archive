@@ -8,6 +8,10 @@ import { FaNewspaper, FaPlus, FaEdit, FaTrash, FaTimes, FaEye, FaEyeSlash, FaIma
 import ImageUploadField from '@/components/ImageUploadField';
 import { uploadWithProgress } from '@/lib/client/uploadWithProgress';
 
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface Post {
   id: string;
   title: string;

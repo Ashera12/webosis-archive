@@ -14,6 +14,10 @@ interface Sekbid {
   display_order: number;
 }
 
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default function SekbidManagementPage() {
   const { data: session, status } = useSession();
   

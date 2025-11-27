@@ -5,6 +5,10 @@ import { redirect } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { FaClipboardList, FaPlus, FaEdit, FaTrash, FaTimes, FaCheckCircle, FaClock, FaCalendarAlt, FaLayerGroup } from 'react-icons/fa';
 
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface Proker {
   id: string;
   title: string;

@@ -8,6 +8,10 @@ import { apiFetch, safeJson } from '@/lib/safeFetch';
 import { FaCog, FaRobot, FaDatabase, FaPalette, FaEye, FaSave, FaChevronDown, FaChevronUp, FaKey, FaTools, FaDownload, FaImage, FaTint, FaMagic, FaCopy, FaSun, FaMoon } from 'react-icons/fa';
 import AdminPageShell from '@/components/admin/AdminPageShell';
 
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface EnvSetting {
   key: string;
   label: string;

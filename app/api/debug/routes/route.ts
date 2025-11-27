@@ -6,8 +6,8 @@ import { NextResponse } from 'next/server';
 // NOTE: Uses filesystem; if Vercel build output paths differ, this still lists built pages present in /app.
 // This endpoint should be secured if kept long-term; for now read-only diagnostic.
 
-function collectAdminPages(baseDir: string): string[] {
-  const results: string[] = [];
+function collectAdminPages(baseDir: string): { path: string; kind: string }[] {
+  const results: { path: string; kind: string }[] = [];
   if (!fs.existsSync(baseDir)) return results;
 
   function walk(current: string, routePrefix: string) {
@@ -18,16 +18,40 @@ function collectAdminPages(baseDir: string): string[] {
       if (entry.isDirectory()) {
         walk(full, routePrefix + '/' + entry.name);
       } else if (entry.isFile()) {
-        // Only include page.tsx files
         if (entry.name === 'page.tsx') {
-          results.push(routePrefix || '/admin');
+          results.push({ path: routePrefix || '/admin', kind: 'page' });
         }
       }
     }
   }
 
   walk(baseDir, '/admin');
-  return Array.from(new Set(results)).sort();
+
+  // Inject known aliases for stability (sekbid, members) even if data subtree pruned
+  const aliasTargets = [
+    { path: '/admin/sekbid', target: '/admin/data/sekbid' },
+    { path: '/admin/members', target: '/admin/data/members' },
+  ];
+  for (const alias of aliasTargets) {
+    if (!results.find(r => r.path === alias.path)) {
+      results.push({ path: alias.path, kind: 'alias' });
+    }
+    // Show canonical target if missing
+    if (!results.find(r => r.path === alias.target)) {
+      results.push({ path: alias.target, kind: 'canonical-missing' });
+    }
+  }
+
+  // Deduplicate by path keeping first kind
+  const seen = new Set<string>();
+  const dedup: { path: string; kind: string }[] = [];
+  for (const r of results) {
+    if (!seen.has(r.path)) {
+      dedup.push(r);
+      seen.add(r.path);
+    }
+  }
+  return dedup.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export async function GET() {

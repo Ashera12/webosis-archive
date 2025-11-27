@@ -13,16 +13,16 @@ import {
   FaFire,
   FaClock,
   FaCheckCircle,
-
-// Force dynamic rendering - prevent static optimization issues
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
   FaPoll,
   FaExclamationTriangle,
   FaBug,
   FaChartLine,
 } from 'react-icons/fa';
 import AdminNotifications from './AdminNotifications';
+
+// Force dynamic rendering - prevent static optimization issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 interface StatCard {
   title: string;

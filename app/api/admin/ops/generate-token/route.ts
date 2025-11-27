@@ -10,7 +10,8 @@ import { setAdminSetting } from '@/lib/adminSettings';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    const adminRoles = ['super_admin', 'admin'];
+    if (!session?.user?.role || !adminRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

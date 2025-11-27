@@ -10,7 +10,8 @@ import { setAdminSettings } from '@/lib/adminSettings';
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    const adminRoles = ['super_admin', 'admin', 'osis'];
+    if (!session?.user?.role || !adminRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -74,7 +75,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    const adminRoles = ['super_admin', 'admin', 'osis'];
+    if (!session?.user?.role || !adminRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

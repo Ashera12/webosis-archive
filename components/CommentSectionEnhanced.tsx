@@ -18,6 +18,7 @@ interface Comment {
   author_photo_url?: string | null; // User profile photo
   instagram_username?: string | null; // User Instagram username
   kelas?: string | null; // User class
+  nickname?: string | null; // User nickname/username
   is_anonymous: boolean;
   created_at: string;
   likes: number;
@@ -344,9 +345,16 @@ export default function CommentSection({
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {comment.author_name}
-              </span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {comment.author_name}
+                </span>
+                {!comment.is_anonymous && comment.nickname && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    @{comment.nickname}
+                  </span>
+                )}
+              </div>
               {!comment.is_anonymous && comment.author_role && (
                 <RoleBadge role={comment.author_role} size="sm" showLabel={false} />
               )}

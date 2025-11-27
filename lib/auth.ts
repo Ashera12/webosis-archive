@@ -256,7 +256,12 @@ export const authConfig: NextAuthConfig = {
   },
   pages: {
     signIn: '/admin/login',
+    signOut: '/',
   },
+  // Trust host header for production deployments
+  trustHost: true,
+  // Use base path configuration for proper URL handling
+  useSecureCookies: process.env.NODE_ENV === 'production',
 };
 
 const _nextAuth = NextAuth(authConfig) as any;

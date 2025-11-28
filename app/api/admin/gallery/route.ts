@@ -15,7 +15,12 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[admin/gallery GET] Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const code = (error as any)?.code;
+      // Graceful empty array on common PostgREST errors (missing column/order etc.)
+      if (code === 'PGRST116' || code === 'PGRST204' || code === 'PGRST205') {
+        return NextResponse.json({ gallery: [] });
+      }
+      return NextResponse.json({ error: (error as any)?.message || String(error), code }, { status: 500 });
     }
 
     // Filter only invalid items, keep original IDs

@@ -59,21 +59,26 @@ export default function GalleryPage() {
         apiFetch('/api/admin/sekbid', { credentials: 'include' })
       ]);
 
-      if (!galleryRes.ok) throw new Error('Failed to fetch gallery');
-      const galleryData = await safeJson(galleryRes, { url: '/api/admin/gallery', method: 'GET' });
-      // Expect shape { gallery: [...] }
-      const rawGalleryArray = Array.isArray(galleryData?.gallery) ? galleryData.gallery : (Array.isArray(galleryData) ? galleryData : []);
-      // Ensure every item has a stable non-null id to avoid React key warnings
-      const galleryArray = rawGalleryArray.map((g: any, i: number) => {
-        let id = g?.id;
-        if (id === null || id === undefined || id === '') {
-          // Build deterministic fallback key using index + stable fields
-          const base = (g?.image_url || g?.title || 'item');
-          id = `tmp-${i}-${base}`;
-        }
-        return { ...g, id };
-      });
-      setItems(galleryArray);
+      if (!galleryRes.ok) {
+        const err = await safeJson(galleryRes, { url: '/api/admin/gallery', method: 'GET' }).catch(() => ({} as any));
+        console.error('[Gallery] Failed to fetch gallery:', galleryRes.status, err);
+        setItems([]);
+      } else {
+        const galleryData = await safeJson(galleryRes, { url: '/api/admin/gallery', method: 'GET' });
+        // Expect shape { gallery: [...] }
+        const rawGalleryArray = Array.isArray(galleryData?.gallery) ? galleryData.gallery : (Array.isArray(galleryData) ? galleryData : []);
+        // Ensure every item has a stable non-null id to avoid React key warnings
+        const galleryArray = rawGalleryArray.map((g: any, i: number) => {
+          let id = g?.id;
+          if (id === null || id === undefined || id === '') {
+            // Build deterministic fallback key using index + stable fields
+            const base = (g?.image_url || g?.title || 'item');
+            id = `tmp-${i}-${base}`;
+          }
+          return { ...g, id };
+        });
+        setItems(galleryArray);
+      }
       
       if (eventsRes.ok) {
         const eventsData = await safeJson(eventsRes, { url: '/api/admin/events', method: 'GET' });

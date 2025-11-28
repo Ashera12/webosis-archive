@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { getPermissions } from '@/lib/rbac';
 
-function collectAdminPages(): string[] {
+function collectAdminPagesFs(): string[] {
   try {
     const baseDir = path.join(process.cwd(), 'app', 'admin');
     if (!fs.existsSync(baseDir)) return [];
@@ -26,6 +26,28 @@ function collectAdminPages(): string[] {
   } catch (e) {
     return [];
   }
+}
+
+function collectAdminPagesFromManifest(): string[] {
+  try {
+    const manifestPath = path.join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
+    if (!fs.existsSync(manifestPath)) return [];
+    const raw = fs.readFileSync(manifestPath, 'utf-8');
+    const json = JSON.parse(raw) as Record<string, string>;
+    const pages = Object.keys(json)
+      .filter((key) => key.startsWith('/admin') && key.endsWith('/page'))
+      .map((key) => key.replace(/\/page$/, ''));
+    return Array.from(new Set(pages)).sort();
+  } catch (e) {
+    return [];
+  }
+}
+
+function collectAdminPages(): string[] {
+  // Prefer manifest (reliable in production), fallback to FS scan locally
+  const fromManifest = collectAdminPagesFromManifest();
+  if (fromManifest.length > 0) return fromManifest;
+  return collectAdminPagesFs();
 }
 
 const ADMIN_DEBUG_ROLES = new Set(['super_admin','admin','osis']);
@@ -63,7 +85,17 @@ export async function GET() {
 
   const pages = collectAdminPages();
   const expectedCanonicals = ['/admin/data/sekbid', '/admin/data/members'];
-  const missingCanonicals = expectedCanonicals.filter(p => !pages.includes(p));
+  const pageSet = new Set(pages);
+  // Treat aliases as satisfying canonicals
+  const aliasMap: Record<string, string[]> = {
+    '/admin/data/sekbid': ['/admin/sekbid'],
+    '/admin/data/members': ['/admin/members'],
+  };
+  const missingCanonicals = expectedCanonicals.filter((p) => {
+    if (pageSet.has(p)) return false;
+    const aliases = aliasMap[p] || [];
+    return !aliases.some((a) => pageSet.has(a));
+  });
 
   const permissions = effectiveRole ? getPermissions(effectiveRole) : [];
   const timestamp = new Date().toISOString();

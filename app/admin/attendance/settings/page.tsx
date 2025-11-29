@@ -132,7 +132,7 @@ export default function AttendanceSettingsPage() {
       return;
     }
 
-    toast.loading('Mendapatkan lokasi...');
+    const loadingToast = toast.loading('Mendapatkan lokasi Anda...');
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -141,16 +141,31 @@ export default function AttendanceSettingsPage() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
-        toast.dismiss();
-        toast.success('Lokasi berhasil didapat!');
+        toast.dismiss(loadingToast);
+        toast.success('✅ Lokasi berhasil didapat!');
       },
       (error) => {
-        toast.dismiss();
-        toast.error('Gagal mendapatkan lokasi: ' + error.message);
+        toast.dismiss(loadingToast);
+        let errorMessage = 'Gagal mendapatkan lokasi';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Izin lokasi ditolak. Silakan aktifkan di pengaturan browser.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Informasi lokasi tidak tersedia.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Permintaan lokasi timeout. Coba lagi.';
+            break;
+        }
+        
+        toast.error(errorMessage);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
+        maximumAge: 0,
       }
     );
   };
@@ -236,13 +251,39 @@ export default function AttendanceSettingsPage() {
             </div>
 
             {/* Get Current Location Button */}
-            <button
-              onClick={getCurrentLocation}
-              className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
-            >
-              <FaMapMarkerAlt />
-              Gunakan Lokasi Saat Ini
-            </button>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <FaMapMarkerAlt className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-green-900 dark:text-green-100 mb-1">
+                    Auto-Detect Lokasi
+                  </h3>
+                  <p className="text-xs text-green-700 dark:text-green-300 mb-3">
+                    Klik tombol di bawah untuk otomatis mendapatkan koordinat GPS lokasi Anda saat ini. Pastikan GPS aktif dan browser memiliki izin lokasi.
+                  </p>
+                  <button
+                    onClick={getCurrentLocation}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <FaMapMarkerAlt />
+                    Gunakan Lokasi Saat Ini
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold mb-1">
+                  📍 Tips:
+                </p>
+                <ul className="text-xs text-gray-600 dark:text-gray-300 space-y-1 list-disc list-inside">
+                  <li>Pastikan Anda berada di area sekolah saat mengklik tombol</li>
+                  <li>GPS lebih akurat di outdoor (area terbuka)</li>
+                  <li>Jika gagal, coba refresh halaman dan coba lagi</li>
+                  <li>Atau masukkan koordinat manual dari Google Maps</li>
+                </ul>
+              </div>
+            </div>
 
             {/* Radius */}
             <div>

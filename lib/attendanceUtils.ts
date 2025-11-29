@@ -93,21 +93,35 @@ export function calculateDistance(
 
 /**
  * Generate browser fingerprint for device identification
- * Uses FingerprintJS library
+ * Uses browser characteristics to create unique device ID
  */
 export async function generateBrowserFingerprint(): Promise<string> {
   try {
-    // Check if FingerprintJS is available
+    // Check if running in browser
     if (typeof window === 'undefined') {
       return 'server-side';
     }
 
-    // Dynamically import FingerprintJS
-    const FingerprintJS = await import('@fingerprintjs/fingerprintjs');
-    const fp = await FingerprintJS.load();
-    const result = await fp.get();
+    // Collect browser fingerprint data
+    const userAgent = navigator.userAgent;
+    const screenResolution = `${screen.width}x${screen.height}x${screen.colorDepth}`;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const language = navigator.language;
+    const platform = navigator.platform;
+    const hardwareConcurrency = navigator.hardwareConcurrency || 0;
+    const deviceMemory = (navigator as any).deviceMemory || 0;
     
-    return result.visitorId;
+    // Canvas fingerprint (more unique)
+    const canvasFingerprint = await getCanvasFingerprint();
+    
+    // WebGL fingerprint
+    const webglFingerprint = getWebGLFingerprint();
+    
+    // Combine all fingerprint data
+    const fingerprintData = `${userAgent}-${screenResolution}-${timezone}-${language}-${platform}-${hardwareConcurrency}-${deviceMemory}-${canvasFingerprint}-${webglFingerprint}`;
+    
+    // Generate hash
+    return await hashString(fingerprintData);
   } catch (error) {
     console.error('Fingerprint generation error:', error);
     
@@ -119,14 +133,80 @@ export async function generateBrowserFingerprint(): Promise<string> {
     
     const basicFingerprint = `${userAgent}-${screenResolution}-${timezone}-${language}`;
     
-    // Simple hash function
+    return await hashString(basicFingerprint);
+  }
+}
+
+/**
+ * Generate canvas fingerprint
+ */
+async function getCanvasFingerprint(): Promise<string> {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return 'no-canvas';
+    
+    // Draw text with specific styling
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f60';
+    ctx.fillRect(125, 1, 62, 20);
+    ctx.fillStyle = '#069';
+    ctx.fillText('WebOsis Fingerprint 🔒', 2, 15);
+    ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+    ctx.fillText('WebOsis Fingerprint 🔒', 4, 17);
+    
+    // Get image data and hash it
+    const dataURL = canvas.toDataURL();
+    return dataURL.substring(0, 50); // Use first 50 chars as fingerprint
+  } catch (error) {
+    return 'canvas-error';
+  }
+}
+
+/**
+ * Get WebGL fingerprint
+ */
+function getWebGLFingerprint(): string {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+    
+    if (!gl) return 'no-webgl';
+    
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!debugInfo) return 'no-debug-info';
+    
+    const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+    
+    return `${vendor}-${renderer}`;
+  } catch (error) {
+    return 'webgl-error';
+  }
+}
+
+/**
+ * Hash a string using Web Crypto API
+ */
+async function hashString(str: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  } catch (error) {
+    // Fallback to simple hash
     let hash = 0;
-    for (let i = 0; i < basicFingerprint.length; i++) {
-      const char = basicFingerprint.charCodeAt(i);
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32bit integer
     }
-    
     return `fallback-${Math.abs(hash).toString(16)}`;
   }
 }

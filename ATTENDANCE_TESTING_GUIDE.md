@@ -28,12 +28,13 @@
 
 #### c. Install Dependencies
 ```bash
-npm install @fingerprintjs/fingerprintjs qrcode.react
+# FingerprintJS TIDAK DIPERLUKAN - sudah menggunakan Web Crypto API native
+npm install qrcode.react
 ```
 
 Verifikasi instalasi:
 ```bash
-npm list @fingerprintjs/fingerprintjs qrcode.react
+npm list qrcode.react
 ```
 
 ---
@@ -482,7 +483,7 @@ SELECT * FROM attendance_records;
 ### Setup (Sekali Saja)
 - [ ] Database tables created
 - [ ] Storage bucket created (`attendance/selfies`, `attendance/reference`)
-- [ ] Dependencies installed (`@fingerprintjs/fingerprintjs`, `qrcode.react`)
+- [ ] Dependencies installed (`qrcode.react`)
 - [ ] Admin configured location & WiFi
 - [ ] QR code shared to users
 
@@ -550,19 +551,35 @@ SELECT * FROM attendance_records;
 **Current:** Hanya simpan foto, tidak ada face matching
 **Upgrade Future:**
 - Integrate face-api.js atau AWS Rekognition
-- Auto-detect face similarity
+- Auto-detect face similarity antara selfie dan foto referensi
 - Alert admin jika wajah tidak match
+
+### 4. Browser Fingerprint
+**Current:** Menggunakan Web Crypto API native
+**Coverage:**
+- User agent, screen resolution, timezone, language
+- Canvas fingerprinting untuk uniqueness lebih tinggi
+- WebGL fingerprinting untuk GPU detection
+- SHA-256 hashing untuk privacy
+
+**Accuracy:** ~85-95% (cukup untuk identify device yang sama)
+**Privacy:** Hash tidak reversible, tidak menyimpan data mentah
 
 ---
 
 ## 🚀 Next Steps
 
 ### Phase 2 Features (Optional)
-1. **Push Notifications**
+1. **Advanced Biometric**
+   - Integrate face-api.js untuk face matching
+   - Compare selfie dengan foto referensi
+   - Alert admin jika wajah tidak match (similarity < 70%)
+
+2. **Push Notifications**
    - Reminder check-in (07:00)
    - Reminder check-out (15:00)
 
-2. **Analytics Dashboard**
+3. **Analytics Dashboard**
    - Grafik kehadiran per hari/minggu/bulan
    - Siswa paling rajin/sering telat
    - Export monthly report
@@ -583,11 +600,6 @@ SELECT * FROM attendance_records;
 ---
 
 ## 📞 Troubleshooting
-
-### "Cannot find module '@fingerprintjs/fingerprintjs'"
-```bash
-npm install @fingerprintjs/fingerprintjs --save
-```
 
 ### "Cannot find module 'qrcode.react'"
 ```bash

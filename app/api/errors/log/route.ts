@@ -1,7 +1,19 @@
 // app/api/errors/log/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Use service role client for admin operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 /**
  * LOG ERROR - Called from client or server

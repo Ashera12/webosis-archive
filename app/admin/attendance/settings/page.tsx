@@ -279,30 +279,36 @@ export default function AttendanceSettingsPage() {
   };
 
   const handleSave = async () => {
-    console.log('=== SAVE CONFIG DEBUG ===');
-    console.log('Config state:', config);
+    console.log('=== 🔵 SAVE CONFIG START ===');
+    console.log('📊 Config state:', config);
     
     // Validasi
     if (!config.location_name || !config.location_name.trim()) {
+      console.error('❌ Validation failed: location_name empty');
       toast.error('Nama lokasi harus diisi');
       return;
     }
 
     if (config.latitude === 0 || config.longitude === 0) {
+      console.error('❌ Validation failed: GPS coordinates are 0');
       toast.error('Koordinat GPS harus diisi (klik "Gunakan Lokasi Saat Ini" atau isi manual)');
       return;
     }
 
     if (!config.radius_meters || config.radius_meters < 50) {
+      console.error('❌ Validation failed: radius < 50');
       toast.error('Radius minimal 50 meter');
       return;
     }
 
     if (config.allowed_wifi_ssids.length === 0 && (!config.wifi_networks || config.wifi_networks.length === 0)) {
+      console.error('❌ Validation failed: no WiFi SSIDs');
       toast.error('Minimal 1 WiFi harus ditambahkan');
       return;
     }
 
+    console.log('✅ All validations passed');
+    
     setSaving(true);
     const loadingToast = toast.loading('Menyimpan konfigurasi...');
     
@@ -331,20 +337,31 @@ export default function AttendanceSettingsPage() {
         enable_network_quality_check: config.enable_network_quality_check !== false, // default true
       };
       
-      console.log('Payload to send:', payload);
+      console.log('📤 Payload prepared:', JSON.stringify(payload, null, 2));
+      console.log('🌐 Sending POST to /api/admin/attendance/config...');
 
+      console.log('⏳ Making fetch request...');
+      
       const response = await fetch('/api/admin/attendance/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      console.log('📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       const data = await response.json();
-      console.log('Save Response:', data);
+      console.log('📋 Response data:', JSON.stringify(data, null, 2));
 
       toast.dismiss(loadingToast);
 
       if (data.success) {
+        console.log('✅ Save successful!');
         // Show success message with info about update vs create
         const isUpdate = config.id ? true : false;
         const successMessage = data.message || (isUpdate ? 'Konfigurasi berhasil diperbarui!' : 'Konfigurasi berhasil disimpan!');
@@ -374,10 +391,22 @@ export default function AttendanceSettingsPage() {
         throw new Error(data.error || 'Gagal menyimpan');
       }
     } catch (error: any) {
-      console.error('Save error:', error);
+      console.error('❌ SAVE ERROR:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        error: error
+      });
       toast.dismiss(loadingToast);
-      toast.error(error.message || 'Gagal menyimpan konfigurasi');
+      toast.error(
+        <div>
+          <div className="font-bold">❌ Gagal menyimpan</div>
+          <div className="text-sm mt-1">{error.message || 'Terjadi kesalahan'}</div>
+        </div>,
+        { duration: 5000 }
+      );
     } finally {
+      console.log('🔵 SAVE CONFIG END');
       setSaving(false);
     }
   };

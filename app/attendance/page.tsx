@@ -162,7 +162,7 @@ export default function AttendancePage() {
   const handleCapturePhoto = async () => {
     setLoading(true);
     try {
-      const blob = await capturePhotoFromWebcam();
+      const blob = await captureWebcamPhoto();
       if (!blob) {
         throw new Error('Gagal mengambil foto');
       }

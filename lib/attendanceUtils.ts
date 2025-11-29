@@ -291,9 +291,9 @@ async function hashString(str: string): Promise<string> {
 
 /**
  * Capture photo from user's webcam
- * Returns base64 encoded image
+ * Returns Blob for upload
  */
-export async function captureWebcamPhoto(): Promise<string | null> {
+export async function captureWebcamPhoto(): Promise<Blob | null> {
   try {
     // Request camera access
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -330,8 +330,14 @@ export async function captureWebcamPhoto(): Promise<string | null> {
     // Stop camera
     stream.getTracks().forEach((track) => track.stop());
 
-    // Convert to base64
-    return canvas.toDataURL('image/jpeg', 0.8);
+    // Convert to Blob
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => resolve(blob),
+        'image/jpeg',
+        0.8
+      );
+    });
   } catch (error) {
     console.error('Webcam capture error:', error);
     return null;

@@ -65,64 +65,97 @@ ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE biometric_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_location_config ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own attendance" ON attendance_records;
+DROP POLICY IF EXISTS "Users can insert own attendance" ON attendance_records;
+DROP POLICY IF EXISTS "Admin can view all attendance" ON attendance_records;
+DROP POLICY IF EXISTS "Admin can update attendance" ON attendance_records;
+DROP POLICY IF EXISTS "Users can manage own biometric" ON biometric_data;
+DROP POLICY IF EXISTS "Admin can view config" ON school_location_config;
+DROP POLICY IF EXISTS "Admin can manage config" ON school_location_config;
+
 -- Policy: Users can view own attendance
-CREATE POLICY IF NOT EXISTS "Users can view own attendance"
+CREATE POLICY "Users can view own attendance"
   ON attendance_records FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (user_id::text = auth.jwt()->>'sub');
 
 -- Policy: Users can insert own attendance
-CREATE POLICY IF NOT EXISTS "Users can insert own attendance"
+CREATE POLICY "Users can insert own attendance"
   ON attendance_records FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id::text = auth.jwt()->>'sub');
 
 -- Policy: Admin can view all attendance
-CREATE POLICY IF NOT EXISTS "Admin can view all attendance"
+CREATE POLICY "Admin can view all attendance"
   ON attendance_records FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id = auth.uid()
+      WHERE users.id::text = auth.jwt()->>'sub'
       AND users.role IN ('super_admin', 'admin', 'osis')
     )
   );
 
 -- Policy: Admin can update attendance
-CREATE POLICY IF NOT EXISTS "Admin can update attendance"
+CREATE POLICY "Admin can update attendance"
   ON attendance_records FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id = auth.uid()
+      WHERE users.id::text = auth.jwt()->>'sub'
       AND users.role IN ('super_admin', 'admin', 'osis')
     )
   );
 
 -- Policy: Users can manage own biometric
-CREATE POLICY IF NOT EXISTS "Users can manage own biometric"
+CREATE POLICY "Users can manage own biometric"
   ON biometric_data FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id::text = auth.jwt()->>'sub');
 
 -- Policy: Admin can view config
-CREATE POLICY IF NOT EXISTS "Admin can view config"
+CREATE POLICY "Admin can view config"
   ON school_location_config FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id = auth.uid()
+      WHERE users.id::text = auth.jwt()->>'sub'
       AND users.role IN ('super_admin', 'admin', 'osis')
     )
   );
 
 -- Policy: Admin can manage config
-CREATE POLICY IF NOT EXISTS "Admin can manage config"
+CREATE POLICY "Admin can manage config"
   ON school_location_config FOR ALL
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id = auth.uid()
+      WHERE users.id::text = auth.jwt()->>'sub'
       AND users.role IN ('super_admin', 'admin', 'osis')
     )
   );
+
+-- 6. Trigger untuk auto-update updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_attendance_records_updated_at
+  BEFORE UPDATE ON attendance_records
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_biometric_data_updated_at
+  BEFORE UPDATE ON biometric_data
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_school_location_config_updated_at
+  BEFORE UPDATE ON school_location_config
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ### Klik **Run** (atau tekan F5)

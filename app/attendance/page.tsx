@@ -9,10 +9,10 @@ import {
   checkWiFiConnection,
   getUserLocation,
   generateBrowserFingerprint,
-  capturePhotoFromWebcam,
+  captureWebcamPhoto,
   uploadAttendancePhoto,
   formatAttendanceTime,
-} from '@/lib/attendance/utils';
+} from '@/lib/attendanceUtils';
 
 interface BiometricSetupData {
   referencePhotoUrl: string;
@@ -82,7 +82,9 @@ export default function AttendancePage() {
     }
 
     // 3. Check WiFi
-    const wifiCheck = await checkWiFiConnection();
+    const wifiCheck = await checkWiFiConnection([]);
+    console.log('WiFi check result:', wifiCheck);
+    setWifiSSID(wifiCheck.ssid || 'Unknown');
     setRequirements(prev => ({ ...prev, wifi: wifiCheck.connected }));
 
     // 4. Check location

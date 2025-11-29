@@ -51,23 +51,43 @@ export default function AttendanceSettingsPage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/attendance/config');
+      const response = await fetch('/api/admin/attendance/config', {
+        cache: 'no-store',
+      });
       const data = await response.json();
+
+      console.log('Fetched config:', data);
 
       if (data.success && data.data) {
         setConfig(data.data);
+      } else {
+        console.log('No existing config, using defaults');
       }
     } catch (error) {
       console.error('Fetch config error:', error);
+      toast.error('Gagal memuat konfigurasi');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    console.log('=== SAVE CONFIG DEBUG ===');
+    console.log('Config state:', config);
+    
     // Validasi
-    if (!config.location_name || config.latitude === 0 || config.longitude === 0) {
-      toast.error('Harap isi semua data lokasi');
+    if (!config.location_name || !config.location_name.trim()) {
+      toast.error('Nama lokasi harus diisi');
+      return;
+    }
+
+    if (config.latitude === 0 || config.longitude === 0) {
+      toast.error('Koordinat GPS harus diisi (klik "Gunakan Lokasi Saat Ini" atau isi manual)');
+      return;
+    }
+
+    if (!config.radius_meters || config.radius_meters < 50) {
+      toast.error('Radius minimal 50 meter');
       return;
     }
 
@@ -77,22 +97,40 @@ export default function AttendanceSettingsPage() {
     }
 
     setSaving(true);
+    const loadingToast = toast.loading('Menyimpan konfigurasi...');
+    
     try {
+      const payload = {
+        location_name: config.location_name.trim(),
+        latitude: Number(config.latitude),
+        longitude: Number(config.longitude),
+        radius_meters: Number(config.radius_meters),
+        allowed_wifi_ssids: config.allowed_wifi_ssids,
+        is_active: true,
+      };
+      
+      console.log('Payload to send:', payload);
+
       const response = await fetch('/api/admin/attendance/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
+      console.log('Response:', data);
+
+      toast.dismiss(loadingToast);
 
       if (data.success) {
-        toast.success('Konfigurasi berhasil disimpan!');
-        fetchConfig(); // Reload data
+        toast.success('✅ Konfigurasi berhasil disimpan!');
+        await fetchConfig(); // Reload data
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error || 'Gagal menyimpan');
       }
     } catch (error: any) {
+      console.error('Save error:', error);
+      toast.dismiss(loadingToast);
       toast.error(error.message || 'Gagal menyimpan konfigurasi');
     } finally {
       setSaving(false);
@@ -136,17 +174,25 @@ export default function AttendanceSettingsPage() {
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setConfig({
-          ...config,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        
+        console.log('GPS Location:', { lat, lon });
+        
+        setConfig((prev) => ({
+          ...prev,
+          latitude: lat,
+          longitude: lon,
+        }));
+        
         toast.dismiss(loadingToast);
-        toast.success('✅ Lokasi berhasil didapat!');
+        toast.success(`✅ Lokasi didapat! (${lat.toFixed(6)}, ${lon.toFixed(6)})`);
       },
       (error) => {
         toast.dismiss(loadingToast);
         let errorMessage = 'Gagal mendapatkan lokasi';
+        
+        console.error('Geolocation error:', error);
         
         switch (error.code) {
           case error.PERMISSION_DENIED:

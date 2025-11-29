@@ -3,9 +3,17 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode, FaHistory, FaUndo } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode, FaHistory, FaUndo, FaToggleOn, FaToggleOff, FaTrash, FaEdit } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
+
+interface WiFiNetwork {
+  ssid: string;
+  bssid?: string; // MAC address
+  security_type?: string;
+  frequency?: string;
+  notes?: string;
+}
 
 interface SchoolConfig {
   id?: number;
@@ -13,7 +21,8 @@ interface SchoolConfig {
   latitude: number;
   longitude: number;
   radius_meters: number;
-  allowed_wifi_ssids: string[];
+  allowed_wifi_ssids: string[]; // Legacy support
+  wifi_networks?: WiFiNetwork[]; // New structure
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -27,11 +36,21 @@ export default function AttendanceSettingsPage() {
     longitude: 0,
     radius_meters: 100,
     allowed_wifi_ssids: [],
+    wifi_networks: [],
     is_active: true,
   });
   const [configHistory, setConfigHistory] = useState<SchoolConfig[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [newSSID, setNewSSID] = useState('');
+  const [showWiFiForm, setShowWiFiForm] = useState(false);
+  const [editingWiFiIndex, setEditingWiFiIndex] = useState<number | null>(null);
+  const [newWiFi, setNewWiFi] = useState<WiFiNetwork>({
+    ssid: '',
+    bssid: '',
+    security_type: 'WPA2',
+    frequency: '2.4GHz',
+    notes: '',
+  });
+  const [newSSID, setNewSSID] = useState(''); // Legacy simple mode
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -102,7 +121,7 @@ export default function AttendanceSettingsPage() {
       const response = await fetch('/api/admin/attendance/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configId }),
+        body: JSON.stringify({ configId, action: 'restore' }),
       });
 
       const data = await response.json();
@@ -120,6 +139,104 @@ export default function AttendanceSettingsPage() {
       toast.dismiss(loadingToast);
       toast.error(error.message || 'Gagal memulihkan konfigurasi');
     }
+  };
+
+  const handleToggleActive = async (configId: number, currentStatus: boolean) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    const loadingToast = toast.loading(currentStatus ? 'Menonaktifkan...' : 'Mengaktifkan...');
+    
+    try {
+      const response = await fetch('/api/admin/attendance/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configId, action }),
+      });
+
+      const data = await response.json();
+      toast.dismiss(loadingToast);
+
+      if (data.success) {
+        toast.success(`✅ ${data.message}`);
+        await fetchConfig();
+        await fetchHistory();
+      } else {
+        throw new Error(data.error || 'Gagal mengubah status');
+      }
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      toast.error(error.message || 'Gagal mengubah status');
+    }
+  };
+
+  const handleDeleteConfig = async (configId: number) => {
+    if (!confirm('⚠️ PERHATIAN: Konfigurasi akan dihapus permanen!\n\nYakin ingin menghapus?')) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Menghapus konfigurasi...');
+    
+    try {
+      const response = await fetch(`/api/admin/attendance/config?id=${configId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      toast.dismiss(loadingToast);
+
+      if (data.success) {
+        toast.success('✅ Konfigurasi berhasil dihapus!');
+        await fetchHistory();
+      } else {
+        throw new Error(data.error || 'Gagal menghapus');
+      }
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      toast.error(error.message || 'Gagal menghapus konfigurasi');
+    }
+  };
+
+  const handleAddWiFi = () => {
+    if (!newWiFi.ssid.trim()) {
+      toast.error('SSID tidak boleh kosong');
+      return;
+    }
+
+    const wifiNetworks = config.wifi_networks || [];
+    
+    // Check duplicate SSID
+    if (wifiNetworks.some(w => w.ssid === newWiFi.ssid.trim())) {
+      toast.error('WiFi dengan SSID ini sudah ada');
+      return;
+    }
+
+    setConfig({
+      ...config,
+      wifi_networks: [...wifiNetworks, { ...newWiFi, ssid: newWiFi.ssid.trim() }],
+      allowed_wifi_ssids: [...config.allowed_wifi_ssids, newWiFi.ssid.trim()], // Legacy support
+    });
+
+    // Reset form
+    setNewWiFi({
+      ssid: '',
+      bssid: '',
+      security_type: 'WPA2',
+      frequency: '2.4GHz',
+      notes: '',
+    });
+    setShowWiFiForm(false);
+    toast.success('WiFi ditambahkan');
+  };
+
+  const handleRemoveWiFi = (index: number) => {
+    const wifiNetworks = config.wifi_networks || [];
+    const removedSSID = wifiNetworks[index].ssid;
+    
+    setConfig({
+      ...config,
+      wifi_networks: wifiNetworks.filter((_, i) => i !== index),
+      allowed_wifi_ssids: config.allowed_wifi_ssids.filter(s => s !== removedSSID),
+    });
+    toast.success('WiFi dihapus');
   };
 
   const handleSave = async () => {
@@ -364,15 +481,47 @@ export default function AttendanceSettingsPage() {
                           )}
                         </div>
                       </div>
-                      {!cfg.is_active && (
-                        <button
-                          onClick={() => handleRestoreBackup(cfg.id!)}
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                        >
-                          <FaUndo />
-                          Pulihkan
-                        </button>
-                      )}
+                      <div className="flex flex-col gap-2">
+                        {cfg.is_active ? (
+                          <button
+                            onClick={() => handleToggleActive(cfg.id!, true)}
+                            className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+                            title="Nonaktifkan"
+                          >
+                            <FaToggleOff />
+                            <span className="hidden sm:inline">Nonaktifkan</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleToggleActive(cfg.id!, false)}
+                              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                              title="Aktifkan"
+                            >
+                              <FaToggleOn />
+                              <span className="hidden sm:inline">Aktifkan</span>
+                            </button>
+                            <button
+                              onClick={() => handleRestoreBackup(cfg.id!)}
+                              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                              title="Pulihkan"
+                            >
+                              <FaUndo />
+                              <span className="hidden sm:inline">Pulihkan</span>
+                            </button>
+                            {session?.user?.role === 'super_admin' && (
+                              <button
+                                onClick={() => handleDeleteConfig(cfg.id!)}
+                                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                                title="Hapus Permanen"
+                              >
+                                <FaTrash />
+                                <span className="hidden sm:inline">Hapus</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -521,32 +670,178 @@ export default function AttendanceSettingsPage() {
 
         {/* WiFi Config */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <FaWifi className="text-blue-600" />
-            WiFi yang Diizinkan
-          </h2>
-
-          {/* Add SSID */}
-          <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              value={newSSID}
-              onChange={(e) => setNewSSID(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddSSID()}
-              placeholder="Masukkan nama WiFi (SSID)"
-              className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
-            />
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FaWifi className="text-blue-600" />
+              WiFi yang Diizinkan
+            </h2>
             <button
-              onClick={handleAddSSID}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
+              onClick={() => setShowWiFiForm(!showWiFiForm)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all"
             >
               <FaPlus />
-              Tambah
+              Tambah WiFi
             </button>
           </div>
 
-          {/* SSID List */}
-          {config.allowed_wifi_ssids.length === 0 ? (
+          {/* WiFi Form (Advanced) */}
+          {showWiFiForm && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-4">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-3">Tambah WiFi Network</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    SSID (Nama WiFi) *
+                  </label>
+                  <input
+                    type="text"
+                    value={newWiFi.ssid}
+                    onChange={(e) => setNewWiFi({ ...newWiFi, ssid: e.target.value })}
+                    placeholder="Contoh: SMKFI2025 (5G)"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    MAC Address / BSSID (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newWiFi.bssid}
+                    onChange={(e) => setNewWiFi({ ...newWiFi, bssid: e.target.value })}
+                    placeholder="Contoh: 00:11:22:33:44:55 (untuk validasi lebih ketat)"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Opsional. Untuk memastikan koneksi ke Access Point yang spesifik
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Keamanan
+                    </label>
+                    <select
+                      value={newWiFi.security_type}
+                      onChange={(e) => setNewWiFi({ ...newWiFi, security_type: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                    >
+                      <option value="WPA2">WPA2</option>
+                      <option value="WPA3">WPA3</option>
+                      <option value="WPA">WPA</option>
+                      <option value="Open">Open (Tanpa Password)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Frekuensi
+                    </label>
+                    <select
+                      value={newWiFi.frequency}
+                      onChange={(e) => setNewWiFi({ ...newWiFi, frequency: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                    >
+                      <option value="2.4GHz">2.4GHz</option>
+                      <option value="5GHz">5GHz</option>
+                      <option value="Dual">Dual Band</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Catatan (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newWiFi.notes}
+                    onChange={(e) => setNewWiFi({ ...newWiFi, notes: e.target.value })}
+                    placeholder="Contoh: WiFi Ruang Guru Lt 2"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddWiFi}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    ✓ Tambahkan
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowWiFiForm(false);
+                      setNewWiFi({ ssid: '', bssid: '', security_type: 'WPA2', frequency: '2.4GHz', notes: '' });
+                    }}
+                    className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors font-medium"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* WiFi List */}
+          {(config.wifi_networks && config.wifi_networks.length > 0) || config.allowed_wifi_ssids.length > 0 ? (
+            <div className="space-y-2">
+              {(config.wifi_networks || []).length > 0 ? (
+                // New format with details
+                config.wifi_networks!.map((wifi, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FaWifi className="text-green-600" />
+                          <span className="font-bold text-gray-900 dark:text-white">{wifi.ssid}</span>
+                          <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full">
+                            {wifi.frequency || '2.4GHz'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                          {wifi.bssid && <p>📡 MAC: {wifi.bssid}</p>}
+                          {wifi.security_type && <p>🔒 {wifi.security_type}</p>}
+                          {wifi.notes && <p>📝 {wifi.notes}</p>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveWiFi(index)}
+                        className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
+                        title="Hapus WiFi"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                // Legacy format (simple SSIDs)
+                config.allowed_wifi_ssids.map((ssid, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FaCheckCircle className="text-green-600" />
+                      <span className="font-semibold text-gray-900 dark:text-white">{ssid}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveSSID(ssid)}
+                      className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 rounded-xl p-4 text-center">
               <p className="text-yellow-800 dark:text-yellow-200 font-semibold">
                 Belum ada WiFi yang ditambahkan
@@ -555,31 +850,19 @@ export default function AttendanceSettingsPage() {
                 Minimal 1 SSID WiFi harus ditambahkan untuk validasi absensi
               </p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {config.allowed_wifi_ssids.map((ssid, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl"
-                >
-                  <div className="flex items-center gap-3">
-                    <FaCheckCircle className="text-green-600" />
-                    <span className="font-semibold text-gray-900 dark:text-white">{ssid}</span>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveSSID(ssid)}
-                    className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-              ))}
-            </div>
           )}
 
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-            💡 Tips: Tambahkan semua WiFi sekolah yang mungkin digunakan siswa/guru (WiFi kantor, WiFi lab, WiFi kelas, dll)
-          </p>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mt-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold mb-1">
+              💡 Tips:
+            </p>
+            <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1 list-disc list-inside">
+              <li>Tambahkan semua WiFi sekolah (ruang kelas, lab, kantin, dll)</li>
+              <li>MAC Address opsional - gunakan jika ingin validasi lebih ketat</li>
+              <li>Frekuensi 5GHz biasanya lebih stabil tapi jangkauan lebih pendek</li>
+              <li>Catatan membantu admin mengidentifikasi lokasi WiFi</li>
+            </ul>
+          </div>
         </div>
 
         {/* Save Button */}

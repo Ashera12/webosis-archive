@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Restore backup/previous config
+// PUT - Restore backup/previous config OR activate/deactivate config
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -218,7 +218,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { configId } = body;
+    const { configId, action = 'restore' } = body; // action: 'restore', 'activate', 'deactivate'
 
     if (!configId) {
       return NextResponse.json(
@@ -227,36 +227,137 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get the config to restore
-    const { data: configToRestore, error: fetchError } = await supabase
+    // Get the config to restore/modify
+    const { data: configToModify, error: fetchError } = await supabase
       .from('school_location_config')
       .select('*')
       .eq('id', configId)
       .single();
 
-    if (fetchError || !configToRestore) {
+    if (fetchError || !configToModify) {
       return NextResponse.json(
         { success: false, error: 'Config not found' },
         { status: 404 }
       );
     }
 
-    // Deactivate all configs
-    await supabase
-      .from('school_location_config')
-      .update({ is_active: false })
-      .eq('is_active', true);
+    let data, error;
 
-    // Activate the selected config
-    const { data, error } = await supabase
-      .from('school_location_config')
-      .update({ is_active: true })
-      .eq('id', configId)
-      .select()
-      .single();
+    if (action === 'activate' || action === 'restore') {
+      // Deactivate all configs
+      await supabase
+        .from('school_location_config')
+        .update({ is_active: false })
+        .eq('is_active', true);
+
+      // Activate the selected config
+      const result = await supabase
+        .from('school_location_config')
+        .update({ is_active: true })
+        .eq('id', configId)
+        .select()
+        .single();
+
+      data = result.data;
+      error = result.error;
+    } else if (action === 'deactivate') {
+      // Deactivate the selected config
+      const result = await supabase
+        .from('school_location_config')
+        .update({ is_active: false })
+        .eq('id', configId)
+        .select()
+        .single();
+
+      data = result.data;
+      error = result.error;
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid action' },
+        { status: 400 }
+      );
+    }
 
     if (error) {
-      console.error('Restore config error:', error);
+      console.error('Modify config error:', error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    const messages = {
+      restore: 'Konfigurasi berhasil dipulihkan',
+      activate: 'Konfigurasi berhasil diaktifkan',
+      deactivate: 'Konfigurasi berhasil dinonaktifkan',
+    };
+
+    return NextResponse.json({
+      success: true,
+      data,
+      message: messages[action as keyof typeof messages],
+    });
+  } catch (error: any) {
+    console.error('Modify attendance config error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete config permanently
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check role - only super_admin can delete
+    const userRole = (session.user.role || '').toLowerCase();
+    if (!['super_admin'].includes(userRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Only super admin can delete configs' },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const configId = searchParams.get('id');
+
+    if (!configId) {
+      return NextResponse.json(
+        { success: false, error: 'Config ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if config is active
+    const { data: existingConfig } = await supabase
+      .from('school_location_config')
+      .select('is_active')
+      .eq('id', configId)
+      .single();
+
+    if (existingConfig?.is_active) {
+      return NextResponse.json(
+        { success: false, error: 'Cannot delete active config. Deactivate it first.' },
+        { status: 400 }
+      );
+    }
+
+    // Delete the config
+    const { error } = await supabase
+      .from('school_location_config')
+      .delete()
+      .eq('id', configId);
+
+    if (error) {
+      console.error('Delete config error:', error);
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
@@ -265,11 +366,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data,
-      message: 'Konfigurasi berhasil dipulihkan',
+      message: 'Konfigurasi berhasil dihapus',
     });
   } catch (error: any) {
-    console.error('Restore attendance config error:', error);
+    console.error('Delete attendance config error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal server error' },
       { status: 500 }

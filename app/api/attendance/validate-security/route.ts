@@ -9,6 +9,13 @@ interface SecurityValidation {
   wifiSSID: string;
   fingerprintHash: string;
   timestamp: number;
+  networkInfo?: {
+    ipAddress: string | null;
+    ipType: string;
+    connectionType: string | null;
+    isLocalNetwork: boolean;
+    networkStrength: string;
+  };
 }
 
 /**
@@ -71,27 +78,48 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // ===== 2. VALIDATE WIFI SSID =====
-    console.log('[Security Validation] Checking WiFi...');
+    // ===== 2. VALIDATE WIFI SSID (STRICT ENFORCEMENT) =====
+    // NOTE: Browser cannot directly detect WiFi SSID, but we still enforce it as first layer
+    // Combined with GPS + Fingerprint + AI Pattern Detection for maximum security
+    console.log('[Security Validation] Checking WiFi (STRICT MODE)...');
     const allowedSSIDs = activeConfig.allowed_wifi_ssids || [];
-    const isWiFiValid = allowedSSIDs.includes(body.wifiSSID.trim());
+    const providedWiFi = body.wifiSSID.trim();
+    
+    // Strict WiFi validation
+    const isWiFiValid = allowedSSIDs.some((ssid: string) => ssid.toLowerCase() === providedWiFi.toLowerCase());
 
     if (!isWiFiValid) {
       violations.push('INVALID_WIFI');
       securityScore -= 40;
       
-      console.error('[Security Validation] ❌ WiFi INVALID:', {
-        provided: body.wifiSSID,
-        allowed: allowedSSIDs
+      console.error('[Security Validation] ❌ WiFi INVALID (STRICT MODE):', {
+        provided: providedWiFi,
+        allowed: allowedSSIDs,
+        caseSensitive: false
+      });
+
+      // Log to security events for AI analysis
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'wifi_validation_failed',
+        severity: 'HIGH',
+        description: `WiFi validation failed: ${providedWiFi}`,
+        metadata: {
+          provided_wifi: providedWiFi,
+          allowed_wifis: allowedSSIDs,
+          location: { lat: body.latitude, lng: body.longitude },
+          timestamp: new Date(body.timestamp).toISOString()
+        }
       });
 
       return NextResponse.json({
         success: false,
         error: `WiFi tidak valid! Anda harus terhubung ke WiFi sekolah.`,
         details: {
-          yourWiFi: body.wifiSSID,
+          yourWiFi: providedWiFi,
           allowedWiFi: allowedSSIDs,
-          hint: 'Pastikan terhubung ke jaringan: ' + allowedSSIDs.join(', ')
+          hint: 'Pastikan terhubung ke salah satu jaringan: ' + allowedSSIDs.join(', '),
+          note: 'WiFi validation + GPS + Fingerprint + AI Pattern Detection aktif'
         },
         action: 'BLOCK_ATTENDANCE',
         severity: 'HIGH',
@@ -100,7 +128,20 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    console.log('[Security Validation] ✅ WiFi valid:', body.wifiSSID);
+    console.log('[Security Validation] ✅ WiFi valid (STRICT MODE):', providedWiFi);
+    
+    // Log successful WiFi validation for AI pattern analysis
+    await logSecurityEvent({
+      user_id: userId,
+      event_type: 'wifi_validation_success',
+      severity: 'INFO',
+      description: `WiFi validation passed: ${providedWiFi}`,
+      metadata: {
+        wifi_ssid: providedWiFi,
+        location: { lat: body.latitude, lng: body.longitude },
+        timestamp: new Date(body.timestamp).toISOString()
+      }
+    });
 
     // ===== 3. VALIDATE LOCATION =====
     console.log('[Security Validation] Checking location...');
@@ -184,11 +225,17 @@ export async function POST(request: NextRequest) {
       });
 
       // Check if device changed
-      await logSecurityEvent(userId, 'FINGERPRINT_MISMATCH', {
-        providedHash: body.fingerprintHash,
-        storedHash: biometric.fingerprint_template,
-        wifiSSID: body.wifiSSID,
-        location: { lat: body.latitude, lng: body.longitude }
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'FINGERPRINT_MISMATCH',
+        severity: 'HIGH',
+        description: 'Device fingerprint mismatch detected',
+        metadata: {
+          providedHash: body.fingerprintHash,
+          storedHash: biometric.fingerprint_template,
+          wifiSSID: body.wifiSSID,
+          location: { lat: body.latitude, lng: body.longitude }
+        }
       });
 
       return NextResponse.json({
@@ -248,23 +295,93 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ===== 6. AI ANOMALY DETECTION (Optional) =====
-    const anomalyScore = await detectAnomalies(userId, {
-      wifiSSID: body.wifiSSID,
-      latitude: body.latitude,
-      longitude: body.longitude,
+    // ===== 6. AI ANOMALY DETECTION (Enhanced with WiFi Pattern Analysis) =====
+    console.log('[Security Validation] Running enhanced AI anomaly detection...');
+    const anomalyResult = await detectAnomalies({
+      userId,
+      currentLocation: { lat: body.latitude, lng: body.longitude },
+      currentFingerprint: body.fingerprintHash,
+      currentWiFi: providedWiFi,
       timestamp: body.timestamp
     });
 
-    if (anomalyScore > 70) {
-      warnings.push('SUSPICIOUS_PATTERN');
-      securityScore -= 20;
+    if (anomalyResult.anomalyScore > 70) {
+      // CRITICAL: Block attendance if anomaly score too high
+      violations.push('HIGH_ANOMALY_SCORE');
+      securityScore -= 30;
+      
+      console.error('[Security Validation] 🚨 HIGH ANOMALY SCORE:', {
+        score: anomalyResult.anomalyScore,
+        patterns: anomalyResult.detectedPatterns,
+        recommendations: anomalyResult.recommendations
+      });
       
       // Log untuk admin review
-      await logSecurityEvent(userId, 'ANOMALY_DETECTED', {
-        anomalyScore,
-        wifiSSID: body.wifiSSID,
-        location: { lat: body.latitude, lng: body.longitude }
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'high_anomaly_detected',
+        severity: 'CRITICAL',
+        description: 'AI detected high anomaly score - potential security threat',
+        metadata: {
+          anomalyScore: anomalyResult.anomalyScore,
+          detectedPatterns: anomalyResult.detectedPatterns,
+          recommendations: anomalyResult.recommendations,
+          wifi: providedWiFi,
+          location: { lat: body.latitude, lng: body.longitude },
+          fingerprint: body.fingerprintHash
+        }
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Pola aktivitas mencurigakan terdeteksi. Hubungi admin untuk verifikasi.',
+        details: {
+          anomalyScore: anomalyResult.anomalyScore,
+          patterns: anomalyResult.detectedPatterns,
+          recommendations: anomalyResult.recommendations
+        },
+        action: 'BLOCK_ATTENDANCE',
+        severity: 'CRITICAL',
+        violations,
+        securityScore
+      }, { status: 403 });
+      
+    } else if (anomalyResult.anomalyScore > 40) {
+      // WARNING: Allow but log suspicious pattern
+      warnings.push('SUSPICIOUS_PATTERN');
+      securityScore -= 15;
+      
+      console.warn('[Security Validation] ⚠️  Suspicious pattern detected:', {
+        score: anomalyResult.anomalyScore,
+        patterns: anomalyResult.detectedPatterns
+      });
+      
+      // Log untuk admin monitoring
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'anomaly_warning',
+        severity: 'MEDIUM',
+        description: 'AI detected suspicious pattern',
+        metadata: {
+          anomalyScore: anomalyResult.anomalyScore,
+          detectedPatterns: anomalyResult.detectedPatterns,
+          wifi: providedWiFi,
+          location: { lat: body.latitude, lng: body.longitude }
+        }
+      });
+    } else if (anomalyResult.detectedPatterns.length > 0) {
+      // INFO: Log detected patterns even if score is low
+      console.log('[Security Validation] ℹ️  AI patterns detected:', anomalyResult.detectedPatterns);
+      
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'anomaly_info',
+        severity: 'INFO',
+        description: 'AI detected patterns (low score)',
+        metadata: {
+          anomalyScore: anomalyResult.anomalyScore,
+          detectedPatterns: anomalyResult.detectedPatterns
+        }
       });
     }
 
@@ -292,9 +409,15 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[Security Validation] ❌ Error:', error);
     
-    await logSecurityEvent(null, 'VALIDATION_ERROR', {
-      error: error.message,
-      stack: error.stack
+    await logSecurityEvent({
+      user_id: null,
+      event_type: 'VALIDATION_ERROR',
+      severity: 'CRITICAL',
+      description: 'Security validation error occurred',
+      metadata: {
+        error: error.message,
+        stack: error.stack
+      }
     });
 
     return NextResponse.json({
@@ -323,19 +446,22 @@ function toRad(value: number): number {
   return (value * Math.PI) / 180;
 }
 
-async function logSecurityEvent(
-  userId: string | null, 
-  eventType: string, 
-  metadata: any
-): Promise<void> {
+async function logSecurityEvent(params: {
+  user_id: string | null;
+  event_type: string;
+  severity: string;
+  description: string;
+  metadata: any;
+}): Promise<void> {
   try {
     await supabaseAdmin
       .from('security_events')
       .insert({
-        user_id: userId,
-        event_type: eventType,
-        metadata,
-        severity: getSeverity(eventType),
+        user_id: params.user_id,
+        event_type: params.event_type,
+        severity: params.severity,
+        description: params.description,
+        metadata: params.metadata,
         created_at: new Date().toISOString()
       });
   } catch (error) {
@@ -353,93 +479,227 @@ function getSeverity(eventType: string): string {
 }
 
 /**
- * AI ANOMALY DETECTION
+ * AI ANOMALY DETECTION (Enhanced with WiFi Pattern Analysis)
  * Deteksi pola tidak wajar:
- * - Check-in dari lokasi berbeda dalam waktu singkat
- * - WiFi switching pattern
- * - Device fingerprint changes
+ * - Check-in dari lokasi berbeda dalam waktu singkat (Impossible Travel)
+ * - WiFi switching pattern (Frequent WiFi changes = suspicious)
+ * - WiFi-Location mismatch (Claim WiFi A but GPS shows location B)
+ * - Device fingerprint changes (Multiple devices)
+ * - Abnormal timing patterns (Middle of night attendance)
  */
-async function detectAnomalies(
-  userId: string, 
-  current: {
-    wifiSSID: string;
-    latitude: number;
-    longitude: number;
-    timestamp: number;
-  }
-): Promise<number> {
+async function detectAnomalies(params: {
+  userId: string;
+  currentLocation: { lat: number; lng: number };
+  currentFingerprint: string;
+  currentWiFi: string;
+  timestamp: number;
+}): Promise<{
+  anomalyScore: number;
+  detectedPatterns: string[];
+  recommendations: string[];
+}> {
   try {
     let anomalyScore = 0;
+    const detectedPatterns: string[] = [];
+    const recommendations: string[] = [];
 
-    // Get last 7 days attendance
+    // Get last 7 days attendance for pattern analysis
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const { data: recentAttendance } = await supabaseAdmin
       .from('attendance')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', params.userId)
       .gte('check_in_time', sevenDaysAgo.toISOString())
       .order('check_in_time', { ascending: false })
-      .limit(10);
+      .limit(20);
 
     if (!recentAttendance || recentAttendance.length === 0) {
       // First time user, no pattern yet
-      return 0;
+      return {
+        anomalyScore: 0,
+        detectedPatterns: ['FIRST_TIME_USER'],
+        recommendations: ['Monitor user for establishing baseline pattern']
+      };
     }
 
-    // 1. Check WiFi switching pattern
-    const wifiHistory = recentAttendance.map(a => a.wifi_ssid);
+    // ===== 1. WiFi SWITCHING PATTERN ANALYSIS =====
+    const wifiHistory = recentAttendance
+      .map(a => a.wifi_ssid)
+      .filter(w => w && w.trim());
     const uniqueWiFi = new Set(wifiHistory);
+    const wifiChangeRate = uniqueWiFi.size / wifiHistory.length;
     
-    if (uniqueWiFi.size > 3) {
-      // Terlalu banyak WiFi berbeda
-      anomalyScore += 30;
-      console.log('[Anomaly] Multiple WiFi networks detected:', uniqueWiFi.size);
+    if (uniqueWiFi.size > 4) {
+      // Terlalu banyak WiFi berbeda dalam 7 hari
+      anomalyScore += 35;
+      detectedPatterns.push('EXCESSIVE_WIFI_SWITCHING');
+      recommendations.push('User menggunakan lebih dari 4 WiFi berbeda dalam 7 hari');
+      console.log('[AI Anomaly] ⚠️  Excessive WiFi switching:', {
+        uniqueNetworks: uniqueWiFi.size,
+        networks: Array.from(uniqueWiFi),
+        changeRate: wifiChangeRate.toFixed(2)
+      });
+    } else if (wifiChangeRate > 0.5) {
+      // WiFi berubah > 50% dari waktu ke waktu
+      anomalyScore += 20;
+      detectedPatterns.push('HIGH_WIFI_CHANGE_RATE');
+      recommendations.push('WiFi berubah-ubah terlalu sering');
+      console.log('[AI Anomaly] ⚠️  High WiFi change rate:', wifiChangeRate.toFixed(2));
     }
 
-    // 2. Check location jumping (impossible travel)
+    // ===== 2. WIFI CONSISTENCY CHECK =====
+    // Check if current WiFi is consistent with user's pattern
+    const mostCommonWiFi = getMostCommonValue(wifiHistory);
+    if (mostCommonWiFi && params.currentWiFi !== mostCommonWiFi) {
+      const wifiCount = wifiHistory.filter(w => w === params.currentWiFi).length;
+      if (wifiCount === 0) {
+        // Brand new WiFi never used before
+        anomalyScore += 15;
+        detectedPatterns.push('NEW_WIFI_NETWORK');
+        recommendations.push(`WiFi "${params.currentWiFi}" belum pernah digunakan sebelumnya`);
+        console.log('[AI Anomaly] ℹ️  New WiFi network detected:', params.currentWiFi);
+      }
+    }
+
+    // ===== 3. IMPOSSIBLE TRAVEL DETECTION =====
     const lastAttendance = recentAttendance[0];
     if (lastAttendance && lastAttendance.check_in_time) {
       const lastTime = new Date(lastAttendance.check_in_time).getTime();
-      const currentTime = current.timestamp;
+      const currentTime = params.timestamp;
       const timeDiffMinutes = (currentTime - lastTime) / 1000 / 60;
 
-      if (timeDiffMinutes < 60) {
-        // Check jarak dalam 1 jam terakhir
-        const lastDistance = calculateDistance(
-          current.latitude,
-          current.longitude,
+      if (timeDiffMinutes < 120) {
+        // Check distance within last 2 hours
+        const distance = calculateDistance(
+          params.currentLocation.lat,
+          params.currentLocation.lng,
           parseFloat(lastAttendance.latitude),
           parseFloat(lastAttendance.longitude)
         );
 
-        // Jika jarak > 5km dalam 1 jam = mencurigakan
-        if (lastDistance > 5000) {
-          anomalyScore += 50;
-          console.log('[Anomaly] Impossible travel detected:', {
-            distance: lastDistance,
-            timeMinutes: timeDiffMinutes
+        // Impossible travel: >10km in <60min OR >20km in <120min
+        const speedKmh = (distance / 1000) / (timeDiffMinutes / 60);
+        
+        if ((distance > 10000 && timeDiffMinutes < 60) || 
+            (distance > 20000 && timeDiffMinutes < 120)) {
+          anomalyScore += 60;
+          detectedPatterns.push('IMPOSSIBLE_TRAVEL');
+          recommendations.push(
+            `Jarak ${(distance/1000).toFixed(1)}km dalam ${Math.round(timeDiffMinutes)} menit ` +
+            `(${speedKmh.toFixed(0)} km/h) - Tidak mungkin`
+          );
+          console.log('[AI Anomaly] 🚨 IMPOSSIBLE TRAVEL:', {
+            distance: `${(distance/1000).toFixed(1)}km`,
+            time: `${Math.round(timeDiffMinutes)}min`,
+            speed: `${speedKmh.toFixed(0)}km/h`
           });
+        } else if (distance > 5000 && timeDiffMinutes < 60) {
+          // Suspicious but possible (fast travel)
+          anomalyScore += 25;
+          detectedPatterns.push('FAST_TRAVEL');
+          recommendations.push(`Perjalanan cepat terdeteksi: ${speedKmh.toFixed(0)} km/h`);
+          console.log('[AI Anomaly] ⚠️  Fast travel:', speedKmh.toFixed(0), 'km/h');
         }
       }
     }
 
-    // 3. Check fingerprint consistency
-    const fingerprintHistory = recentAttendance.map(a => a.fingerprint_hash);
+    // ===== 4. DEVICE FINGERPRINT CHANGES =====
+    const fingerprintHistory = recentAttendance
+      .map(a => a.fingerprint_hash)
+      .filter(f => f && f.trim());
     const uniqueFingerprints = new Set(fingerprintHistory);
     
     if (uniqueFingerprints.size > 2) {
-      // Lebih dari 2 device berbeda = mencurigakan
+      // Multiple devices dalam 7 hari
       anomalyScore += 40;
-      console.log('[Anomaly] Multiple devices detected:', uniqueFingerprints.size);
+      detectedPatterns.push('MULTIPLE_DEVICES');
+      recommendations.push(`User menggunakan ${uniqueFingerprints.size} device berbeda`);
+      console.log('[AI Anomaly] ⚠️  Multiple devices detected:', uniqueFingerprints.size);
+    } else if (params.currentFingerprint && !fingerprintHistory.includes(params.currentFingerprint)) {
+      // New device
+      anomalyScore += 20;
+      detectedPatterns.push('NEW_DEVICE');
+      recommendations.push('Device baru terdeteksi');
+      console.log('[AI Anomaly] ℹ️  New device fingerprint');
     }
 
-    console.log('[Anomaly Detection] Final score:', anomalyScore);
-    return anomalyScore;
+    // ===== 5. TIME PATTERN ANALYSIS =====
+    const currentHour = new Date(params.timestamp).getHours();
+    
+    // Abnormal hours (tengah malam 23:00 - 05:00)
+    if (currentHour >= 23 || currentHour < 5) {
+      anomalyScore += 30;
+      detectedPatterns.push('ABNORMAL_TIME');
+      recommendations.push(`Absensi pada jam tidak normal: ${currentHour}:00`);
+      console.log('[AI Anomaly] ⚠️  Abnormal time:', currentHour + ':00');
+    }
+    
+    // Weekend check (if current time is weekend)
+    const currentDay = new Date(params.timestamp).getDay();
+    if (currentDay === 0 || currentDay === 6) {
+      anomalyScore += 15;
+      detectedPatterns.push('WEEKEND_ATTENDANCE');
+      recommendations.push('Absensi di hari weekend');
+      console.log('[AI Anomaly] ℹ️  Weekend attendance');
+    }
 
+    // ===== 6. FREQUENCY ANALYSIS =====
+    // Check if user tries to check-in multiple times per day
+    const today = new Date(params.timestamp);
+    today.setHours(0, 0, 0, 0);
+    const todayAttendance = recentAttendance.filter(a => {
+      const aDate = new Date(a.check_in_time);
+      aDate.setHours(0, 0, 0, 0);
+      return aDate.getTime() === today.getTime();
+    });
+    
+    if (todayAttendance.length > 0) {
+      anomalyScore += 50;
+      detectedPatterns.push('DUPLICATE_CHECKIN_ATTEMPT');
+      recommendations.push('User sudah check-in hari ini');
+      console.log('[AI Anomaly] 🚨 Duplicate check-in attempt today');
+    }
+
+    console.log('[AI Anomaly] Final Score:', {
+      score: anomalyScore,
+      patterns: detectedPatterns,
+      severity: anomalyScore > 70 ? 'HIGH' : anomalyScore > 40 ? 'MEDIUM' : 'LOW'
+    });
+
+    return {
+      anomalyScore,
+      detectedPatterns,
+      recommendations
+    };
   } catch (error) {
-    console.error('[Anomaly Detection] Error:', error);
-    return 0;
+    console.error('[AI Anomaly Detection] Error:', error);
+    return {
+      anomalyScore: 0,
+      detectedPatterns: ['DETECTION_ERROR'],
+      recommendations: ['AI detection encountered an error']
+    };
   }
+}
+
+// Helper: Get most common value in array
+function getMostCommonValue(arr: string[]): string | null {
+  if (arr.length === 0) return null;
+  
+  const counts: Record<string, number> = {};
+  arr.forEach(item => {
+    counts[item] = (counts[item] || 0) + 1;
+  });
+  
+  let maxCount = 0;
+  let mostCommon = null;
+  Object.entries(counts).forEach(([value, count]) => {
+    if (count > maxCount) {
+      maxCount = count;
+      mostCommon = value;
+    }
+  });
+  
+  return mostCommon;
 }

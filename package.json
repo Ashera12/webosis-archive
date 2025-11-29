@@ -23,6 +23,7 @@
     "reset:pw": "node ./scripts/reset-password.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
     "@auth/core": "^0.41.0",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/free-brands-svg-icons": "^7.1.0",
@@ -47,6 +48,7 @@
     "next": "^16.0.3",
     "next-auth": "^5.0.0-beta.30",
     "nodemailer": "^7.0.10",
+    "openai": "^6.9.1",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",

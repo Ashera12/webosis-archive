@@ -172,12 +172,33 @@ export function calculateDistance(
 /**
  * Generate browser fingerprint for device identification
  * Uses browser characteristics to create unique device ID
+ * Returns object with hash and readable details
  */
-export async function generateBrowserFingerprint(): Promise<string> {
+export async function generateBrowserFingerprint(): Promise<{
+  hash: string;
+  details: {
+    platform: string;
+    browser: string;
+    screen: string;
+    language: string;
+    timezone: string;
+    deviceId: string;
+  };
+}> {
   try {
     // Check if running in browser
     if (typeof window === 'undefined') {
-      return 'server-side';
+      return {
+        hash: 'server-side',
+        details: {
+          platform: 'Server',
+          browser: 'Server',
+          screen: 'N/A',
+          language: 'N/A',
+          timezone: 'N/A',
+          deviceId: 'server-side',
+        },
+      };
     }
 
     // Collect browser fingerprint data
@@ -199,7 +220,27 @@ export async function generateBrowserFingerprint(): Promise<string> {
     const fingerprintData = `${userAgent}-${screenResolution}-${timezone}-${language}-${platform}-${hardwareConcurrency}-${deviceMemory}-${canvasFingerprint}-${webglFingerprint}`;
     
     // Generate hash
-    return await hashString(fingerprintData);
+    const hash = await hashString(fingerprintData);
+    
+    // Extract browser name from user agent
+    let browser = 'Unknown';
+    if (userAgent.includes('Edg')) browser = 'Edge';
+    else if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'Safari';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Opera') || userAgent.includes('OPR')) browser = 'Opera';
+    
+    return {
+      hash,
+      details: {
+        platform: platform,
+        browser: browser,
+        screen: `${screen.width}x${screen.height}`,
+        language: language,
+        timezone: timezone,
+        deviceId: hash.substring(0, 12),
+      },
+    };
   } catch (error) {
     console.error('Fingerprint generation error:', error);
     
@@ -210,8 +251,25 @@ export async function generateBrowserFingerprint(): Promise<string> {
     const language = navigator.language;
     
     const basicFingerprint = `${userAgent}-${screenResolution}-${timezone}-${language}`;
+    const hash = await hashString(basicFingerprint);
     
-    return await hashString(basicFingerprint);
+    // Extract browser name
+    let browser = 'Unknown';
+    if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    
+    return {
+      hash,
+      details: {
+        platform: navigator.platform || 'Unknown',
+        browser: browser,
+        screen: screenResolution,
+        language: language,
+        timezone: timezone,
+        deviceId: hash.substring(0, 12),
+      },
+    };
   }
 }
 

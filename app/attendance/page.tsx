@@ -13,6 +13,7 @@ import {
   uploadAttendancePhoto,
   formatAttendanceTime,
 } from '@/lib/attendanceUtils';
+import { getNetworkInfo, getWiFiNetworkDetails } from '@/lib/networkUtils';
 
 interface BiometricSetupData {
   referencePhotoUrl: string;
@@ -32,6 +33,8 @@ export default function AttendancePage() {
   const [locationData, setLocationData] = useState<any>(null);
   const [wifiSSID, setWifiSSID] = useState('');
   const [fingerprintHash, setFingerprintHash] = useState('');
+  const [fingerprintDetails, setFingerprintDetails] = useState<any>(null);
+  const [networkInfo, setNetworkInfo] = useState<any>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [showCamera, setShowCamera] = useState(false);
@@ -83,11 +86,16 @@ export default function AttendancePage() {
       console.error('Biometric check error:', error);
     }
 
-    // 3. Check WiFi
+    // 3. Check WiFi & Network Info (Enhanced with IP tracking)
     const wifiCheck = await checkWiFiConnection([]);
     console.log('WiFi check result:', wifiCheck);
     setWifiSSID(wifiCheck.ssid || 'Unknown');
     setRequirements(prev => ({ ...prev, wifi: wifiCheck.connected }));
+    
+    // Get comprehensive network info
+    const netInfo = await getNetworkInfo();
+    console.log('Network info:', netInfo);
+    setNetworkInfo(netInfo);
 
     // 4. Check location
     const location = await getUserLocation();
@@ -98,7 +106,18 @@ export default function AttendancePage() {
 
     // 5. Generate fingerprint
     const fingerprint = await generateBrowserFingerprint();
-    setFingerprintHash(fingerprint);
+    setFingerprintHash(fingerprint.hash);
+    setFingerprintDetails(fingerprint.details);
+    
+    // Show fingerprint info to user
+    console.log('🔐 Device fingerprint generated:', fingerprint.details);
+    toast.success(
+      `🔐 Device terdeteksi!\n` +
+      `Platform: ${fingerprint.details.platform}\n` +
+      `Browser: ${fingerprint.details.browser}\n` +
+      `Device ID: ${fingerprint.details.deviceId}`,
+      { duration: 5000 }
+    );
 
     // 6. Check today's attendance
     checkTodayAttendance();
@@ -319,9 +338,14 @@ export default function AttendancePage() {
 
       console.log('✅ Biometric setup successful:', data);
       
-      toast.success('🎉 Biometric berhasil didaftarkan!', {
-        duration: 4000,
-      });
+      // Show detailed success message
+      toast.success(
+        `🎉 Biometric berhasil didaftarkan!\n` +
+        `Foto: Uploaded ✅\n` +
+        `Fingerprint: ${fingerprintDetails?.deviceId || 'Registered'} ✅\n` +
+        `Status: Siap untuk absensi!`,
+        { duration: 5000 }
+      );
       
       setHasSetup(true);
       setRequirements(prev => ({ ...prev, biometric: true }));

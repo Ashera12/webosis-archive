@@ -81,7 +81,17 @@ export async function getUserLocation(): Promise<{
 }
 
 // Generate fingerprint hash menggunakan browser fingerprinting
-export async function generateBrowserFingerprint(): Promise<string> {
+export async function generateBrowserFingerprint(): Promise<{
+  hash: string;
+  details: {
+    platform: string;
+    browser: string;
+    screen: string;
+    language: string;
+    timezone: string;
+    deviceId: string;
+  };
+}> {
   // Simple browser fingerprint using available APIs
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -105,7 +115,27 @@ export async function generateBrowserFingerprint(): Promise<string> {
   };
 
   const fingerprintString = JSON.stringify(fingerprint);
-  return await hashString(fingerprintString);
+  const hash = await hashString(fingerprintString);
+  
+  // Extract browser name from user agent
+  const userAgent = navigator.userAgent;
+  let browser = 'Unknown';
+  if (userAgent.includes('Chrome')) browser = 'Chrome';
+  else if (userAgent.includes('Safari')) browser = 'Safari';
+  else if (userAgent.includes('Firefox')) browser = 'Firefox';
+  else if (userAgent.includes('Edge')) browser = 'Edge';
+  
+  return {
+    hash,
+    details: {
+      platform: navigator.platform,
+      browser,
+      screen: `${screen.width}x${screen.height}`,
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      deviceId: hash.substring(0, 12),
+    },
+  };
 }
 
 // Hash string menggunakan SubtleCrypto

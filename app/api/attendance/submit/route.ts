@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     const body: AttendanceSubmit = await request.json();
 
-    // 1. Validasi WiFi - harus terhubung ke WiFi sekolah
+    // 1. Get active config & STRICT WiFi validation
     const { data: locationConfigs } = await supabaseAdmin
       .from('school_location_config')
       .select('*')
@@ -53,17 +53,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check apakah WiFi SSID valid
-    const isValidWiFi = locationConfigs.some((config) =>
-      config.allowed_wifi_ssids?.includes(body.wifiSSID)
+    // STRICT WiFi validation - must match allowed WiFi list
+    const allowedWiFiList = locationConfigs[0].allowed_wifi_ssids || [];
+    const providedWiFi = body.wifiSSID?.trim() || '';
+    const isWiFiValid = allowedWiFiList.some((ssid: string) => 
+      ssid.toLowerCase() === providedWiFi.toLowerCase()
     );
-
-    if (!isValidWiFi) {
+    
+    if (!isWiFiValid) {
+      console.error('[Attendance Submit] ❌ WiFi validation failed:', {
+        provided: providedWiFi,
+        allowed: allowedWiFiList
+      });
+      
       return NextResponse.json(
-        { error: 'Anda harus terhubung ke WiFi sekolah untuk melakukan absensi' },
+        { 
+          error: 'WiFi tidak valid! Anda harus terhubung ke WiFi sekolah yang terdaftar.',
+          details: {
+            providedWiFi: providedWiFi,
+            allowedWiFi: allowedWiFiList,
+            hint: 'Pastikan terhubung ke: ' + allowedWiFiList.join(', ')
+          }
+        },
         { status: 403 }
       );
     }
+    
+    console.log('[Attendance Submit] ✅ WiFi validated (STRICT MODE):', providedWiFi);
 
     // 2. Validasi lokasi - harus dalam radius sekolah
     const isInSchoolRadius = locationConfigs.some((config) => {

@@ -227,7 +227,7 @@ export default function AdminAttendancePage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
                 <FaCalendar /> Tanggal
               </label>
               <input

@@ -121,7 +121,18 @@ export default function AttendanceSettingsPage() {
       console.log('Fetched config:', data);
 
       if (data.success && data.data) {
-        setConfig(data.data);
+        // Fix radius if too small
+        const loadedConfig = {
+          ...data.data,
+          radius_meters: data.data.radius_meters < 50 ? 100 : data.data.radius_meters
+        };
+        
+        if (data.data.radius_meters < 50) {
+          console.warn('⚠️ Radius too small:', data.data.radius_meters, '→ Fixed to 100m');
+          toast.error('⚠️ Radius terlalu kecil! Diubah menjadi 100 meter.', { duration: 3000 });
+        }
+        
+        setConfig(loadedConfig);
       } else {
         console.log('No existing config, using defaults');
       }
@@ -296,8 +307,17 @@ export default function AttendanceSettingsPage() {
     }
 
     if (!config.radius_meters || config.radius_meters < 50) {
-      console.error('❌ Validation failed: radius < 50');
-      toast.error('Radius minimal 50 meter');
+      console.error('❌ Validation failed: radius < 50', {
+        current: config.radius_meters,
+        minimum: 50
+      });
+      toast.error(
+        <div>
+          <div className="font-bold">❌ Radius terlalu kecil!</div>
+          <div className="text-sm mt-1">Current: {config.radius_meters}m → Minimum: 50m</div>
+        </div>,
+        { duration: 5000 }
+      );
       return;
     }
 
@@ -776,13 +796,19 @@ export default function AttendanceSettingsPage() {
               </label>
               <input
                 type="number"
+                min="50"
+                max="500"
+                step="10"
                 value={config.radius_meters}
-                onChange={(e) => setConfig({ ...config, radius_meters: parseInt(e.target.value) })}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setConfig({ ...config, radius_meters: value < 50 ? 50 : value });
+                }}
                 placeholder="100"
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Jarak maksimum dari titik koordinat untuk absensi valid (rekomendasi: 100-200 meter)
+                ⚠️ <strong>Minimal 50 meter</strong> - Jarak maksimum dari titik koordinat untuk absensi valid (rekomendasi: 100-200 meter)
               </p>
             </div>
 

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 const ADMIN_DEBUG_ROLES = new Set(['super_admin','admin','osis']);
-const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS !== 'false';
+const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS === '1';
 
 // Enumerate admin pages at runtime. Helps distinguish true 404 vs permission issues in production.
 // NOTE: Uses filesystem; if Vercel build output paths differ, this still lists built pages present in /app.
@@ -31,18 +31,24 @@ function collectAdminPages(baseDir: string): { path: string; kind: string }[] {
 
   walk(baseDir, '/admin');
 
-  // Inject known aliases for stability (sekbid, members) even if data subtree pruned
-  const aliasTargets = [
-    { path: '/admin/sekbid', target: '/admin/data/sekbid' },
-    { path: '/admin/members', target: '/admin/data/members' },
+  // Treat aliases as satisfying their canonical targets if either exists.
+  const aliasPairs: Array<{ alias: string; canonical: string }> = [
+    { alias: '/admin/sekbid', canonical: '/admin/data/sekbid' },
+    { alias: '/admin/members', canonical: '/admin/data/members' },
   ];
-  for (const alias of aliasTargets) {
-    if (!results.find(r => r.path === alias.path)) {
-      results.push({ path: alias.path, kind: 'alias' });
-    }
-    // Show canonical target if missing
-    if (!results.find(r => r.path === alias.target)) {
-      results.push({ path: alias.target, kind: 'canonical-missing' });
+  for (const { alias, canonical } of aliasPairs) {
+    const hasAlias = results.some(r => r.path === alias);
+    const hasCanonical = results.some(r => r.path === canonical);
+    if (!hasAlias && !hasCanonical) {
+      // Neither exists: flag canonical missing to highlight intended route
+      results.push({ path: canonical, kind: 'canonical-missing' });
+    } else {
+      // At least one exists: ensure we show the alias and mark canonical as satisfied
+      if (!hasAlias) results.push({ path: alias, kind: 'alias' });
+      // Represent canonical presence as 'canonical' if present, else omit missing flag
+      if (hasCanonical) {
+        results.push({ path: canonical, kind: 'canonical' });
+      }
     }
   }
 

@@ -38,21 +38,19 @@ export default async function PeoplePage() {
 
       // Transform to expected format
       members = validMembers.map((m: any) => {
-        // Clean role: extract "Anggota" from "Anggota Sekbid X"
-        let cleanRole = m.role || 'Anggota';
-        if (/Anggota Sekbid \d+/.test(cleanRole)) {
-          cleanRole = 'Anggota';
-        }
+        // Use role as-is from database - NO cleaning needed
+        // This ensures proper detection in PeopleSectionsClient
+        const roleValue = m.role || 'Anggota';
         
         return {
           id: m.id || 0,
           name: m.name || 'Data Tidak Tersedia',
-          position: cleanRole,
+          position: roleValue, // Use actual role from DB
           description: m.quote || '',
           image: m.photo_url || '/images/placeholder.svg',
           instagram_username: m.instagram || m.instagram_username || undefined,
-          kelas: m.kelas || undefined,
-          department: m.sekbid?.name || undefined,
+          kelas: m.class || m.kelas || undefined,
+          department: m.sekbid?.name || undefined, // Only set if has sekbid
           departmentId: m.sekbid?.id ?? null,
           displayOrder: m.display_order || 0,
         };

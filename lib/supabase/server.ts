@@ -4,10 +4,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!serviceRoleKey) {
-  // Helpful dev-time warning when the service role key isn't provided
-  // (common on contributor machines or CI without secrets). This
-  // explains why `supabaseAdmin` requests may fail with empty errors.
-  console.warn('WARNING: SUPABASE_SERVICE_ROLE_KEY is not set. supabaseAdmin requests may fail.');
+  console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing. Server-side admin operations will fail.');
 }
 // Do not log secrets. Avoid printing SUPABASE_SERVICE_ROLE_KEY even in development.
 // Server-only Supabase client using the Service Role key (never expose to client)
@@ -42,4 +39,26 @@ export async function safeRpc(fnName: string, payload?: any) {
   }
   console.warn(`safeRpc: rpc not available for ${fnName}`);
   return { data: null, error: new Error('rpc not available') };
+}
+
+/**
+ * Fetch the freshest role for a user from the database.
+ * Ensures RBAC decisions reflect current DB state.
+ */
+export async function fetchUserRole(userId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    if (error) {
+      console.warn('fetchUserRole error', error);
+      return null;
+    }
+    return (data?.role || '').trim().toLowerCase() || null;
+  } catch (e) {
+    console.warn('fetchUserRole exception', e);
+    return null;
+  }
 }

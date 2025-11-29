@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node ./show-lan-ip.js",
+    "predev": "node ./show-lan-ip.js || echo LAN IP check skipped",
     "dev": "cross-env NODE_OPTIONS=--max_old_space_size=4096 next dev --turbo -p 3000 -H ::",
     "dev:turbo": "cross-env NODE_OPTIONS=--max_old_space_size=4096 next dev --turbo -p 3000 -H ::",
     "dev:fast": "cross-env NODE_OPTIONS=--max_old_space_size=4096 next dev --turbo -p 3000 -H ::",
@@ -66,6 +66,7 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
+    "baseline-browser-mapping": "^2.8.32",
     "cross-env": "^7.0.3",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.4",

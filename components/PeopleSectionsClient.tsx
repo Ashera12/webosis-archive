@@ -59,6 +59,11 @@ export default function PeopleSectionsClient({ members }: Props) {
       !isCoreTeamRole(m.position);
   });
 
+  // Members without department and not core team (orphaned members)
+  const orphanedMembers = members.filter(m => {
+    return !m.department && !isCoreTeamRole(m.position);
+  });
+
   // Group anggota per sekbid. Previously the code assumed sekbid IDs 1..6
   // which caused members with different DB IDs (e.g. id=23 but name 'sekbid-5')
   // to be omitted. Instead, detect a numeric order from the department
@@ -197,11 +202,30 @@ export default function PeopleSectionsClient({ members }: Props) {
           <div className="space-y-8">
             {renderGroups}
 
+            {/* Orphaned members: no department and not core team */}
+            {orphanedMembers.length > 0 && (
+              <div>
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-semibold text-gray-800 dark:text-white">Anggota Belum Ditugaskan</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    Member berikut belum ditugaskan ke sekbid. Silakan hubungi admin untuk penempatan.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {orphanedMembers.map((member, i) => (
+                    <AnimatedSection key={member.id} delay={0.1 * (i + 1)} direction="up" className="scroll-reveal">
+                      <MemberCard member={member} delay={i * 100} />
+                    </AnimatedSection>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Members with no sekbid (appear after sekbid 1..6) */}
             {anggotaNoSek.length > 0 && (
               <div>
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-semibold text-gray-800 dark:text-white">Pengurus Inti Lainnya</h3>
+                  <h3 className="text-2xl font-semibold text-gray-800 dark:text-white">Sekbid Lainnya</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                   {anggotaNoSek.map((member, i) => (

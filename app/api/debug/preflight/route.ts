@@ -31,7 +31,10 @@ function collectAdminPagesFs(): string[] {
 function collectAdminPagesFromManifest(): string[] {
   try {
     const manifestPath = path.join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
-    if (!fs.existsSync(manifestPath)) return [];
+    if (!fs.existsSync(manifestPath)) {
+      console.warn('[preflight] Manifest not found, falling back to filesystem scan');
+      return [];
+    }
     const raw = fs.readFileSync(manifestPath, 'utf-8');
     const json = JSON.parse(raw) as Record<string, string>;
     const pages = Object.keys(json)
@@ -39,6 +42,7 @@ function collectAdminPagesFromManifest(): string[] {
       .map((key) => key.replace(/\/page$/, ''));
     return Array.from(new Set(pages)).sort();
   } catch (e) {
+    console.error('[preflight] Error reading manifest:', e);
     return [];
   }
 }
@@ -51,7 +55,7 @@ function collectAdminPages(): string[] {
 }
 
 const ADMIN_DEBUG_ROLES = new Set(['super_admin','admin','osis']);
-const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS !== 'false';
+const DEBUG_ENABLED = process.env.DEBUG_ADMIN_ENDPOINTS === '1';
 
 export async function GET() {
   if (!DEBUG_ENABLED) {

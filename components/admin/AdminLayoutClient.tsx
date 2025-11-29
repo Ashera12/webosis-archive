@@ -6,37 +6,30 @@ import type { Session } from 'next-auth';
 import { useEffect, useState } from 'react';
 
 function RoleStatusBanner() {
+  // Only enable in production when explicitly configured
+  if (typeof window === 'undefined') return null;
+  if (process.env.NODE_ENV !== 'production') return null;
+  if (process.env.NEXT_PUBLIC_DEBUG_ADMIN_ENDPOINTS !== '1') return null;
+
   const [data, setData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     async function load() {
       try {
         const res = await fetch('/api/debug/preflight');
-        if (!res.ok) {
-          setError('Gagal memuat status peran');
-          return;
-        }
+        if (!res.ok) return;
         const json = await res.json();
         if (active) setData(json);
-      } catch (e: any) {
-        if (active) setError(e.message || 'Error');
+      } catch {
+        return;
       }
     }
     load();
-    const interval = setInterval(load, 30000); // refresh every 30s
+    const interval = setInterval(load, 30000);
     return () => { active = false; clearInterval(interval); };
   }, []);
 
-  if (error) {
-    return (
-      <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-        Role status error: {error}
-      </div>
-    );
-  }
-  if (!data) return null;
   if (!data || !data.ok) return null;
 
   const mismatch = data.role_mismatch;
@@ -80,7 +73,7 @@ export default function AdminLayoutClient({
         {/* Page Content */}
         <main className="p-6">
           <div className="max-w-7xl mx-auto" suppressHydrationWarning>
-            {/* Role / route diagnostics banner */}
+            {/* Role / route diagnostics banner (production + flag only) */}
             {session?.user && <RoleStatusBanner />}
             {children}
           </div>

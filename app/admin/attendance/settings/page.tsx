@@ -3,8 +3,9 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface SchoolConfig {
   id?: number;
@@ -356,6 +357,39 @@ export default function AttendanceSettingsPage() {
             <FaSave className="text-xl" />
             {saving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
           </button>
+        </div>
+
+        {/* QR Code for Attendance Link */}
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl shadow-xl p-6 border-2 border-indigo-200 dark:border-indigo-700">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <FaQrcode className="text-indigo-600" />
+            QR Code Link Absensi
+          </h2>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              Scan QR code ini untuk langsung ke halaman absensi
+            </p>
+            
+            <div className="inline-block p-4 bg-white rounded-xl shadow-lg">
+              <QRCodeSVG
+                value={typeof window !== 'undefined' ? `${window.location.origin}/attendance` : 'https://webosis.vercel.app/attendance'}
+                size={200}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+            
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
+                {typeof window !== 'undefined' ? `${window.location.origin}/attendance` : 'https://webosis.vercel.app/attendance'}
+              </p>
+            </div>
+            
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+              💡 Bagikan QR code ini kepada siswa dan guru untuk akses mudah ke halaman absensi
+            </p>
+          </div>
         </div>
 
         {/* Info */}

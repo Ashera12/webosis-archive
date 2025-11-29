@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaGlobe, FaUser, FaChartLine, FaCalendarAlt, FaClock, FaEnvelope, FaIdCard, FaSchool, FaUserTag } from 'react-icons/fa';
 import RoleBadge from '@/components/RoleBadge';
+import AttendanceWidget from '@/components/dashboard/AttendanceWidget';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -253,6 +254,11 @@ export default function UserDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Attendance Widget - Only for siswa & guru */}
+        {['siswa', 'guru'].includes(userRole) && (
+          <AttendanceWidget />
+        )}
 
         {/* Profile Information */}
         <div className="grid md:grid-cols-2 gap-6">

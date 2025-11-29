@@ -17,6 +17,8 @@ import {
   FaExclamationTriangle,
   FaBug,
   FaChartLine,
+  FaClipboardCheck,
+  FaCog,
 } from 'react-icons/fa';
 import AdminNotifications from './AdminNotifications';
 
@@ -435,9 +437,19 @@ export default function AdminDashboard() {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Link
-            href="/admin/posts/new"
+            href="/admin/attendance"
+            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
+          >
+            <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+              <FaClipboardCheck />
+            </div>
+            <span className="text-sm font-medium">Absensi</span>
+          </Link>
+
+          <Link
+            href="/admin/posts/"
             className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
           >
             <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
@@ -477,13 +489,13 @@ export default function AdminDashboard() {
           </Link>
 
           <Link
-            href="/admin/errors"
-            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-red-400 to-red-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
+            href="/admin/settings"
+            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
           >
             <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
-              <FaExclamationTriangle />
+              <FaCog />
             </div>
-            <span className="text-sm font-medium">Error Monitor</span>
+            <span className="text-sm font-medium">Settings</span>
           </Link>
         </div>
       </div>

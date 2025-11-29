@@ -3,7 +3,8 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { FaCheckCircle, FaClock, FaUserGraduate, FaChalkboardTeacher, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaCalendar, FaMapMarkerAlt } from 'react-icons/fa';
+import Link from 'next/link';
+import { FaCheckCircle, FaClock, FaUserGraduate, FaChalkboardTeacher, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaCalendar, FaMapMarkerAlt, FaCog } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { formatAttendanceTime, calculateDuration, getStatusColor } from '@/lib/attendance/utils';
 
@@ -163,12 +164,20 @@ export default function AdminAttendancePage() {
                 <p className="text-gray-600 dark:text-gray-300">Monitoring absensi siswa & guru</p>
               </div>
             </div>
-            <button
-              onClick={exportToCSV}
-              className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
-            >
-              <FaDownload /> Export CSV
-            </button>
+            <div className="flex gap-3">
+              <Link
+                href="/admin/attendance/settings"
+                className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                <FaCog /> Konfigurasi
+              </Link>
+              <button
+                onClick={exportToCSV}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                <FaDownload /> Export CSV
+              </button>
+            </div>
           </div>
         </div>
 

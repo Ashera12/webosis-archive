@@ -67,6 +67,8 @@ async function findUserByEmail(email: string): Promise<UserRecord | null> {
 }
 
 export const authConfig: NextAuthConfig = {
+  // Trust proxy headers for Vercel deployment and other proxied environments
+  trustHost: true,
   providers: [
     Credentials({
       name: 'Credentials',
@@ -276,9 +278,7 @@ export const authConfig: NextAuthConfig = {
     signIn: '/admin/login',
     signOut: '/',
   },
-  // Trust host header for production deployments
-  trustHost: true,
-  // Use base path configuration for proper URL handling
+  // Use secure cookies in production
   useSecureCookies: process.env.NODE_ENV === 'production',
 };
 

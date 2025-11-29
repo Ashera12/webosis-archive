@@ -2,9 +2,9 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Turbopack configuration
+  // Turbopack configuration with absolute path to avoid warnings
   turbopack: {
-    root: './',
+    root: path.resolve(__dirname),
   },
   
   // Security headers (CSP optimized for Next.js - allow inline scripts for Next runtime)

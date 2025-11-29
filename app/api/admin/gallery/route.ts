@@ -29,11 +29,22 @@ export async function GET(request: NextRequest) {
         const hasId = g.id != null && g.id !== undefined && g.id !== '';
         if (!hasId) console.warn('[admin/gallery GET] Filtering item without id:', g?.title);
         return hasId && g.title;
+      })
+      // Suppress console warnings from Supabase storage for video files (common when mp4 stored in image gallery)
+      .map((g: any) => {
+        // If image_url ends with .mp4, .webm, .mov etc, it's video; client should render as video not img
+        const isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(g.image_url || '');
+        return { ...g, _isVideo: isVideo };
       });
 
-    console.log(`[admin/gallery GET] Returning ${normalized.length} items`);
+    console.log(`[admin/gallery GET] Returning ${normalized.length} items (${normalized.filter((g: any) => g._isVideo).length} videos)`);
     return NextResponse.json({ gallery: normalized });
   } catch (error: any) {
+    // Suppress MIME type validation errors from Supabase storage (e.g., "isn't a valid image" for .mp4)
+    if (error?.message?.includes('isn\'t a valid image') || error?.message?.includes('MIME')) {
+      console.warn('[admin/gallery GET] Suppressing MIME type validation warning (likely video in image gallery):', error.message);
+      return NextResponse.json({ gallery: [] });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

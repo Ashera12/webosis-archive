@@ -962,6 +962,397 @@ export default function AttendanceSettingsPage() {
           </div>
         </div>
 
+        {/* 🔐 NETWORK MONITORING & IP VALIDATION */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-purple-300 dark:border-purple-600">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FaCheckCircle className="text-purple-600" />
+              🔐 Network Monitoring & IP Validation
+            </h2>
+          </div>
+
+          <div className="space-y-6">
+            {/* Security Level */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-700 rounded-xl p-4">
+              <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                🛡️ Network Security Level
+              </label>
+              <select
+                value={config.network_security_level || 'medium'}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  network_security_level: e.target.value as 'low' | 'medium' | 'high' | 'strict' 
+                })}
+                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border-2 border-purple-300 dark:border-purple-600 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 dark:focus:ring-purple-900 transition-all outline-none text-gray-900 dark:text-white font-medium"
+              >
+                <option value="low">🟢 Low - WiFi Only (Paling Mudah)</option>
+                <option value="medium">🟡 Medium - WiFi + IP Check (Recommended)</option>
+                <option value="high">🟠 High - WiFi + IP + Subnet (Strict)</option>
+                <option value="strict">🔴 Strict - Full Security (Very Strict)</option>
+              </select>
+              <div className="mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg">
+                <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                  {config.network_security_level === 'low' && '✓ Validasi: WiFi SSID only'}
+                  {config.network_security_level === 'medium' && '✓ Validasi: WiFi + IP address private (192.168.x.x)'}
+                  {config.network_security_level === 'high' && '✓ Validasi: WiFi + IP + Subnet matching'}
+                  {config.network_security_level === 'strict' && '✓ Validasi: WiFi + IP + Subnet + MAC address (BSSID)'}
+                </p>
+              </div>
+            </div>
+
+            {/* IP Validation Section */}
+            <div className="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                📡 IP Address Validation
+              </h3>
+
+              <div className="space-y-3">
+                {/* Enable IP Validation */}
+                <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_ip_validation || false}
+                    onChange={(e) => setConfig({ ...config, enable_ip_validation: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      ✅ Enable IP Validation
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      Validasi IP address user saat absensi - Prevent spoofing
+                    </p>
+                  </div>
+                </label>
+
+                {/* WebRTC Detection */}
+                <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_webrtc_detection !== false}
+                    onChange={(e) => setConfig({ ...config, enable_webrtc_detection: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🌐 WebRTC IP Detection
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      Auto-detect IP address lokal user via WebRTC API (No manual input!)
+                    </p>
+                  </div>
+                </label>
+
+                {/* Private IP Check */}
+                <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_private_ip_check !== false}
+                    onChange={(e) => setConfig({ ...config, enable_private_ip_check: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🔒 Private IP Validation
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      IP harus private: 192.168.x.x, 10.x.x.x, 172.16-31.x.x (Block public IP!)
+                    </p>
+                  </div>
+                </label>
+
+                {/* Subnet Matching */}
+                <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_subnet_matching || false}
+                    onChange={(e) => setConfig({ ...config, enable_subnet_matching: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🎯 Subnet Matching
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      IP harus dalam subnet sekolah tertentu (e.g., 192.168.1.x only)
+                    </p>
+                  </div>
+                </label>
+
+                {/* Required Subnet Input */}
+                {config.enable_subnet_matching && (
+                  <div className="ml-8 p-3 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      📍 Required Subnet (first 3 octets)
+                    </label>
+                    <input
+                      type="text"
+                      value={config.required_subnet || ''}
+                      onChange={(e) => setConfig({ ...config, required_subnet: e.target.value })}
+                      placeholder="192.168.1"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 dark:focus:ring-yellow-900 transition-all outline-none text-gray-900 dark:text-white font-mono"
+                    />
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 font-semibold">
+                      ⚠️ Contoh: 192.168.1 (akan validasi IP 192.168.1.x saja)
+                    </p>
+                  </div>
+                )}
+
+                {/* IP Ranges */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    📊 Allowed IP Ranges (CIDR Format)
+                  </label>
+                  <input
+                    type="text"
+                    value={(config.allowed_ip_ranges || []).join(', ')}
+                    onChange={(e) => setConfig({ 
+                      ...config, 
+                      allowed_ip_ranges: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                    })}
+                    placeholder="192.168.1.0/24, 10.0.0.0/24"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900 transition-all outline-none text-gray-900 dark:text-white font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    IP ranges yang diizinkan dalam format CIDR (pisahkan dengan koma)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Connection Type & Quality */}
+            <div className="border-2 border-gray-200 dark:border-gray-600 rounded-xl p-4">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                📶 Connection Type & Network Quality
+              </h3>
+
+              <div className="space-y-4">
+                {/* Allowed Connection Types */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    🔌 Allowed Connection Types
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-2 bg-white dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={(config.allowed_connection_types || ['wifi']).includes('wifi')}
+                        onChange={(e) => {
+                          const types = config.allowed_connection_types || ['wifi'];
+                          if (e.target.checked) {
+                            setConfig({ ...config, allowed_connection_types: Array.from(new Set([...types, 'wifi'])) });
+                          } else {
+                            setConfig({ ...config, allowed_connection_types: types.filter(t => t !== 'wifi') });
+                          }
+                        }}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">📡 WiFi (Recommended)</span>
+                    </label>
+                    <label className="flex items-center gap-3 p-2 bg-white dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={(config.allowed_connection_types || []).includes('ethernet')}
+                        onChange={(e) => {
+                          const types = config.allowed_connection_types || ['wifi'];
+                          if (e.target.checked) {
+                            setConfig({ ...config, allowed_connection_types: Array.from(new Set([...types, 'ethernet'])) });
+                          } else {
+                            setConfig({ ...config, allowed_connection_types: types.filter(t => t !== 'ethernet') });
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">🔌 Ethernet / LAN</span>
+                    </label>
+                    <label className="flex items-center gap-3 p-2 bg-white dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={(config.allowed_connection_types || []).includes('cellular')}
+                        onChange={(e) => {
+                          const types = config.allowed_connection_types || ['wifi'];
+                          if (e.target.checked) {
+                            setConfig({ ...config, allowed_connection_types: Array.from(new Set([...types, 'cellular'])) });
+                          } else {
+                            setConfig({ ...config, allowed_connection_types: types.filter(t => t !== 'cellular') });
+                          }
+                        }}
+                        className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">📱 Cellular (4G/5G)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Minimum Network Quality */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    ⭐ Minimum Network Quality
+                  </label>
+                  <select
+                    value={config.min_network_quality || 'fair'}
+                    onChange={(e) => setConfig({ 
+                      ...config, 
+                      min_network_quality: e.target.value as 'excellent' | 'good' | 'fair' | 'poor' 
+                    })}
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900 transition-all outline-none text-gray-900 dark:text-white font-medium"
+                  >
+                    <option value="excellent">⭐⭐⭐⭐ Excellent (&gt;80% signal)</option>
+                    <option value="good">⭐⭐⭐ Good (60-80% signal)</option>
+                    <option value="fair">⭐⭐ Fair (40-60% signal)</option>
+                    <option value="poor">⭐ Poor (&lt;40% signal)</option>
+                  </select>
+                </div>
+
+                {/* Network Quality Check Toggle */}
+                <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_network_quality_check !== false}
+                    onChange={(e) => setConfig({ ...config, enable_network_quality_check: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      📊 Enable Network Quality Check
+                    </span>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      Monitor dan validasi kualitas jaringan saat absensi
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Security Features */}
+            <div className="border-2 border-red-200 dark:border-red-700 rounded-xl p-4 bg-red-50/30 dark:bg-red-900/10">
+              <h3 className="text-lg font-bold text-red-800 dark:text-red-300 mb-4 flex items-center gap-2">
+                🛡️ Advanced Security Features
+              </h3>
+
+              <div className="space-y-3">
+                {/* MAC Address Validation */}
+                <label className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border-2 border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.enable_mac_address_validation || false}
+                    onChange={(e) => setConfig({ ...config, enable_mac_address_validation: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🔐 MAC Address Validation (BSSID)
+                    </span>
+                    <p className="text-xs text-red-700 dark:text-red-400 mt-1 font-semibold">
+                      ⚠️ Very Strict! Validasi MAC address WiFi router - Prevent WiFi spoofing
+                    </p>
+                  </div>
+                </label>
+
+                {/* Allowed MAC Addresses */}
+                {config.enable_mac_address_validation && (
+                  <div className="ml-8 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg">
+                    <label className="block text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                      📡 Allowed MAC Addresses (BSSID)
+                    </label>
+                    <input
+                      type="text"
+                      value={(config.allowed_mac_addresses || []).join(', ')}
+                      onChange={(e) => setConfig({ 
+                        ...config, 
+                        allowed_mac_addresses: e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(s => s) 
+                      })}
+                      placeholder="AA:BB:CC:DD:EE:FF, 11:22:33:44:55:66"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border-2 border-red-400 dark:border-red-600 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900 transition-all outline-none text-gray-900 dark:text-white font-mono text-sm"
+                    />
+                    <p className="text-xs text-red-700 dark:text-red-300 mt-1 font-semibold">
+                      ⚠️ MAC address WiFi router yang diizinkan (pisahkan dengan koma)
+                    </p>
+                  </div>
+                )}
+
+                {/* Block VPN */}
+                <label className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border-2 border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.block_vpn || false}
+                    onChange={(e) => setConfig({ ...config, block_vpn: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🚫 Block VPN Connections
+                    </span>
+                    <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                      Blokir absensi dari koneksi VPN - Prevent location spoofing
+                    </p>
+                  </div>
+                </label>
+
+                {/* Block Proxy */}
+                <label className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border-2 border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={config.block_proxy || false}
+                    onChange={(e) => setConfig({ ...config, block_proxy: e.target.checked })}
+                    className="w-5 h-5 mt-0.5 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      🚫 Block Proxy Connections
+                    </span>
+                    <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                      Blokir absensi dari koneksi Proxy - Prevent IP masking
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Info Box - Summary */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-300 dark:border-purple-700 rounded-xl p-5">
+              <p className="text-sm text-purple-900 dark:text-purple-200 font-bold mb-3 flex items-center gap-2">
+                <FaCheckCircle className="text-purple-600" />
+                💡 Network Monitoring Features Summary:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-purple-800 dark:text-purple-300">
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>WebRTC Detection:</strong> Auto-detect IP lokal</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>Private IP Check:</strong> 192.168.x.x, 10.x.x.x</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>Subnet Matching:</strong> IP dalam subnet sekolah</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>IP Range Validation:</strong> CIDR format</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>Connection Type:</strong> WiFi/Ethernet/Cellular</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>Quality Check:</strong> Signal strength monitoring</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>MAC Validation:</strong> WiFi router BSSID</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span><strong>VPN/Proxy Block:</strong> Prevent spoofing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Save Button */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700">
           <button

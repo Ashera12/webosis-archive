@@ -6,6 +6,7 @@ import '@/lib/fontawesome';
 import Providers from "../components/Providers";
 import ClientRole from "../components/ClientRole";
 import BackgroundSync from "../components/BackgroundSync";
+import AIMonitorClient from "../components/AIMonitorClient";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { auth } from "@/lib/auth";
 import { getAdminSettings, parseGlobalBackground } from '@/lib/adminSettings';
@@ -166,6 +167,7 @@ export default async function RootLayout({
                 >
                     <Providers>
                         <BackgroundSync />
+                        <AIMonitorClient />
                         {children}
                         {!chatDisabled && <ClientRole role={role as any} />}
                         <SpeedInsights />

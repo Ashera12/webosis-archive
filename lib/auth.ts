@@ -1,6 +1,7 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { logAuthEvent } from './authLogger';
+import { logActivity } from './activity-logger';
 // import Google from 'next-auth/providers/google';
 // Note: `bcryptjs` and `supabaseAdmin` are imported dynamically inside the
 // authorize/findUserByEmail functions to avoid pulling Node-only modules into
@@ -162,6 +163,23 @@ export const authConfig: NextAuthConfig = {
             role: user.role,
             approved: user.approved,
             email_verified: user.email_verified
+          });
+
+          // Log to activity_logs table
+          await logActivity({
+            userId: user.id,
+            userName: user.name || undefined,
+            userEmail: user.email,
+            userRole: user.role || undefined,
+            activityType: 'login',
+            action: 'User logged in successfully',
+            description: `Login dengan email ${user.email}`,
+            metadata: {
+              role: user.role,
+              approved: user.approved,
+              email_verified: user.email_verified,
+            },
+            status: 'success',
           });
 
           const returnUser = { id: user.id, email: user.email, name: user.name ?? undefined, role: user.role ?? undefined };

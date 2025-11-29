@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { logActivity, getIpAddress, parseUserAgent } from '@/lib/activity-logger';
 
 interface AttendanceSubmit {
   latitude: number;
@@ -129,6 +130,34 @@ export async function POST(request: NextRequest) {
 
       if (updateError) throw updateError;
 
+      // Log activity - attendance checkout
+      await logActivity({
+        userId,
+        userName: session.user.name || undefined,
+        userEmail: session.user.email || undefined,
+        userRole,
+        activityType: 'attendance_checkout',
+        action: 'User checked out from school',
+        description: `Absen pulang di ${body.wifiSSID}`,
+        metadata: {
+          attendance_id: updated.id,
+          location: `${body.latitude}, ${body.longitude}`,
+          wifi_ssid: body.wifiSSID,
+          accuracy: body.locationAccuracy,
+        },
+        ipAddress: getIpAddress(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        deviceInfo: parseUserAgent(request.headers.get('user-agent') || ''),
+        locationData: {
+          latitude: body.latitude,
+          longitude: body.longitude,
+          accuracy: body.locationAccuracy,
+        },
+        relatedId: updated.id.toString(),
+        relatedType: 'attendance',
+        status: 'success',
+      });
+
       return NextResponse.json({
         success: true,
         type: 'check-out',
@@ -165,6 +194,35 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // Log activity - attendance checkin
+    await logActivity({
+      userId,
+      userName: session.user.name || undefined,
+      userEmail: session.user.email || undefined,
+      userRole,
+      activityType: 'attendance_checkin',
+      action: 'User checked in to school',
+      description: `Absen masuk di ${body.wifiSSID}`,
+      metadata: {
+        attendance_id: attendance.id,
+        location: `${body.latitude}, ${body.longitude}`,
+        wifi_ssid: body.wifiSSID,
+        wifi_bssid: body.wifiBSSID,
+        accuracy: body.locationAccuracy,
+      },
+      ipAddress: getIpAddress(request),
+      userAgent: request.headers.get('user-agent') || undefined,
+      deviceInfo: parseUserAgent(request.headers.get('user-agent') || ''),
+      locationData: {
+        latitude: body.latitude,
+        longitude: body.longitude,
+        accuracy: body.locationAccuracy,
+      },
+      relatedId: attendance.id.toString(),
+      relatedType: 'attendance',
+      status: 'success',
+    });
 
     return NextResponse.json({
       success: true,

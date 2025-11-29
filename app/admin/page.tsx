@@ -439,6 +439,26 @@ export default function AdminDashboard() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Link
+            href="/admin/activity"
+            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
+          >
+            <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+              🤖
+            </div>
+            <span className="text-sm font-medium">AI Activity</span>
+          </Link>
+
+          <Link
+            href="/admin/errors"
+            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-red-400 to-red-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
+          >
+            <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+              <FaBug />
+            </div>
+            <span className="text-sm font-medium">AI Errors</span>
+          </Link>
+
+          <Link
             href="/admin/attendance"
             className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
           >

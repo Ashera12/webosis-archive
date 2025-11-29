@@ -6,7 +6,6 @@ node_modules/
 .env.local
 .env*.local
 backups/
-tools/
 data/
 *.zip
 *.tar
@@ -15,4 +14,10 @@ test/
 .vscode/
 .github/
 migrations/
-scripts/
+
+# Include app files (don't ignore app/admin/tools)
+!app/
+!app/**/*
+
+# Only ignore root-level scripts (not app code)
+/scripts/

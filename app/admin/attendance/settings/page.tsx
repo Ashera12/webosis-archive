@@ -15,7 +15,31 @@ interface WiFiNetwork {
   notes?: string;
 }
 
-interface SchoolConfig {
+interface NetworkConfig {
+  // IP Validation
+  allowed_ip_ranges?: string[]; // ["192.168.1.0/24", "10.0.0.0/24"]
+  required_subnet?: string; // "192.168.1" or "10.0.0"
+  enable_ip_validation?: boolean;
+  enable_webrtc_detection?: boolean;
+  enable_private_ip_check?: boolean;
+  enable_subnet_matching?: boolean;
+  
+  // Network Security
+  network_security_level?: 'low' | 'medium' | 'high' | 'strict';
+  allowed_connection_types?: string[]; // ["wifi", "ethernet", "cellular"]
+  min_network_quality?: 'excellent' | 'good' | 'fair' | 'poor';
+  
+  // MAC Address
+  enable_mac_address_validation?: boolean;
+  allowed_mac_addresses?: string[]; // MAC address whitelist
+  
+  // Security Features
+  block_vpn?: boolean;
+  block_proxy?: boolean;
+  enable_network_quality_check?: boolean;
+}
+
+interface SchoolConfig extends NetworkConfig {
   id?: number;
   location_name: string;
   latitude: number;
@@ -38,6 +62,21 @@ export default function AttendanceSettingsPage() {
     allowed_wifi_ssids: [],
     wifi_networks: [],
     is_active: true,
+    // Network Monitoring defaults
+    enable_ip_validation: false,
+    enable_webrtc_detection: true,
+    enable_private_ip_check: true,
+    enable_subnet_matching: false,
+    network_security_level: 'medium',
+    allowed_connection_types: ['wifi'],
+    min_network_quality: 'fair',
+    enable_mac_address_validation: false,
+    block_vpn: false,
+    block_proxy: false,
+    enable_network_quality_check: true,
+    allowed_ip_ranges: [],
+    required_subnet: '',
+    allowed_mac_addresses: [],
   });
   const [configHistory, setConfigHistory] = useState<SchoolConfig[]>([]);
   const [showHistory, setShowHistory] = useState(false);

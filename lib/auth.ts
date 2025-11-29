@@ -165,23 +165,7 @@ export const authConfig: NextAuthConfig = {
             email_verified: user.email_verified
           });
 
-          // Log to activity_logs table
-          await logActivity({
-            userId: user.id,
-            userName: user.name || undefined,
-            userEmail: user.email,
-            userRole: user.role || undefined,
-            activityType: 'login',
-            action: 'User logged in successfully',
-            description: `Login dengan email ${user.email}`,
-            metadata: {
-              role: user.role,
-              approved: user.approved,
-              email_verified: user.email_verified,
-            },
-            status: 'success',
-          });
-
+          // Activity will be logged in signIn callback
           const returnUser = { id: user.id, email: user.email, name: user.name ?? undefined, role: user.role ?? undefined };
           console.log('[NextAuth] authorize SUCCESS, returning user:', returnUser);
           return returnUser;
@@ -206,6 +190,32 @@ export const authConfig: NextAuthConfig = {
         hasUser: !!user,
         account: account?.provider 
       });
+      
+      // Log successful sign in to activity_logs
+      if (user?.id && user?.email) {
+        try {
+          await logActivity({
+            userId: user.id,
+            userName: (user as any).name || user.email,
+            userEmail: user.email,
+            userRole: (user as any).role || 'user',
+            activityType: 'login',
+            action: 'User logged in successfully',
+            description: `Login berhasil dengan ${account?.provider || 'credentials'}`,
+            metadata: {
+              provider: account?.provider,
+              role: (user as any).role,
+              email_verified: true, // Must be true to reach here
+            },
+            status: 'success',
+          });
+          console.log('[NextAuth] Activity logged for user:', user.email);
+        } catch (error) {
+          console.error('[NextAuth] Failed to log activity:', error);
+          // Don't block sign in if logging fails
+        }
+      }
+      
       // Allow sign in
       return true;
     },

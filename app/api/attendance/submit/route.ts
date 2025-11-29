@@ -1,0 +1,198 @@
+// app/api/attendance/submit/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { supabaseAdmin } from '@/lib/supabase/server';
+
+interface AttendanceSubmit {
+  latitude: number;
+  longitude: number;
+  locationAccuracy: number;
+  photoSelfieUrl: string;
+  fingerprintHash: string;
+  wifiSSID: string;
+  wifiBSSID?: string;
+  deviceInfo: {
+    userAgent: string;
+    platform: string;
+    language: string;
+  };
+  notes?: string;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    const userRole = (session.user.role || '').toLowerCase();
+
+    // Hanya siswa dan guru yang bisa submit absensi
+    if (!['siswa', 'guru'].includes(userRole)) {
+      return NextResponse.json(
+        { error: 'Hanya siswa dan guru yang dapat melakukan absensi' },
+        { status: 403 }
+      );
+    }
+
+    const body: AttendanceSubmit = await request.json();
+
+    // 1. Validasi WiFi - harus terhubung ke WiFi sekolah
+    const { data: locationConfigs } = await supabaseAdmin
+      .from('school_location_config')
+      .select('*')
+      .eq('is_active', true);
+
+    if (!locationConfigs || locationConfigs.length === 0) {
+      return NextResponse.json(
+        { error: 'Konfigurasi lokasi sekolah belum diatur' },
+        { status: 500 }
+      );
+    }
+
+    // Check apakah WiFi SSID valid
+    const isValidWiFi = locationConfigs.some((config) =>
+      config.allowed_wifi_ssids?.includes(body.wifiSSID)
+    );
+
+    if (!isValidWiFi) {
+      return NextResponse.json(
+        { error: 'Anda harus terhubung ke WiFi sekolah untuk melakukan absensi' },
+        { status: 403 }
+      );
+    }
+
+    // 2. Validasi lokasi - harus dalam radius sekolah
+    const isInSchoolRadius = locationConfigs.some((config) => {
+      const distance = calculateDistance(
+        body.latitude,
+        body.longitude,
+        parseFloat(config.latitude),
+        parseFloat(config.longitude)
+      );
+      return distance <= config.radius_meters;
+    });
+
+    if (!isInSchoolRadius) {
+      return NextResponse.json(
+        { error: 'Anda berada di luar area sekolah. Absensi hanya dapat dilakukan di lokasi sekolah' },
+        { status: 403 }
+      );
+    }
+
+    // 3. Cek apakah user sudah punya data biometric
+    const { data: biometric } = await supabaseAdmin
+      .from('user_biometric')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (!biometric) {
+      return NextResponse.json(
+        { error: 'Biometric belum terdaftar', requireSetup: true },
+        { status: 400 }
+      );
+    }
+
+    // 4. Verifikasi fingerprint hash
+    if (body.fingerprintHash !== biometric.fingerprint_template) {
+      return NextResponse.json(
+        { error: 'Verifikasi sidik jari gagal. Silakan coba lagi' },
+        { status: 403 }
+      );
+    }
+
+    // 5. Cek apakah sudah absen hari ini
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const { data: existingAttendance } = await supabaseAdmin
+      .from('attendance')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('check_in_time', today.toISOString())
+      .lt('check_in_time', tomorrow.toISOString())
+      .single();
+
+    if (existingAttendance && !existingAttendance.check_out_time) {
+      // Sudah check-in, sekarang check-out
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from('attendance')
+        .update({ check_out_time: new Date().toISOString() })
+        .eq('id', existingAttendance.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      return NextResponse.json({
+        success: true,
+        type: 'check-out',
+        message: 'Check-out berhasil!',
+        data: updated,
+      });
+    } else if (existingAttendance && existingAttendance.check_out_time) {
+      return NextResponse.json(
+        { error: 'Anda sudah melakukan absensi hari ini' },
+        { status: 400 }
+      );
+    }
+
+    // 6. Insert data absensi baru (check-in)
+    const { data: attendance, error } = await supabaseAdmin
+      .from('attendance')
+      .insert({
+        user_id: userId,
+        user_name: session.user.name || session.user.email,
+        user_role: userRole,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        location_accuracy: body.locationAccuracy,
+        photo_selfie_url: body.photoSelfieUrl,
+        fingerprint_hash: body.fingerprintHash,
+        wifi_ssid: body.wifiSSID,
+        wifi_bssid: body.wifiBSSID,
+        device_info: body.deviceInfo,
+        notes: body.notes,
+        status: 'present',
+        is_verified: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      type: 'check-in',
+      message: 'Check-in berhasil!',
+      data: attendance,
+    });
+  } catch (error: any) {
+    console.error('Attendance submit error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Gagal submit absensi' },
+      { status: 500 }
+    );
+  }
+}
+
+// Haversine formula untuk hitung jarak antara 2 koordinat
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Radius bumi dalam meter
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Jarak dalam meter
+}
+
+function toRad(value: number): number {
+  return (value * Math.PI) / 180;
+}

@@ -25,6 +25,7 @@ import {
   FaGlobe,
   FaTools,
   FaTerminal,
+  FaClipboardCheck,
 } from 'react-icons/fa';
 
 interface MenuItem {
@@ -52,6 +53,7 @@ export default function AdminSidebar() {
   const dataMenuItems: MenuItem[] = [
     { name: 'Sekbid', icon: <FaSitemap />, href: '/admin/data/sekbid' },
     { name: 'Anggota (Members)', icon: <FaUserFriends />, href: '/admin/data/members' },
+    { name: 'Absensi', icon: <FaClipboardCheck />, href: '/admin/attendance' },
     { name: 'Program Kerja', icon: <FaClipboardList />, href: '/admin/proker' },
     { name: 'Announcements', icon: <FaBullhorn />, href: '/admin/announcements' },
     { name: 'Polls', icon: <FaPoll />, href: '/admin/polls' },

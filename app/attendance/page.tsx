@@ -37,6 +37,8 @@ export default function AttendancePage() {
   const [showCamera, setShowCamera] = useState(false);
   const [loading, setLoading] = useState(false);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
+  const [securityValidation, setSecurityValidation] = useState<any>(null);
+  const [validating, setValidating] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -118,6 +120,159 @@ export default function AttendancePage() {
       }
     } catch (error) {
       console.error('Check today attendance error:', error);
+    }
+  };
+
+  /**
+   * REAL-TIME SECURITY VALIDATION
+   * Dipanggil SEBELUM user bisa ambil foto
+   * Validasi WiFi + Lokasi + Fingerprint
+   */
+  const validateSecurity = async () => {
+    if (!wifiSSID || !wifiSSID.trim()) {
+      toast.error('🔒 Silakan isi nama WiFi sekolah terlebih dahulu');
+      return false;
+    }
+
+    if (!locationData) {
+      toast.error('📍 Lokasi belum terdeteksi. Aktifkan GPS dan refresh halaman.');
+      return false;
+    }
+
+    if (!fingerprintHash) {
+      toast.error('🔐 Fingerprint device belum terbentuk. Refresh halaman.');
+      return false;
+    }
+
+    setValidating(true);
+    const validationToast = toast.loading('🔒 Memvalidasi keamanan...');
+
+    try {
+      console.log('🔒 Starting security validation...');
+      
+      const response = await fetch('/api/attendance/validate-security', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          wifiSSID: wifiSSID.trim(),
+          fingerprintHash,
+          timestamp: Date.now()
+        }),
+      });
+
+      const data = await response.json();
+      
+      toast.dismiss(validationToast);
+      
+      console.log('🔒 Security validation response:', data);
+
+      if (!response.ok || !data.success) {
+        // Validation FAILED
+        console.error('❌ Security validation failed:', data);
+        
+        // Handle different error actions
+        switch (data.action) {
+          case 'REDIRECT_LOGIN':
+            toast.error('Sesi berakhir. Silakan login kembali.');
+            setTimeout(() => redirect('/login?callbackUrl=/attendance'), 2000);
+            break;
+            
+          case 'REDIRECT_DASHBOARD':
+            toast.error(data.error || 'Akses ditolak');
+            setTimeout(() => redirect('/dashboard'), 2000);
+            break;
+            
+          case 'REDIRECT_SETUP':
+            toast.error(data.error || 'Setup biometric diperlukan');
+            setStep('setup');
+            break;
+            
+          case 'BLOCK_ATTENDANCE':
+            // Show detailed error
+            const errorMsg = `🚫 ${data.error}`;
+            const detailsMsg = data.details ? `\n\n${JSON.stringify(data.details, null, 2)}` : '';
+            
+            toast.error(errorMsg, {
+              duration: 8000,
+              style: {
+                maxWidth: '500px',
+                padding: '20px',
+              },
+            });
+            
+            // Log violations
+            if (data.violations && data.violations.length > 0) {
+              console.error('🚨 Security violations:', data.violations);
+              console.error('📊 Security score:', data.securityScore);
+            }
+            
+            // Show detailed info in console
+            if (data.details) {
+              console.error('❌ Validation details:', data.details);
+            }
+            
+            // Redirect back to ready step
+            setTimeout(() => setStep('ready'), 3000);
+            break;
+            
+          case 'SHOW_COMPLETED':
+            toast.success(data.error || 'Absensi sudah lengkap', {
+              duration: 5000,
+              icon: '✅',
+            });
+            setStep('ready');
+            break;
+            
+          case 'SHOW_SETUP_ERROR':
+          case 'SHOW_ERROR':
+          default:
+            toast.error(data.error || 'Validasi keamanan gagal');
+            break;
+        }
+        
+        return false;
+      }
+
+      // Validation SUCCESS
+      console.log('✅ Security validation passed!');
+      console.log('📊 Security score:', data.data.securityScore);
+      
+      if (data.data.warnings && data.data.warnings.length > 0) {
+        console.warn('⚠️ Warnings:', data.data.warnings);
+      }
+      
+      setSecurityValidation(data.data);
+      
+      // Show success with security score
+      const scoreEmoji = data.data.securityScore >= 90 ? '🟢' : 
+                        data.data.securityScore >= 70 ? '🟡' : '🔴';
+      
+      toast.success(
+        <div>
+          <div className="font-bold">✅ Validasi Keamanan Berhasil!</div>
+          <div className="text-sm mt-1">
+            {scoreEmoji} Security Score: {data.data.securityScore}/100
+          </div>
+          <div className="text-xs mt-1 opacity-80">
+            📍 {data.data.distance}m dari sekolah • 📶 {data.data.wifiSSID}
+          </div>
+        </div>,
+        {
+          duration: 5000,
+        }
+      );
+      
+      return true;
+
+    } catch (error: any) {
+      toast.dismiss(validationToast);
+      console.error('❌ Security validation error:', error);
+      toast.error('Terjadi kesalahan saat validasi. Silakan coba lagi.');
+      return false;
+    } finally {
+      setValidating(false);
     }
   };
 
@@ -247,6 +402,82 @@ export default function AttendancePage() {
       toast.success('✅ Foto berhasil diupload!');
       
       console.log('📤 Photo uploaded:', photoUrl);
+      
+      // ===== AI FACE VERIFICATION =====
+      const aiToast = toast.loading('🤖 Verifikasi wajah dengan AI...');
+      
+      try {
+        console.log('🤖 Starting AI face verification...');
+        
+        // Get reference photo dari biometric
+        const { data: biometric } = await fetch('/api/attendance/biometric/setup').then(r => r.json());
+        
+        if (!biometric || !biometric.referencePhotoUrl) {
+          throw new Error('Reference photo not found');
+        }
+        
+        const aiResponse = await fetch('/api/ai/verify-face', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPhotoUrl: photoUrl,
+            referencePhotoUrl: biometric.referencePhotoUrl,
+            userId: session!.user.id
+          }),
+        });
+
+        const aiData = await aiResponse.json();
+        
+        toast.dismiss(aiToast);
+        
+        console.log('🤖 AI verification result:', aiData);
+
+        if (!aiData.success || !aiData.verified) {
+          console.error('❌ AI face verification failed:', aiData.reasons || aiData.error);
+          
+          // Show detailed error
+          const errorMsg = aiData.reasons 
+            ? `🤖 Verifikasi AI gagal:\n${aiData.reasons.join('\n')}`
+            : aiData.error || 'Verifikasi wajah gagal';
+          
+          toast.error(errorMsg, {
+            duration: 8000,
+            style: {
+              maxWidth: '500px',
+              padding: '20px',
+              whiteSpace: 'pre-line'
+            }
+          });
+          
+          setLoading(false);
+          setStep('capture');
+          return;
+        }
+        
+        console.log('✅ AI face verification passed!');
+        console.log('📊 Match score:', (aiData.data.matchScore * 100).toFixed(1) + '%');
+        console.log('📊 Confidence:', (aiData.data.confidence * 100).toFixed(1) + '%');
+        
+        toast.success(
+          <div>
+            <div className="font-bold">🤖 Verifikasi AI Berhasil!</div>
+            <div className="text-sm mt-1">
+              ✅ Match: {(aiData.data.matchScore * 100).toFixed(0)}% • Confidence: {(aiData.data.confidence * 100).toFixed(0)}%
+            </div>
+          </div>,
+          { duration: 3000 }
+        );
+        
+      } catch (aiError: any) {
+        toast.dismiss(aiToast);
+        console.error('⚠️ AI verification error (non-fatal):', aiError);
+        
+        // AI verification gagal, tapi bisa lanjut (optional verification)
+        toast('⚠️ AI verification skip (menggunakan fallback)', {
+          duration: 3000,
+          icon: '⚠️'
+        });
+      }
       
       // Submit attendance
       const submitToast = toast.loading('💾 Menyimpan data absensi...');
@@ -521,12 +752,71 @@ export default function AttendancePage() {
               </div>
             )}
 
+            {/* Security Validation Success Info */}
+            {securityValidation && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl p-4 mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">✓</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-green-900 dark:text-green-100">Keamanan Tervalidasi</p>
+                    <p className="text-xs text-green-700 dark:text-green-300">Silakan lanjut ambil foto</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
+                    <p className="text-gray-500 dark:text-gray-400">Security Score</p>
+                    <p className="font-bold text-green-600">{securityValidation.securityScore}/100</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
+                    <p className="text-gray-500 dark:text-gray-400">Jarak</p>
+                    <p className="font-bold text-blue-600">{securityValidation.distance}m</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
+                    <p className="text-gray-500 dark:text-gray-400">WiFi</p>
+                    <p className="font-bold text-indigo-600 truncate">{securityValidation.wifiSSID}</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
+                    <p className="text-gray-500 dark:text-gray-400">Type</p>
+                    <p className="font-bold text-purple-600">{securityValidation.attendanceType}</p>
+                  </div>
+                </div>
+                {securityValidation.warnings && securityValidation.warnings.length > 0 && (
+                  <div className="mt-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-2">
+                    <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200">⚠️ Peringatan:</p>
+                    <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 list-disc list-inside">
+                      {securityValidation.warnings.map((warning: string, i: number) => (
+                        <li key={i}>{warning === 'NEAR_BOUNDARY' ? 'Anda mendekati batas radius sekolah' : warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
-              onClick={() => setStep('capture')}
-              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg"
+              onClick={async () => {
+                // SECURITY VALIDATION FIRST
+                const isValid = await validateSecurity();
+                if (isValid) {
+                  setStep('capture');
+                }
+              }}
+              disabled={validating || !wifiSSID.trim() || !locationData}
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FaCamera className="text-xl sm:text-2xl" />
-              Lanjut Ambil Foto & Absen
+              {validating ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Memvalidasi Keamanan...
+                </>
+              ) : (
+                <>
+                  <FaCamera className="text-xl sm:text-2xl" />
+                  Lanjut Ambil Foto & Absen
+                </>
+              )}
             </button>
           </div>
         )}

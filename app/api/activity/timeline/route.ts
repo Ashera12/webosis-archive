@@ -17,10 +17,21 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
+    // Get user ID with proper type handling
+    const sessionUserId = (session.user as any)?.id || session.user.email;
+    
+    if (!sessionUserId) {
+      console.error('[Activity Timeline] No user ID in session:', session.user);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid session - no user ID' 
+      }, { status: 400 });
+    }
+
     const { searchParams } = new URL(request.url);
     
     // Query parameters
-    const userId = searchParams.get('userId') || session.user.id;
+    const userId = searchParams.get('userId') || sessionUserId;
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     const activityType = searchParams.get('type'); // Filter by type
@@ -29,18 +40,18 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     // Permission check
-    const currentUserRole = (session.user.role || '').toLowerCase();
-    const isAdmin = ['admin', 'super_admin'].includes(currentUserRole);
+    const currentUserRole = ((session.user as any)?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'super_admin', 'osis'].includes(currentUserRole);
     
     // Jika bukan admin dan minta data user lain
-    if (userId !== session.user.id && !isAdmin) {
+    if (userId !== sessionUserId && !isAdmin) {
       return NextResponse.json({
         success: false,
         error: 'Forbidden: Cannot view other user activity'
       }, { status: 403 });
     }
 
-    console.log('[Activity Timeline] Fetching for user:', userId);
+    console.log('[Activity Timeline] Fetching for user:', userId, 'Requested by:', sessionUserId, 'Role:', currentUserRole);
     console.log('[Activity Timeline] Filters:', {
       type: activityType,
       startDate,
@@ -87,10 +98,10 @@ export async function GET(request: NextRequest) {
 
     // Get user info jika admin request
     let userInfo = null;
-    if (isAdmin && userId !== session.user.id) {
+    if (isAdmin && userId !== sessionUserId) {
       const { data: user } = await supabaseAdmin
-        .from('auth.users')
-        .select('id, email, raw_user_meta_data')
+        .from('users')
+        .select('id, email, name, role')
         .eq('id', userId)
         .single();
       
@@ -98,8 +109,8 @@ export async function GET(request: NextRequest) {
         userInfo = {
           id: user.id,
           email: user.email,
-          name: user.raw_user_meta_data?.name || user.email,
-          role: user.raw_user_meta_data?.role
+          name: user.name || user.email,
+          role: user.role
         };
       }
     }
@@ -154,6 +165,17 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
+    // Get user ID with proper type handling
+    const userId = (session.user as any)?.id || session.user.email;
+    
+    if (!userId) {
+      console.error('[Activity Log] No user ID in session');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid session - no user ID' 
+      }, { status: 400 });
+    }
+
     const body = await request.json();
 
     const {
@@ -191,10 +213,10 @@ export async function POST(request: NextRequest) {
     const { data: activity, error } = await supabaseAdmin
       .from('activity_logs')
       .insert({
-        user_id: session.user.id,
+        user_id: userId,
         user_name: session.user.name || session.user.email,
         user_email: session.user.email,
-        user_role: session.user.role,
+        user_role: (session.user as any)?.role,
         activity_type: activityType,
         action,
         description,

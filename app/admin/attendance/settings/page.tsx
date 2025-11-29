@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode, FaHistory, FaUndo } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -15,6 +15,8 @@ interface SchoolConfig {
   radius_meters: number;
   allowed_wifi_ssids: string[];
   is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function AttendanceSettingsPage() {
@@ -27,6 +29,8 @@ export default function AttendanceSettingsPage() {
     allowed_wifi_ssids: [],
     is_active: true,
   });
+  const [configHistory, setConfigHistory] = useState<SchoolConfig[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [newSSID, setNewSSID] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +72,53 @@ export default function AttendanceSettingsPage() {
       toast.error('Gagal memuat konfigurasi');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch('/api/admin/attendance/config?history=true', {
+        cache: 'no-store',
+      });
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setConfigHistory(data.data);
+      }
+    } catch (error) {
+      console.error('Fetch history error:', error);
+      toast.error('Gagal memuat riwayat konfigurasi');
+    }
+  };
+
+  const handleRestoreBackup = async (configId: number) => {
+    if (!confirm('Yakin ingin memulihkan konfigurasi ini?')) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Memulihkan konfigurasi...');
+    
+    try {
+      const response = await fetch('/api/admin/attendance/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configId }),
+      });
+
+      const data = await response.json();
+      toast.dismiss(loadingToast);
+
+      if (data.success) {
+        toast.success('✅ Konfigurasi berhasil dipulihkan!');
+        await fetchConfig();
+        await fetchHistory();
+        setShowHistory(false);
+      } else {
+        throw new Error(data.error || 'Gagal memulihkan');
+      }
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      toast.error(error.message || 'Gagal memulihkan konfigurasi');
     }
   };
 
@@ -123,8 +174,12 @@ export default function AttendanceSettingsPage() {
       toast.dismiss(loadingToast);
 
       if (data.success) {
-        toast.success('✅ Konfigurasi berhasil disimpan!');
-        await fetchConfig(); // Reload data
+        // Show success message with info about update vs create
+        const isUpdate = config.id ? true : false;
+        toast.success(
+          `✅ ${data.message || (isUpdate ? 'Konfigurasi berhasil diperbarui!' : 'Konfigurasi berhasil disimpan!')}`
+        );
+        await fetchConfig(); // Reload data to get latest
       } else {
         throw new Error(data.error || 'Gagal menyimpan');
       }
@@ -232,23 +287,116 @@ export default function AttendanceSettingsPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-blue-100 dark:border-gray-700">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaMapMarkerAlt className="text-2xl text-white" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <FaMapMarkerAlt className="text-2xl text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Konfigurasi Absensi</h1>
+                <p className="text-gray-600 dark:text-gray-300">Setup lokasi sekolah dan WiFi yang diizinkan</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Konfigurasi Absensi</h1>
-              <p className="text-gray-600 dark:text-gray-300">Setup lokasi sekolah dan WiFi yang diizinkan</p>
-            </div>
+            <button
+              onClick={() => {
+                setShowHistory(!showHistory);
+                if (!showHistory) fetchHistory();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all"
+            >
+              <FaHistory />
+              <span className="hidden sm:inline">Riwayat</span>
+            </button>
           </div>
         </div>
 
+        {/* History Modal */}
+        {showHistory && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-purple-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <FaHistory className="text-purple-600" />
+                Riwayat Konfigurasi
+              </h2>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <FaTimes className="text-gray-600 dark:text-gray-300" />
+              </button>
+            </div>
+
+            {configHistory.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                Belum ada riwayat konfigurasi
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {configHistory.map((cfg) => (
+                  <div
+                    key={cfg.id}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      cfg.is_active
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-bold text-gray-900 dark:text-white">
+                            {cfg.location_name}
+                          </h3>
+                          {cfg.is_active && (
+                            <span className="px-2 py-1 bg-green-600 text-white text-xs rounded-full">
+                              Aktif
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                          <p>📍 Lat: {cfg.latitude.toFixed(6)}, Lon: {cfg.longitude.toFixed(6)}</p>
+                          <p>📏 Radius: {cfg.radius_meters}m</p>
+                          <p>📶 WiFi: {cfg.allowed_wifi_ssids.join(', ')}</p>
+                          {cfg.created_at && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              Dibuat: {new Date(cfg.created_at).toLocaleString('id-ID')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {!cfg.is_active && (
+                        <button
+                          onClick={() => handleRestoreBackup(cfg.id!)}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          <FaUndo />
+                          Pulihkan
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Location Config */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <FaMapMarkerAlt className="text-blue-600" />
-            Lokasi Sekolah
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FaMapMarkerAlt className="text-blue-600" />
+              Lokasi Sekolah
+            </h2>
+            {config.id && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <FaCheckCircle className="text-blue-600" />
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Sudah Dikonfigurasi
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4">
             {/* Location Name */}

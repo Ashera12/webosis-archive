@@ -40,7 +40,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      redirect('/login');
+      redirect('/login?callbackUrl=/attendance');
     }
   }, [status]);
 

@@ -126,7 +126,7 @@ export default function AdminSidebar() {
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-160px)] custom-scrollbar">
           {/* Back to Website Button */}
           <Link
-            href="/home"
+            href="/dashboard"
             target="_blank"
             className="group relative flex items-center space-x-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 mb-4"
           >

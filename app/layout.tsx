@@ -6,6 +6,7 @@ import '@/lib/fontawesome';
 import Providers from "../components/Providers";
 import ClientRole from "../components/ClientRole";
 import BackgroundSync from "../components/BackgroundSync";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { auth } from "@/lib/auth";
 import { getAdminSettings, parseGlobalBackground } from '@/lib/adminSettings';
 import { headers } from 'next/headers';
@@ -167,6 +168,7 @@ export default async function RootLayout({
                         <BackgroundSync />
                         {children}
                         {!chatDisabled && <ClientRole role={role as any} />}
+                        <SpeedInsights />
                     </Providers>
                 </div>
             </body>

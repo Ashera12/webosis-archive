@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { invalidateSettingsCache } from '@/lib/getAdminSettings';
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,12 +130,16 @@ export async function POST(request: NextRequest) {
 
     console.log('[/api/admin/settings] Save complete:', { insertedCount, updatedCount, total: entries.length });
 
+    // Invalidate AI Manager cache so it reloads keys from database
+    invalidateSettingsCache();
+    console.log('[/api/admin/settings] AI settings cache invalidated - AI will reload keys on next use');
+
     return NextResponse.json({ 
       success: true, 
       updated: entries.length, 
       inserted: insertedCount, 
       updatedCount: updatedCount,
-      message: `Successfully saved ${entries.length} settings`
+      message: `Successfully saved ${entries.length} settings. AI will reload keys on next use.`
     });
   } catch (error: any) {
     console.error('[/api/admin/settings] Unexpected error:', error);

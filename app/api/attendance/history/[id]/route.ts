@@ -7,8 +7,9 @@ import { logActivity } from '@/lib/activity-logger';
 // PUT /api/attendance/history/[id] - Edit attendance record (Admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await auth();
     if (!session?.user) {
@@ -31,7 +32,7 @@ export async function PUT(
     const { data: originalRecord } = await supabaseAdmin
       .from('attendance')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (!originalRecord) {
@@ -52,7 +53,7 @@ export async function PUT(
     const { data: updatedRecord, error } = await supabaseAdmin
       .from('attendance')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -69,16 +70,16 @@ export async function PUT(
       userRole: userRole,
       activityType: 'admin_action',
       action: 'Edit Attendance Record',
-      description: `Admin edited attendance record ID ${params.id}`,
+      description: `Admin edited attendance record ID ${id}`,
       metadata: {
-        attendanceId: params.id,
+        attendanceId: id,
         changes: updateData,
         originalData: originalRecord,
         updatedData: updatedRecord,
         editedBy: session.user.email,
         editedAt: new Date().toISOString(),
       },
-      relatedId: params.id,
+      relatedId: id,
       relatedType: 'attendance',
       status: 'success',
     });
@@ -94,6 +95,7 @@ export async function PUT(
     // Log failed edit attempt
     try {
       const session = await auth();
+      const { id } = await params;
       if (session?.user) {
         await logActivity({
           userId: session.user.id,
@@ -102,9 +104,9 @@ export async function PUT(
           userRole: (session.user.role || '').toLowerCase(),
           activityType: 'admin_action',
           action: 'Edit Attendance Record Failed',
-          description: `Failed to edit attendance record ID ${params.id}`,
+          description: `Failed to edit attendance record ID ${id}`,
           metadata: {
-            attendanceId: params.id,
+            attendanceId: id,
             error: error.message,
           },
           status: 'error',
@@ -128,8 +130,9 @@ export async function PUT(
 // DELETE /api/attendance/history/[id] - Delete attendance record (Super Admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await auth();
     if (!session?.user) {
@@ -149,7 +152,7 @@ export async function DELETE(
     const { data: recordToDelete } = await supabaseAdmin
       .from('attendance')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (!recordToDelete) {
@@ -163,7 +166,7 @@ export async function DELETE(
     const { error } = await supabaseAdmin
       .from('attendance')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Delete attendance error:', error);
@@ -178,15 +181,15 @@ export async function DELETE(
       userRole: userRole,
       activityType: 'admin_action',
       action: 'Delete Attendance Record',
-      description: `Super Admin deleted attendance record ID ${params.id}`,
+      description: `Super Admin deleted attendance record ID ${id}`,
       metadata: {
-        attendanceId: params.id,
+        attendanceId: id,
         deletedRecord: recordToDelete,
         deletedBy: session.user.email,
         deletedAt: new Date().toISOString(),
         reason: 'Manual deletion by super admin',
       },
-      relatedId: params.id,
+      relatedId: id,
       relatedType: 'attendance',
       status: 'success',
     });
@@ -202,6 +205,7 @@ export async function DELETE(
     // Log failed deletion attempt
     try {
       const session = await auth();
+      const { id } = await params;
       if (session?.user) {
         await logActivity({
           userId: session.user.id,
@@ -210,9 +214,9 @@ export async function DELETE(
           userRole: (session.user.role || '').toLowerCase(),
           activityType: 'admin_action',
           action: 'Delete Attendance Record Failed',
-          description: `Failed to delete attendance record ID ${params.id}`,
+          description: `Failed to delete attendance record ID ${id}`,
           metadata: {
-            attendanceId: params.id,
+            attendanceId: id,
             error: error.message,
           },
           status: 'error',

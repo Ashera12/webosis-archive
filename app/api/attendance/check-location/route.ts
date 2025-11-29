@@ -60,11 +60,23 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !schoolConfig) {
+      console.error('[Check Location] No active config found:', error);
       return NextResponse.json(
-        { success: false, error: 'School location not configured' },
+        { 
+          success: false, 
+          error: 'School location not configured. Please contact admin to setup location config.',
+          needsSetup: true
+        },
         { status: 404 }
       );
     }
+
+    console.log('[Check Location] Using config:', {
+      id: schoolConfig.id,
+      name: schoolConfig.location_name,
+      radius: schoolConfig.radius_meters,
+      wifiCount: schoolConfig.allowed_wifi_ssids?.length || 0
+    });
 
     // Calculate distance from school
     const distance = calculateDistance(
@@ -76,12 +88,20 @@ export async function GET(request: NextRequest) {
 
     const within = distance <= schoolConfig.radius_meters;
 
+    console.log('[Check Location] Result:', {
+      distance: Math.round(distance),
+      allowedRadius: schoolConfig.radius_meters,
+      within,
+      user: session.user.email
+    });
+
     return NextResponse.json({
       success: true,
       within,
       distance: Math.round(distance),
       schoolName: schoolConfig.location_name,
       allowedRadius: schoolConfig.radius_meters,
+      configId: schoolConfig.id,
     });
   } catch (error: any) {
     console.error('Check location error:', error);

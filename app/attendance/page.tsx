@@ -128,9 +128,20 @@ export default function AttendancePage() {
     }
 
     setLoading(true);
+    
+    // Show upload progress toast
+    const uploadToast = toast.loading('📤 Mengupload foto...');
+    
     try {
       // Upload foto
+      console.log('🔄 Starting biometric setup upload...');
       const photoUrl = await uploadAttendancePhoto(photoBlob, session!.user.id!);
+      
+      toast.dismiss(uploadToast);
+      toast.success('✅ Foto berhasil diupload!');
+      
+      console.log('🔄 Registering biometric data...');
+      const registerToast = toast.loading('💾 Mendaftarkan biometric...');
 
       // Setup biometric
       const response = await fetch('/api/attendance/biometric/setup', {
@@ -143,16 +154,25 @@ export default function AttendancePage() {
       });
 
       const data = await response.json();
+      
+      toast.dismiss(registerToast);
 
       if (!response.ok) {
+        console.error('❌ Biometric setup failed:', data);
         throw new Error(data.error || 'Setup gagal');
       }
 
-      toast.success('Biometric berhasil didaftarkan!');
+      console.log('✅ Biometric setup successful:', data);
+      
+      toast.success('🎉 Biometric berhasil didaftarkan!', {
+        duration: 4000,
+      });
+      
       setHasSetup(true);
       setRequirements(prev => ({ ...prev, biometric: true }));
       setStep('ready');
     } catch (error: any) {
+      console.error('❌ Setup biometric error:', error);
       toast.error(error.message || 'Gagal setup biometric');
     } finally {
       setLoading(false);
@@ -161,18 +181,35 @@ export default function AttendancePage() {
 
   const handleCapturePhoto = async () => {
     setLoading(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading('📸 Membuka kamera...');
+    
     try {
       const blob = await captureWebcamPhoto();
+      
+      toast.dismiss(loadingToast);
+      
       if (!blob) {
-        throw new Error('Gagal mengambil foto');
+        toast.error('Foto tidak diambil');
+        setLoading(false);
+        return;
       }
 
+      console.log('📸 Foto berhasil diambil, size:', (blob.size / 1024).toFixed(2), 'KB');
+      
       setPhotoBlob(blob);
       setPhotoPreview(URL.createObjectURL(blob));
       setShowCamera(false);
-      toast.success('Foto berhasil diambil');
+      
+      toast.success('✅ Foto berhasil diambil!', {
+        duration: 3000,
+        icon: '📸',
+      });
     } catch (error: any) {
-      toast.error(error.message || 'Gagal mengambil foto');
+      toast.dismiss(loadingToast);
+      console.error('❌ Error capturing photo:', error);
+      toast.error(error.message || 'Gagal mengambil foto. Pastikan kamera diizinkan.');
     } finally {
       setLoading(false);
     }
@@ -196,31 +233,54 @@ export default function AttendancePage() {
 
     setLoading(true);
     setStep('submitting');
+    
+    console.log('🚀 Starting attendance submission...');
 
     try {
       // Upload foto attendance
+      const uploadToast = toast.loading('📤 Mengupload foto...');
+      
+      console.log('📤 Uploading photo, size:', (photoBlob.size / 1024).toFixed(2), 'KB');
       const photoUrl = await uploadAttendancePhoto(photoBlob, session!.user.id!);
-
+      
+      toast.dismiss(uploadToast);
+      toast.success('✅ Foto berhasil diupload!');
+      
+      console.log('📤 Photo uploaded:', photoUrl);
+      
       // Submit attendance
+      const submitToast = toast.loading('💾 Menyimpan data absensi...');
+      
+      const payload = {
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        locationAccuracy: locationData.accuracy,
+        photoSelfieUrl: photoUrl,
+        fingerprintHash,
+        wifiSSID: wifiSSID.trim(),
+        deviceInfo: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+        },
+      };
+      
+      console.log('📤 Submitting attendance with payload:', {
+        ...payload,
+        photoSelfieUrl: photoUrl.substring(0, 50) + '...'
+      });
+      
       const response = await fetch('/api/attendance/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude: locationData.latitude,
-          longitude: locationData.longitude,
-          locationAccuracy: locationData.accuracy,
-          photoSelfieUrl: photoUrl,
-          fingerprintHash,
-          wifiSSID: wifiSSID.trim(),
-          deviceInfo: {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
+      
+      toast.dismiss(submitToast);
+      
+      console.log('📥 Attendance response:', data);
 
       if (!response.ok) {
         if (data.requireSetup) {
@@ -228,15 +288,23 @@ export default function AttendancePage() {
           toast.error('Silakan setup biometric terlebih dahulu');
           return;
         }
+        console.error('❌ Submit failed:', data.error);
         throw new Error(data.error || 'Submit gagal');
       }
 
-      toast.success(data.message || 'Absensi berhasil!');
+      console.log('✅ Attendance submitted successfully!');
+      
+      toast.success(data.message || '🎉 Absensi berhasil!', {
+        duration: 5000,
+        icon: '✅',
+      });
+      
       setTodayAttendance(data.data);
       setPhotoBlob(null);
       setPhotoPreview('');
       setStep('ready');
     } catch (error: any) {
+      console.error('❌ Submit attendance error:', error);
       toast.error(error.message || 'Gagal submit absensi');
       setStep('ready');
     } finally {

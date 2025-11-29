@@ -290,58 +290,200 @@ async function hashString(str: string): Promise<string> {
 }
 
 /**
- * Capture photo from user's webcam
+ * Capture photo from user's webcam with live preview
+ * Shows camera preview in modal, user clicks to capture
  * Returns Blob for upload
  */
 export async function captureWebcamPhoto(): Promise<Blob | null> {
-  try {
-    // Request camera access
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'user',
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-      },
-    });
-
-    // Create video element
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.setAttribute('playsinline', 'true'); // Required for iOS
-    await video.play();
-
-    // Wait for video to be ready
-    await new Promise((resolve) => {
-      video.onloadedmetadata = resolve;
-    });
-
-    // Create canvas and capture frame
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
+  return new Promise(async (resolve, reject) => {
+    let stream: MediaStream | null = null;
     
-    if (!ctx) {
-      throw new Error('Could not get canvas context');
+    try {
+      console.log('[Camera] Requesting camera access...');
+      
+      // Request camera access
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      
+      console.log('[Camera] Camera access granted');
+
+      // Create modal overlay
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      `;
+
+      // Create video element for live preview
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('autoplay', 'true');
+      video.style.cssText = `
+        max-width: 90%;
+        max-height: 70vh;
+        border-radius: 16px;
+        border: 3px solid #3b82f6;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      `;
+      await video.play();
+
+      // Create capture button
+      const captureBtn = document.createElement('button');
+      captureBtn.innerHTML = `
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 8px; display: inline;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        📸 Ambil Foto
+      `;
+      captureBtn.style.cssText = `
+        margin-top: 20px;
+        padding: 16px 32px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+      `;
+      captureBtn.onmouseover = () => {
+        captureBtn.style.transform = 'scale(1.05)';
+        captureBtn.style.boxShadow = '0 15px 40px rgba(59, 130, 246, 0.6)';
+      };
+      captureBtn.onmouseout = () => {
+        captureBtn.style.transform = 'scale(1)';
+        captureBtn.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.4)';
+      };
+
+      // Create cancel button
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerHTML = '✕ Batal';
+      cancelBtn.style.cssText = `
+        margin-top: 10px;
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      cancelBtn.onmouseover = () => {
+        cancelBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+      };
+      cancelBtn.onmouseout = () => {
+        cancelBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+      };
+
+      // Add instruction text
+      const instruction = document.createElement('div');
+      instruction.innerHTML = '📷 Posisikan wajah Anda di depan kamera';
+      instruction.style.cssText = `
+        color: white;
+        font-size: 16px;
+        margin-bottom: 15px;
+        text-align: center;
+        font-weight: 600;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      `;
+
+      modal.appendChild(instruction);
+      modal.appendChild(video);
+      modal.appendChild(captureBtn);
+      modal.appendChild(cancelBtn);
+      document.body.appendChild(modal);
+
+      console.log('[Camera] Preview modal displayed');
+
+      // Handle capture button click
+      captureBtn.onclick = async () => {
+        try {
+          console.log('[Camera] Capturing photo...');
+          
+          // Create canvas and capture frame
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            throw new Error('Could not get canvas context');
+          }
+
+          ctx.drawImage(video, 0, 0);
+          
+          console.log('[Camera] Photo captured, size:', canvas.width, 'x', canvas.height);
+
+          // Stop camera
+          if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            console.log('[Camera] Camera stopped');
+          }
+
+          // Remove modal
+          document.body.removeChild(modal);
+
+          // Convert to Blob
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                console.log('[Camera] Blob created, size:', (blob.size / 1024).toFixed(2), 'KB');
+                resolve(blob);
+              } else {
+                console.error('[Camera] Failed to create blob');
+                reject(new Error('Failed to create blob'));
+              }
+            },
+            'image/jpeg',
+            0.85
+          );
+        } catch (error) {
+          console.error('[Camera] Capture error:', error);
+          reject(error);
+        }
+      };
+
+      // Handle cancel button click
+      cancelBtn.onclick = () => {
+        console.log('[Camera] User cancelled');
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        document.body.removeChild(modal);
+        resolve(null);
+      };
+
+    } catch (error) {
+      console.error('[Camera] Error:', error);
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      reject(error);
     }
-
-    ctx.drawImage(video, 0, 0);
-
-    // Stop camera
-    stream.getTracks().forEach((track) => track.stop());
-
-    // Convert to Blob
-    return new Promise((resolve) => {
-      canvas.toBlob(
-        (blob) => resolve(blob),
-        'image/jpeg',
-        0.8
-      );
-    });
-  } catch (error) {
-    console.error('Webcam capture error:', error);
-    return null;
-  }
+  });
 }
 
 /**
@@ -373,27 +515,43 @@ export function isLocationValid(
  * Upload attendance photo to server
  */
 export async function uploadAttendancePhoto(blob: Blob, userId: string): Promise<string> {
+  console.log('[Upload] Starting upload for user:', userId);
+  console.log('[Upload] Blob size:', (blob.size / 1024).toFixed(2), 'KB');
+  
   const fileName = `${userId}-${Date.now()}.jpg`;
   const formData = new FormData();
   formData.append('file', blob, fileName);
-  formData.append('bucket', 'attendance');
-  formData.append('folder', 'selfies');
-
-  const response = await fetch('/api/attendance/upload-selfie', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Gagal upload foto');
-  }
-
-  const data = await response.json();
+  formData.append('userId', userId); // Required by API
   
-  if (!data.success || !data.url) {
-    throw new Error('Upload failed');
-  }
+  console.log('[Upload] FormData prepared, filename:', fileName);
 
-  return data.url;
+  try {
+    const response = await fetch('/api/attendance/upload-selfie', {
+      method: 'POST',
+      body: formData,
+    });
+
+    console.log('[Upload] Response status:', response.status);
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('[Upload] Upload failed:', error);
+      throw new Error(error.error || 'Gagal upload foto');
+    }
+
+    const data = await response.json();
+    
+    console.log('[Upload] Response data:', data);
+    
+    if (!data.success || !data.url) {
+      console.error('[Upload] Invalid response:', data);
+      throw new Error('Upload failed - no URL returned');
+    }
+
+    console.log('[Upload] ✅ Upload successful, URL:', data.url);
+    return data.url;
+  } catch (error: any) {
+    console.error('[Upload] ❌ Upload error:', error.message);
+    throw error;
+  }
 }

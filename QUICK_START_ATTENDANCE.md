@@ -301,6 +301,23 @@ CREATE TRIGGER update_school_location_config_updated_at
 
 ## 🎯 Troubleshooting
 
+### "Geolocation has been disabled by permissions policy"
+**Error di Console:**
+```
+[Violation] Permissions policy violation: Geolocation access has been blocked
+```
+
+**Solusi:**
+1. Sudah diperbaiki di next.config.js ✅
+2. Tunggu Vercel re-deploy (~2 menit)
+3. Refresh halaman (Ctrl+Shift+R / Cmd+Shift+R)
+4. Atau clear cache browser
+
+**Jika masih error:**
+1. Buka https://webosis.vercel.app (bukan localhost)
+2. Browser akan minta izin lokasi → **Allow**
+3. Pastikan HTTPS (🔒 lock icon di address bar)
+
 ### "Gagal menyimpan konfigurasi"
 **Solusi:**
 1. Buka browser Console (F12 → Console tab)

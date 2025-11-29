@@ -18,6 +18,8 @@ const supabaseAdmin = createClient(
 /**
  * LOG ERROR - Called from client or server
  * AI-powered error analysis and auto-fix
+ * 
+ * SAFETY: Will gracefully handle missing table/columns
  */
 export async function POST(request: NextRequest) {
   try {
@@ -42,10 +44,13 @@ export async function POST(request: NextRequest) {
       metadata = {}
     } = body;
 
-    console.log('[Error Log] Logging error:', {
+    // Always log to console first (fallback if DB fails)
+    console.log('[Error Log] 📝', {
       type: errorType,
       severity,
-      message: message?.substring(0, 100)
+      message: message?.substring(0, 200),
+      pageUrl,
+      timestamp: new Date().toISOString()
     });
 
     // Get user context
@@ -69,82 +74,118 @@ export async function POST(request: NextRequest) {
       metadata
     });
 
-    // Check if similar error exists (deduplication)
-    const { data: existingError } = await supabaseAdmin
-      .from('error_logs')
-      .select('*')
-      .eq('message', message)
-      .eq('error_type', errorType)
-      .gte('created_at', new Date(Date.now() - 3600000).toISOString()) // Last 1 hour
-      .is('deleted_at', null)
-      .single();
-
-    if (existingError) {
-      // Update occurrence count
-      await supabaseAdmin
+    // Try to check for duplicates (skip if table doesn't exist)
+    let existingError = null;
+    try {
+      const { data } = await supabaseAdmin
         .from('error_logs')
-        .update({
-          occurrence_count: existingError.occurrence_count + 1,
+        .select('*')
+        .eq('message', message)
+        .eq('error_type', errorType)
+        .gte('created_at', new Date(Date.now() - 3600000).toISOString())
+        .is('deleted_at', null)
+        .maybeSingle(); // Use maybeSingle to avoid error on 0 rows
+
+      existingError = data;
+
+      if (existingError) {
+        // Update occurrence count
+        await supabaseAdmin
+          .from('error_logs')
+          .update({
+            occurrence_count: (existingError.occurrence_count || 0) + 1,
+            last_occurred_at: new Date().toISOString()
+          })
+          .eq('id', existingError.id);
+
+        console.log('[Error Log] ✅ Updated existing error:', existingError.id);
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            errorId: existingError.id,
+            duplicate: true,
+            aiAnalysis
+          }
+        });
+      }
+    } catch (checkError: any) {
+      // Table might not exist yet - just log and continue
+      console.warn('[Error Log] ⚠️ Cannot check duplicates:', checkError.message);
+    }
+
+    // Try to insert new error log (gracefully handle if table doesn't exist)
+    let errorLog = null;
+    try {
+      const { data, error: insertError } = await supabaseAdmin
+        .from('error_logs')
+        .insert({
+          error_type: errorType,
+          severity: severity || aiAnalysis.suggestedSeverity,
+          message,
+          stack_trace: stackTrace,
+          error_code: errorCode,
+          user_id: userId,
+          user_email: userEmail,
+          user_role: userRole,
+          page_url: pageUrl,
+          api_endpoint: apiEndpoint,
+          request_method: requestMethod,
+          request_body: requestBody,
+          response_status: responseStatus,
+          environment: environment || 'production',
+          browser,
+          os,
+          device_type: deviceType,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          ai_analyzed: true,
+          ai_risk_level: aiAnalysis.riskLevel,
+          ai_category: aiAnalysis.category,
+          ai_suggestions: aiAnalysis.suggestions,
+          auto_fixable: aiAnalysis.autoFixable,
+          metadata,
+          first_occurred_at: new Date().toISOString(),
           last_occurred_at: new Date().toISOString()
         })
-        .eq('id', existingError.id);
+        .select()
+        .maybeSingle();
 
-      console.log('[Error Log] Updated existing error:', existingError.id);
+      if (insertError) {
+        console.error('[Error Log] ⚠️ Insert error:', insertError.message);
+        // Don't throw - just log to console instead
+        console.log('[Error Log] 📋 Logged to console only (DB unavailable)');
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            errorId: 'console-only',
+            logged: 'console',
+            aiAnalysis
+          }
+        });
+      }
 
+      errorLog = data;
+      console.log('[Error Log] ✅ Created new error log:', errorLog?.id);
+    } catch (dbError: any) {
+      // Database error - log to console only
+      console.error('[Error Log] ⚠️ Database unavailable:', dbError.message);
+      console.log('[Error Log] 📋 Error logged to console only');
+      
       return NextResponse.json({
         success: true,
         data: {
-          errorId: existingError.id,
-          duplicate: true,
-          aiAnalysis
+          errorId: 'console-only',
+          logged: 'console',
+          aiAnalysis,
+          warning: 'Database unavailable - logged to console'
         }
       });
     }
 
-    // Insert new error log
-    const { data: errorLog, error: insertError } = await supabaseAdmin
-      .from('error_logs')
-      .insert({
-        error_type: errorType,
-        severity: severity || aiAnalysis.suggestedSeverity,
-        message,
-        stack_trace: stackTrace,
-        error_code: errorCode,
-        user_id: userId,
-        user_email: userEmail,
-        user_role: userRole,
-        page_url: pageUrl,
-        api_endpoint: apiEndpoint,
-        request_method: requestMethod,
-        request_body: requestBody,
-        response_status: responseStatus,
-        environment: environment || 'production',
-        browser,
-        os,
-        device_type: deviceType,
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        ai_analyzed: true,
-        ai_risk_level: aiAnalysis.riskLevel,
-        ai_category: aiAnalysis.category,
-        ai_suggestions: aiAnalysis.suggestions,
-        auto_fixable: aiAnalysis.autoFixable,
-        metadata,
-        first_occurred_at: new Date().toISOString(),
-        last_occurred_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('[Error Log] Insert error:', insertError);
-      throw insertError;
-    }
-
-    console.log('[Error Log] Created new error log:', errorLog.id);
-
-    // Auto-fix if applicable
-    if (aiAnalysis.autoFixable && aiAnalysis.autoFixCode) {
+    // Auto-fix if applicable and we have an error log ID
+    if (errorLog && aiAnalysis.autoFixable && aiAnalysis.autoFixCode) {
       try {
         const fixResult = await applyAutoFix(errorLog.id, aiAnalysis.autoFixCode);
         
@@ -158,28 +199,33 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', errorLog.id);
 
-        console.log('[Error Log] Auto-fix applied:', errorLog.id);
+        console.log('[Error Log] ✅ Auto-fix applied:', errorLog.id);
       } catch (fixError) {
-        console.error('[Error Log] Auto-fix failed:', fixError);
+        console.error('[Error Log] ⚠️ Auto-fix failed:', fixError);
       }
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        errorId: errorLog.id,
+        errorId: errorLog?.id || 'console-only',
         aiAnalysis,
-        autoFixApplied: aiAnalysis.autoFixable
+        autoFixApplied: aiAnalysis.autoFixable,
+        logged: errorLog ? 'database' : 'console'
       }
     });
 
   } catch (error: any) {
-    console.error('[Error Log] Failed to log error:', error);
-    // Don't throw - error logging should never break the app
+    console.error('[Error Log] ❌ Critical error:', error);
+    // ALWAYS return success - error logging should NEVER break the app
     return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 });
+      success: true,
+      data: {
+        errorId: 'fallback',
+        logged: 'console-only',
+        warning: 'Error logging service unavailable'
+      }
+    });
   }
 }
 

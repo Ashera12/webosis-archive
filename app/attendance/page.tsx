@@ -65,9 +65,11 @@ export default function AttendancePage() {
     setRequirements(prev => ({ ...prev, role: true }));
 
     // 2. Check biometric setup
+    let biometricSetup = false;
     try {
       const bioResponse = await fetch('/api/attendance/biometric/setup');
       const bioData = await bioResponse.json();
+      biometricSetup = bioData.hasSetup;
       setHasSetup(bioData.hasSetup);
       setRequirements(prev => ({ ...prev, biometric: bioData.hasSetup }));
 
@@ -98,7 +100,7 @@ export default function AttendancePage() {
     checkTodayAttendance();
 
     // Jika semua ok, ready
-    if (roleValid && bioData.hasSetup && location) {
+    if (roleValid && biometricSetup && location) {
       setStep('ready');
     }
   };
@@ -276,42 +278,42 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 p-3 sm:p-4 md:p-8">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-6 border-2 border-blue-100 dark:border-gray-700">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <FaFingerprint className="text-3xl text-white" />
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 mb-4 sm:mb-6 border-2 border-blue-100 dark:border-gray-700">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <FaFingerprint className="text-2xl sm:text-3xl text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Absensi {userRole === 'siswa' ? 'Siswa' : 'Guru'}</h1>
-              <p className="text-gray-600 dark:text-gray-300">Sistem Absensi Biometrik & Lokasi</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">Absensi {userRole === 'siswa' ? 'Siswa' : 'Guru'}</h1>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">Sistem Absensi Biometrik & Lokasi</p>
             </div>
           </div>
         </div>
 
         {/* Today's Attendance Status */}
         {todayAttendance && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 rounded-2xl p-6 mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <FaCheckCircle className="text-3xl text-green-600" />
-              <div>
-                <h3 className="text-xl font-bold text-green-900 dark:text-green-100">Sudah Absen Hari Ini</h3>
-                <p className="text-sm text-green-700 dark:text-green-300">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <FaCheckCircle className="text-2xl sm:text-3xl text-green-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-green-900 dark:text-green-100 truncate">Sudah Absen Hari Ini</h3>
+                <p className="text-xs sm:text-sm text-green-700 dark:text-green-300">
                   {todayAttendance.check_out_time ? 'Check-in & Check-out lengkap' : 'Menunggu check-out'}
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <p className="text-sm text-green-700 dark:text-green-400 font-semibold">Check-in:</p>
-                <p className="text-green-900 dark:text-green-100">{formatAttendanceTime(todayAttendance.check_in_time)}</p>
+                <p className="text-xs sm:text-sm text-green-700 dark:text-green-400 font-semibold">Check-in:</p>
+                <p className="text-sm sm:text-base text-green-900 dark:text-green-100 break-words">{formatAttendanceTime(todayAttendance.check_in_time)}</p>
               </div>
               {todayAttendance.check_out_time && (
                 <div>
-                  <p className="text-sm text-green-700 dark:text-green-400 font-semibold">Check-out:</p>
-                  <p className="text-green-900 dark:text-green-100">{formatAttendanceTime(todayAttendance.check_out_time)}</p>
+                  <p className="text-xs sm:text-sm text-green-700 dark:text-green-400 font-semibold">Check-out:</p>
+                  <p className="text-sm sm:text-base text-green-900 dark:text-green-100 break-words">{formatAttendanceTime(todayAttendance.check_out_time)}</p>
                 </div>
               )}
             </div>
@@ -322,7 +324,7 @@ export default function AttendancePage() {
                   setPhotoBlob(null);
                   setPhotoPreview('');
                 }}
-                className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all"
+                className="mt-3 sm:mt-4 w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95"
               >
                 Check-out Sekarang
               </button>
@@ -332,9 +334,9 @@ export default function AttendancePage() {
 
         {/* Requirements Check */}
         {step === 'check' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Pengecekan Persyaratan</h2>
-            <div className="space-y-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Pengecekan Persyaratan</h2>
+            <div className="space-y-3 sm:space-y-4">
               {[
                 { key: 'role', label: 'Role Valid (Siswa/Guru)', icon: FaCheckCircle },
                 { key: 'biometric', label: 'Data Biometrik Terdaftar', icon: FaFingerprint },
@@ -343,24 +345,24 @@ export default function AttendancePage() {
               ].map((req) => (
                 <div
                   key={req.key}
-                  className={`flex items-center gap-4 p-4 rounded-xl ${
+                  className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl ${
                     requirements[req.key as keyof typeof requirements]
                       ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700'
                       : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700'
                   }`}
                 >
                   <req.icon
-                    className={`text-2xl ${
+                    className={`text-xl sm:text-2xl flex-shrink-0 ${
                       requirements[req.key as keyof typeof requirements]
                         ? 'text-green-600'
                         : 'text-red-600'
                     }`}
                   />
-                  <span className="flex-1 font-semibold text-gray-900 dark:text-white">{req.label}</span>
+                  <span className="flex-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{req.label}</span>
                   {requirements[req.key as keyof typeof requirements] ? (
-                    <span className="text-green-600 font-bold">✓</span>
+                    <span className="text-green-600 font-bold text-lg">✓</span>
                   ) : (
-                    <span className="text-red-600 font-bold">✗</span>
+                    <span className="text-red-600 font-bold text-lg">✗</span>
                   )}
                 </div>
               ))}
@@ -370,9 +372,9 @@ export default function AttendancePage() {
 
         {/* Biometric Setup */}
         {step === 'setup' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-orange-200 dark:border-orange-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Setup Biometric Pertama Kali</h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-orange-200 dark:border-orange-700">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Setup Biometric Pertama Kali</h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
               Anda perlu mendaftarkan foto selfie dan sidik jari browser untuk verifikasi absensi.
             </p>
 
@@ -380,28 +382,28 @@ export default function AttendancePage() {
               <button
                 onClick={handleCapturePhoto}
                 disabled={loading}
-                className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50"
               >
-                <FaCamera className="text-xl" />
+                <FaCamera className="text-lg sm:text-xl" />
                 {loading ? 'Mengambil Foto...' : 'Ambil Foto Selfie'}
               </button>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <img src={photoPreview} alt="Selfie" className="w-full rounded-xl shadow-lg" />
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setPhotoBlob(null);
                       setPhotoPreview('');
                     }}
-                    className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95"
                   >
                     Ambil Ulang
                   </button>
                   <button
                     onClick={handleSetupBiometric}
                     disabled={loading}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
+                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50"
                   >
                     {loading ? 'Menyimpan...' : 'Daftar Biometric'}
                   </button>
@@ -413,11 +415,11 @@ export default function AttendancePage() {
 
         {/* Ready to Attend */}
         {step === 'ready' && !todayAttendance && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-blue-200 dark:border-blue-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Siap Absen</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-blue-200 dark:border-blue-700">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Siap Absen</h2>
             
             {/* WiFi Input */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
                 <FaWifi className="inline mr-2" />
                 Nama WiFi Sekolah
@@ -427,7 +429,7 @@ export default function AttendancePage() {
                 value={wifiSSID}
                 onChange={(e) => setWifiSSID(e.target.value)}
                 placeholder="Contoh: SMK-INFORMATIKA"
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none text-gray-900 dark:text-white"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 Masukkan nama WiFi sekolah yang sedang Anda gunakan
@@ -436,11 +438,11 @@ export default function AttendancePage() {
 
             {/* Location Info */}
             {locationData && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                <p className="text-xs sm:text-sm font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
                   <FaMapMarkerAlt /> Lokasi Terdeteksi
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 break-all">
                   Lat: {locationData.latitude.toFixed(6)}, Lon: {locationData.longitude.toFixed(6)}
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400">
@@ -451,9 +453,9 @@ export default function AttendancePage() {
 
             <button
               onClick={() => setStep('capture')}
-              className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-3 text-lg"
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg"
             >
-              <FaCamera className="text-2xl" />
+              <FaCamera className="text-xl sm:text-2xl" />
               Lanjut Ambil Foto & Absen
             </button>
           </div>
@@ -461,35 +463,35 @@ export default function AttendancePage() {
 
         {/* Capture Photo & Submit */}
         {step === 'capture' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-green-200 dark:border-green-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Foto Verifikasi</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-green-200 dark:border-green-700">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Foto Verifikasi</h2>
 
             {!photoPreview ? (
               <button
                 onClick={handleCapturePhoto}
                 disabled={loading}
-                className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50"
               >
-                <FaCamera className="text-xl" />
+                <FaCamera className="text-lg sm:text-xl" />
                 {loading ? 'Mengambil Foto...' : 'Ambil Foto Selfie'}
               </button>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <img src={photoPreview} alt="Selfie" className="w-full rounded-xl shadow-lg" />
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setPhotoBlob(null);
                       setPhotoPreview('');
                     }}
-                    className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95"
                   >
                     Ambil Ulang
                   </button>
                   <button
                     onClick={handleSubmitAttendance}
                     disabled={loading}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <FaCheckCircle />
                     {loading ? 'Mengirim...' : 'Submit Absensi'}
@@ -510,12 +512,12 @@ export default function AttendancePage() {
         )}
 
         {/* Warning Info */}
-        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-2xl p-6 mt-6">
-          <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-3 flex items-center gap-2 text-lg">
+        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+          <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-2 sm:mb-3 flex items-center gap-2 text-base sm:text-lg">
             <FaExclamationTriangle />
             Perhatian
           </h3>
-          <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-2 list-disc list-inside">
+          <ul className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300 space-y-1.5 sm:space-y-2 list-disc list-inside">
             <li>Pastikan Anda terhubung ke <strong>WiFi sekolah</strong></li>
             <li>Pastikan <strong>lokasi/GPS</strong> aktif dan akurat</li>
             <li>Foto selfie akan digunakan untuk <strong>verifikasi identitas</strong></li>

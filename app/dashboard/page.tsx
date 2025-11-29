@@ -216,6 +216,17 @@ export default function UserDashboard() {
 
             {/* Quick Actions */}
             <div className="flex flex-col gap-3">
+              {/* Attendance Button - Only for siswa & guru */}
+              {['siswa', 'guru'].includes(userRole) && (
+                <Link
+                  href="/attendance"
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <FaCalendarAlt className="text-xl" />
+                  Absensi
+                </Link>
+              )}
+              
               <Link
                 href="/home"
                 target="_blank"

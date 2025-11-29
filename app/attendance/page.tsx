@@ -14,6 +14,15 @@ import {
   formatAttendanceTime,
 } from '@/lib/attendanceUtils';
 import { getNetworkInfo, getWiFiNetworkDetails } from '@/lib/networkUtils';
+import {
+  isWebAuthnSupported,
+  isPlatformAuthenticatorAvailable,
+  getAuthenticatorName,
+  getAuthenticatorIcon,
+  registerCredential,
+  authenticateCredential,
+  testBiometric,
+} from '@/lib/webauthn';
 
 interface BiometricSetupData {
   referencePhotoUrl: string;
@@ -303,56 +312,129 @@ export default function AttendancePage() {
 
     setLoading(true);
     
-    // Show upload progress toast
-    const uploadToast = toast.loading('📤 Mengupload foto...');
-    
     try {
-      // Upload foto
-      console.log('🔄 Starting biometric setup upload...');
+      // Step 1: Test biometric availability
+      console.log('[Biometric] 🔍 Testing biometric availability...');
+      const biometricTest = await testBiometric();
+      
+      console.log('[Biometric] Test result:', biometricTest);
+      
+      if (!biometricTest.supported) {
+        toast.error(
+          <div>
+            <div className="font-bold">❌ WebAuthn Not Supported</div>
+            <div className="text-sm mt-1">Please update your browser or use a modern browser (Chrome, Edge, Safari, Firefox)</div>
+          </div>,
+          { duration: 8000 }
+        );
+        setLoading(false);
+        return;
+      }
+      
+      if (!biometricTest.available) {
+        toast.error(
+          <div>
+            <div className="font-bold">⚠️ {biometricTest.type} Not Available</div>
+            <div className="text-sm mt-1">Please enable biometric authentication in your device settings</div>
+          </div>,
+          { duration: 8000 }
+        );
+        setLoading(false);
+        return;
+      }
+      
+      // Show available biometric type
+      toast.success(
+        <div>
+          <div className="font-bold">✅ Biometric Ready!</div>
+          <div className="text-sm mt-1">{biometricTest.icon} {biometricTest.type} available</div>
+        </div>,
+        { duration: 3000 }
+      );
+      
+      // Step 2: Upload photo
+      const uploadToast = toast.loading('📤 Mengupload foto...');
+      
+      console.log('[Biometric] 🔄 Starting photo upload...');
       const photoUrl = await uploadAttendancePhoto(photoBlob, session!.user.id!);
       
       toast.dismiss(uploadToast);
       toast.success('✅ Foto berhasil diupload!');
       
-      console.log('🔄 Registering biometric data...');
-      const registerToast = toast.loading('💾 Mendaftarkan biometric...');
-
-      // Setup biometric
+      // Step 3: Register WebAuthn credential
+      console.log('[Biometric] 🔐 Registering WebAuthn credential...');
+      
+      const registerToast = toast.loading(
+        <div>
+          <div className="font-bold">🔐 Setting up biometric...</div>
+          <div className="text-sm mt-1">{biometricTest.icon} Please authenticate with {biometricTest.type}</div>
+        </div>
+      );
+      
+      const webauthnResult = await registerCredential(
+        session!.user.id!,
+        session!.user.email || 'user',
+        session!.user.name || 'User'
+      );
+      
+      toast.dismiss(registerToast);
+      
+      if (!webauthnResult.success) {
+        console.error('[Biometric] ❌ WebAuthn registration failed:', webauthnResult.error);
+        throw new Error(webauthnResult.error || 'Biometric registration failed');
+      }
+      
+      console.log('[Biometric] ✅ WebAuthn credential registered!');
+      
+      // Step 4: Save to legacy biometric setup API (for backward compatibility)
+      console.log('[Biometric] 💾 Saving biometric data...');
+      
       const response = await fetch('/api/attendance/biometric/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           referencePhotoUrl: photoUrl,
           fingerprintTemplate: fingerprintHash,
+          webauthnCredentialId: webauthnResult.credentialId, // Link WebAuthn credential
         }),
       });
 
       const data = await response.json();
-      
-      toast.dismiss(registerToast);
 
       if (!response.ok) {
-        console.error('❌ Biometric setup failed:', data);
+        console.error('[Biometric] ❌ Setup save failed:', data);
         throw new Error(data.error || 'Setup gagal');
       }
 
-      console.log('✅ Biometric setup successful:', data);
+      console.log('[Biometric] ✅ Biometric setup complete:', data);
       
       // Show detailed success message
       toast.success(
-        `🎉 Biometric berhasil didaftarkan!\n` +
-        `Foto: Uploaded ✅\n` +
-        `Fingerprint: ${fingerprintDetails?.deviceId || 'Registered'} ✅\n` +
-        `Status: Siap untuk absensi!`,
-        { duration: 5000 }
+        <div>
+          <div className="font-bold text-lg mb-2">🎉 Biometric Berhasil Didaftarkan!</div>
+          <div className="space-y-1 text-sm">
+            <div>✅ Foto: Uploaded</div>
+            <div>✅ Fingerprint: {fingerprintDetails?.deviceId || 'Registered'}</div>
+            <div>✅ {biometricTest.icon} {biometricTest.type}: Active</div>
+            <div className="text-xs mt-2 opacity-80">Status: Siap untuk absensi!</div>
+          </div>
+        </div>,
+        { duration: 7000 }
       );
       
       setHasSetup(true);
       setRequirements(prev => ({ ...prev, biometric: true }));
       setStep('ready');
+      
     } catch (error: any) {
-      console.error('❌ Setup biometric error:', error);
-      toast.error(error.message || 'Gagal setup biometric');
+      console.error('[Biometric] ❌ Setup error:', error);
+      toast.error(
+        <div>
+          <div className="font-bold">❌ Gagal Setup Biometric</div>
+          <div className="text-sm mt-1">{error.message || 'Unknown error'}</div>
+        </div>,
+        { duration: 5000 }
+      );
     } finally {
       setLoading(false);
     }
@@ -416,6 +498,67 @@ export default function AttendancePage() {
     console.log('🚀 Starting attendance submission...');
 
     try {
+      // ===== WEBAUTHN BIOMETRIC VERIFICATION =====
+      console.log('[WebAuthn] 🔐 Starting biometric verification...');
+      
+      const biometricName = getAuthenticatorName();
+      const biometricIcon = getAuthenticatorIcon();
+      
+      const biometricToast = toast.loading(
+        <div>
+          <div className="font-bold">🔐 Biometric Verification Required</div>
+          <div className="text-sm mt-1">{biometricIcon} Please authenticate with {biometricName}</div>
+        </div>
+      );
+      
+      try {
+        const webauthnResult = await authenticateCredential(session!.user.id!);
+        
+        toast.dismiss(biometricToast);
+        
+        if (!webauthnResult.success) {
+          console.error('[WebAuthn] ❌ Authentication failed:', webauthnResult.error);
+          
+          toast.error(
+            <div>
+              <div className="font-bold">❌ Biometric Verification Failed</div>
+              <div className="text-sm mt-1">{webauthnResult.error}</div>
+            </div>,
+            { duration: 5000 }
+          );
+          
+          setLoading(false);
+          setStep('ready');
+          return;
+        }
+        
+        console.log('[WebAuthn] ✅ Biometric verified!');
+        
+        toast.success(
+          <div>
+            <div className="font-bold">✅ Biometric Verified!</div>
+            <div className="text-sm mt-1">{biometricIcon} {biometricName} authentication successful</div>
+          </div>,
+          { duration: 3000 }
+        );
+        
+      } catch (webauthnError: any) {
+        toast.dismiss(biometricToast);
+        console.error('[WebAuthn] ❌ Verification error:', webauthnError);
+        
+        toast.error(
+          <div>
+            <div className="font-bold">❌ Biometric Error</div>
+            <div className="text-sm mt-1">{webauthnError.message || 'Authentication failed'}</div>
+          </div>,
+          { duration: 5000 }
+        );
+        
+        setLoading(false);
+        setStep('ready');
+        return;
+      }
+      
       // Upload foto attendance
       const uploadToast = toast.loading('📤 Mengupload foto...');
       

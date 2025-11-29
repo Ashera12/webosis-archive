@@ -314,6 +314,21 @@ export default function AttendanceSettingsPage() {
         radius_meters: Number(config.radius_meters),
         allowed_wifi_ssids: config.allowed_wifi_ssids,
         is_active: true,
+        // Network Monitoring Fields
+        allowed_ip_ranges: config.allowed_ip_ranges || [],
+        required_subnet: config.required_subnet || null,
+        enable_ip_validation: config.enable_ip_validation || false,
+        enable_webrtc_detection: config.enable_webrtc_detection !== false, // default true
+        enable_private_ip_check: config.enable_private_ip_check !== false, // default true
+        enable_subnet_matching: config.enable_subnet_matching || false,
+        network_security_level: config.network_security_level || 'medium',
+        allowed_connection_types: config.allowed_connection_types || ['wifi'],
+        min_network_quality: config.min_network_quality || 'fair',
+        enable_mac_address_validation: config.enable_mac_address_validation || false,
+        allowed_mac_addresses: config.allowed_mac_addresses || [],
+        block_vpn: config.block_vpn || false,
+        block_proxy: config.block_proxy || false,
+        enable_network_quality_check: config.enable_network_quality_check !== false, // default true
       };
       
       console.log('Payload to send:', payload);

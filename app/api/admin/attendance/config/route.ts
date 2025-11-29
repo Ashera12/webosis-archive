@@ -108,6 +108,21 @@ export async function POST(request: NextRequest) {
       radius_meters,
       allowed_wifi_ssids,
       is_active = true,
+      // Network Monitoring Fields
+      allowed_ip_ranges,
+      required_subnet,
+      enable_ip_validation,
+      enable_webrtc_detection,
+      enable_private_ip_check,
+      enable_subnet_matching,
+      network_security_level,
+      allowed_connection_types,
+      min_network_quality,
+      enable_mac_address_validation,
+      allowed_mac_addresses,
+      block_vpn,
+      block_proxy,
+      enable_network_quality_check,
     } = body;
 
     // Validation
@@ -140,6 +155,21 @@ export async function POST(request: NextRequest) {
       allowed_wifi_ssids,
       is_active,
       updated_at: new Date().toISOString(),
+      // Network Monitoring Fields
+      allowed_ip_ranges: allowed_ip_ranges || [],
+      required_subnet: required_subnet || null,
+      enable_ip_validation: enable_ip_validation || false,
+      enable_webrtc_detection: enable_webrtc_detection !== false, // default true
+      enable_private_ip_check: enable_private_ip_check !== false, // default true
+      enable_subnet_matching: enable_subnet_matching || false,
+      network_security_level: network_security_level || 'medium',
+      allowed_connection_types: allowed_connection_types || ['wifi'],
+      min_network_quality: min_network_quality || 'fair',
+      enable_mac_address_validation: enable_mac_address_validation || false,
+      allowed_mac_addresses: allowed_mac_addresses || [],
+      block_vpn: block_vpn || false,
+      block_proxy: block_proxy || false,
+      enable_network_quality_check: enable_network_quality_check !== false, // default true
     };
 
     let data, error;

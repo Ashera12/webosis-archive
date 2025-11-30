@@ -1,44 +1,57 @@
 // app/dashboard/ai-activity/page.tsx
+// USER ACTIVITY DASHBOARD - Menampilkan SEMUA aktivitas user (login, attendance, posts, AI, dll)
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { supabase } from '@/lib/supabase/client';
 
-interface AIActivity {
+interface UserActivity {
   id: number;
   created_at: string;
   activity_type: string;
   action: string;
   description: string;
   status: 'success' | 'failure' | 'pending' | 'error';
-  metadata: {
-    provider?: string;
-    attemptedProviders?: string[];
-    duration_ms?: number;
-    antiSpoofing?: {
-      overallScore: number;
-      passedLayers: number;
-      recommendation: string;
-      liveness: number;
-      deepfake: number;
-      depth: number;
-    };
-  };
+  metadata: any; // Metadata berbeda untuk setiap jenis aktivitas
+  ip_address?: string;
+  user_agent?: string;
+  related_type?: string;
+  related_id?: string;
 }
 
-export default function AIActivityDashboard() {
+export default function UserActivityDashboard() {
   const { data: session, status } = useSession();
-  const [activities, setActivities] = useState<AIActivity[]>([]);
+  const [activities, setActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'success' | 'failure'>('all');
+  const [filter, setFilter] = useState<string>('all'); // all, login, attendance, posts, ai, etc
   const [stats, setStats] = useState({
     total: 0,
     success: 0,
     failure: 0,
-    avgScore: 0,
-    providers: {} as Record<string, number>,
+    byType: {} as Record<string, number>,
   });
+
+  // Activity type labels untuk tampilan
+  const activityTypeLabels: Record<string, string> = {
+    login: '🔐 Login',
+    logout: '👋 Logout',
+    attendance_checkin: '✅ Check In',
+    attendance_checkout: '🚪 Check Out',
+    post_create: '📝 Buat Post',
+    post_like: '❤️ Like Post',
+    post_comment: '💬 Komentar',
+    poll_vote: '🗳️ Vote Poll',
+    poll_create: '📊 Buat Poll',
+    ai_chat_message: '🤖 AI Chat',
+    ai_verification: '🔍 AI Verifikasi',
+    profile_update: '👤 Update Profil',
+    event_register: '🎫 Daftar Event',
+    gallery_upload: '📸 Upload Gallery',
+    admin_action: '⚙️ Admin Action',
+    security_validation: '🛡️ Validasi Keamanan',
+    other: '📌 Lainnya',
+  };
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
@@ -54,12 +67,12 @@ export default function AIActivityDashboard() {
         .from('activity_logs')
         .select('*')
         .eq('user_id', (session?.user as any)?.id)
-        .eq('activity_type', 'ai_verification')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
+      // Filter by activity type
       if (filter !== 'all') {
-        query = query.eq('status', filter);
+        query = query.eq('activity_type', filter);
       }
 
       const { data, error } = await query;
@@ -69,6 +82,7 @@ export default function AIActivityDashboard() {
         return;
       }
 
+      console.log('[User Activity] Loaded:', data?.length, 'activities');
       setActivities(data || []);
       calculateStats(data || []);
     } catch (err) {
@@ -78,26 +92,18 @@ export default function AIActivityDashboard() {
     }
   };
 
-  const calculateStats = (data: AIActivity[]) => {
+  const calculateStats = (data: UserActivity[]) => {
     const total = data.length;
     const success = data.filter(a => a.status === 'success').length;
     const failure = data.filter(a => a.status === 'failure').length;
     
-    const scores = data
-      .filter(a => a.metadata?.antiSpoofing?.overallScore)
-      .map(a => a.metadata.antiSpoofing!.overallScore);
-    
-    const avgScore = scores.length > 0
-      ? scores.reduce((sum, s) => sum + s, 0) / scores.length
-      : 0;
-
-    const providers: Record<string, number> = {};
+    // Count by activity type
+    const byType: Record<string, number> = {};
     data.forEach(a => {
-      const provider = a.metadata?.provider || 'Unknown';
-      providers[provider] = (providers[provider] || 0) + 1;
+      byType[a.activity_type] = (byType[a.activity_type] || 0) + 1;
     });
 
-    setStats({ total, success, failure, avgScore, providers });
+    setStats({ total, success, failure, byType });
   };
 
   if (status === 'loading' || loading) {
@@ -134,17 +140,17 @@ export default function AIActivityDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            🤖 AI Activity Dashboard
+            📊 Aktivitas Saya
           </h1>
           <p className="text-gray-600">
-            Riwayat verifikasi AI untuk akun Anda
+            Riwayat semua aktivitas Anda di platform
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500">
-            <div className="text-sm text-gray-600 mb-1">Total Verifikasi</div>
+            <div className="text-sm text-gray-600 mb-1">Total Aktivitas</div>
             <div className="text-3xl font-bold text-gray-800">{stats.total}</div>
           </div>
 
@@ -163,65 +169,59 @@ export default function AIActivityDashboard() {
               {stats.total > 0 ? `${((stats.failure / stats.total) * 100).toFixed(1)}%` : '0%'}
             </div>
           </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-purple-500">
-            <div className="text-sm text-gray-600 mb-1">📊 Rata-rata Score</div>
-            <div className="text-3xl font-bold text-purple-600">
-              {(stats.avgScore * 100).toFixed(1)}%
-            </div>
-            <div className="text-xs text-gray-500 mt-1">Confidence</div>
-          </div>
         </div>
 
-        {/* Provider Stats */}
+        {/* Activity Type Breakdown */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">🔧 AI Provider Usage</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📌 Jenis Aktivitas</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(stats.providers).map(([provider, count]) => (
-              <div key={provider} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800">{count}</div>
-                <div className="text-sm text-gray-600">{provider}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {stats.total > 0 ? `${((count / stats.total) * 100).toFixed(0)}%` : '0%'}
+            {Object.entries(stats.byType)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 8)
+              .map(([type, count]) => (
+                <div
+                  key={type}
+                  className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setFilter(type)}
+                >
+                  <div className="text-2xl font-bold text-gray-800">{count}</div>
+                  <div className="text-sm text-gray-600">
+                    {activityTypeLabels[type] || type}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {stats.total > 0 ? `${((count / stats.total) * 100).toFixed(0)}%` : '0%'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
 
-        {/* Filter */}
+        {/* Filter Buttons */}
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
-          <div className="flex gap-3">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setFilter('all')}
-              className={`px-6 py-2 rounded-xl font-medium transition-all ${
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${
                 filter === 'all'
                   ? 'bg-blue-500 text-white shadow-md'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Semua ({stats.total})
+              📊 Semua ({stats.total})
             </button>
-            <button
-              onClick={() => setFilter('success')}
-              className={`px-6 py-2 rounded-xl font-medium transition-all ${
-                filter === 'success'
-                  ? 'bg-green-500 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              ✅ Berhasil ({stats.success})
-            </button>
-            <button
-              onClick={() => setFilter('failure')}
-              className={`px-6 py-2 rounded-xl font-medium transition-all ${
-                filter === 'failure'
-                  ? 'bg-red-500 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              ❌ Gagal ({stats.failure})
-            </button>
+            {Object.keys(stats.byType).map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilter(type)}
+                className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${
+                  filter === type
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {activityTypeLabels[type] || type} ({stats.byType[type]})
+              </button>
+            ))}
           </div>
         </div>
 
@@ -229,10 +229,12 @@ export default function AIActivityDashboard() {
         <div className="space-y-4">
           {activities.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-              <div className="text-6xl mb-4">🤷</div>
+              <div className="text-6xl mb-4">📭</div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">Tidak Ada Aktivitas</h3>
               <p className="text-gray-600">
-                Belum ada riwayat verifikasi AI. Mulai dengan enrollment atau verifikasi foto.
+                {filter === 'all'
+                  ? 'Belum ada aktivitas tercatat. Mulai gunakan platform untuk melihat riwayat aktivitas.'
+                  : `Tidak ada aktivitas dengan filter: ${activityTypeLabels[filter] || filter}`}
               </p>
             </div>
           ) : (
@@ -249,9 +251,14 @@ export default function AIActivityDashboard() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">
-                      {activity.action}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">
+                        {activityTypeLabels[activity.activity_type]?.split(' ')[0] || '📌'}
+                      </span>
+                      <h3 className="text-lg font-bold text-gray-800">
+                        {activity.action}
+                      </h3>
+                    </div>
                     <p className="text-sm text-gray-600">
                       {new Date(activity.created_at).toLocaleString('id-ID', {
                         dateStyle: 'medium',
@@ -275,81 +282,136 @@ export default function AIActivityDashboard() {
                         ? '❌ Gagal'
                         : '⏳ Pending'}
                     </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                      {activityTypeLabels[activity.activity_type]?.replace(/[^\w\s]/gi, '').trim() || activity.activity_type}
+                    </span>
                   </div>
                 </div>
 
-                <p className="text-gray-700 mb-4">{activity.description}</p>
+                {activity.description && (
+                  <p className="text-gray-700 mb-4">{activity.description}</p>
+                )}
 
-                {/* Metadata */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-xl p-4">
-                  {activity.metadata?.provider && (
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Provider</div>
-                      <div className="text-sm font-semibold text-gray-800">
-                        {activity.metadata.provider}
-                      </div>
+                {/* Metadata Display - Varies by activity type */}
+                {activity.metadata && Object.keys(activity.metadata).length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-gray-500 mb-2">
+                      Detail Aktivitas
                     </div>
-                  )}
-                  
-                  {activity.metadata?.attemptedProviders && (
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Providers Tried</div>
-                      <div className="text-xs text-gray-700">
-                        {activity.metadata.attemptedProviders.join(' → ')}
+                    
+                    {/* AI Verification specific metadata */}
+                    {activity.activity_type === 'ai_verification' && activity.metadata.antiSpoofing && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-500">Provider</div>
+                          <div className="text-sm font-semibold text-gray-800">
+                            {activity.metadata.provider || 'Unknown'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Score</div>
+                          <div className="text-sm font-semibold text-gray-800">
+                            {(activity.metadata.antiSpoofing.overallScore * 100).toFixed(1)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Liveness</div>
+                          <div className="text-sm font-semibold text-gray-800">
+                            {(activity.metadata.antiSpoofing.liveness * 100).toFixed(1)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Recommendation</div>
+                          <div
+                            className={`text-sm font-bold ${
+                              activity.metadata.antiSpoofing.recommendation === 'APPROVE'
+                                ? 'text-green-600'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {activity.metadata.antiSpoofing.recommendation}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activity.metadata?.duration_ms !== undefined && (
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Duration</div>
-                      <div className="text-sm font-semibold text-gray-800">
-                        {activity.metadata.duration_ms}ms
+                    {/* Attendance metadata */}
+                    {(activity.activity_type === 'attendance_checkin' || activity.activity_type === 'attendance_checkout') && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {activity.metadata.location && (
+                          <div>
+                            <div className="text-xs text-gray-500">Lokasi</div>
+                            <div className="text-sm text-gray-800">
+                              {activity.metadata.location.latitude?.toFixed(6)}, {activity.metadata.location.longitude?.toFixed(6)}
+                            </div>
+                          </div>
+                        )}
+                        {activity.metadata.timestamp && (
+                          <div>
+                            <div className="text-xs text-gray-500">Waktu</div>
+                            <div className="text-sm text-gray-800">
+                              {new Date(activity.metadata.timestamp).toLocaleTimeString('id-ID')}
+                            </div>
+                          </div>
+                        )}
+                        {activity.metadata.method && (
+                          <div>
+                            <div className="text-xs text-gray-500">Metode</div>
+                            <div className="text-sm text-gray-800">{activity.metadata.method}</div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activity.metadata?.antiSpoofing && (
-                    <>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Overall Score</div>
-                        <div className="text-sm font-semibold text-gray-800">
-                          {(activity.metadata.antiSpoofing.overallScore * 100).toFixed(1)}%
+                    {/* Generic metadata for other types */}
+                    {activity.activity_type !== 'ai_verification' &&
+                      activity.activity_type !== 'attendance_checkin' &&
+                      activity.activity_type !== 'attendance_checkout' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {Object.entries(activity.metadata)
+                            .filter(([key]) => !['duration_ms', 'attemptedProviders'].includes(key))
+                            .slice(0, 4)
+                            .map(([key, value]) => (
+                              <div key={key}>
+                                <div className="text-xs text-gray-500 capitalize">
+                                  {key.replace(/_/g, ' ')}
+                                </div>
+                                <div className="text-sm text-gray-800 truncate">
+                                  {typeof value === 'object' ? JSON.stringify(value).slice(0, 50) : String(value)}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                    {/* Related entity info */}
+                    {(activity.related_type || activity.related_id) && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="text-xs text-gray-500">
+                          Related: {activity.related_type} #{activity.related_id}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Layers Passed</div>
-                        <div className="text-sm font-semibold text-gray-800">
-                          {activity.metadata.antiSpoofing.passedLayers}/8
-                        </div>
+                    )}
+
+                    {/* IP and User Agent for security-relevant activities */}
+                    {(activity.activity_type === 'login' || activity.activity_type === 'security_validation') && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {activity.ip_address && (
+                          <div>
+                            <div className="text-xs text-gray-500">IP Address</div>
+                            <div className="text-sm text-gray-800">{activity.ip_address}</div>
+                          </div>
+                        )}
+                        {activity.user_agent && (
+                          <div>
+                            <div className="text-xs text-gray-500">Device</div>
+                            <div className="text-sm text-gray-800 truncate">{activity.user_agent}</div>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Liveness</div>
-                        <div className="text-sm font-semibold text-gray-800">
-                          {(activity.metadata.antiSpoofing.liveness * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Deepfake Risk</div>
-                        <div className="text-sm font-semibold text-gray-800">
-                          {(activity.metadata.antiSpoofing.deepfake * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Recommendation</div>
-                        <div
-                          className={`text-sm font-bold ${
-                            activity.metadata.antiSpoofing.recommendation === 'APPROVE'
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {activity.metadata.antiSpoofing.recommendation}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

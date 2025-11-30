@@ -486,26 +486,45 @@ export default function AttendancePage() {
     const roleValid = ['siswa', 'guru'].includes(userRole);
     if (!roleValid) {
       setRequirements(prev => ({ ...prev, role: false }));
+      toast.error('❌ Hanya siswa dan guru yang dapat melakukan absensi');
       return;
     }
 
     setRequirements(prev => ({ ...prev, role: true }));
 
-    // 2. Check biometric setup
+    // 2. ⚡ PRIORITY: Check biometric setup FIRST
+    console.log('[Requirements] Checking biometric registration...');
     let biometricSetup = false;
     try {
       const bioResponse = await fetch('/api/attendance/biometric/setup');
       const bioData = await bioResponse.json();
+      
+      console.log('[Requirements] Biometric check result:', bioData);
+      
       biometricSetup = bioData.hasSetup;
       setHasSetup(bioData.hasSetup);
       setRequirements(prev => ({ ...prev, biometric: bioData.hasSetup }));
 
       if (!bioData.hasSetup) {
+        console.log('[Requirements] ❌ Biometric NOT registered - forcing setup step');
         setStep('setup');
-        return;
+        toast.error(
+          <div>
+            <div className="font-bold">🔐 Biometric Belum Terdaftar</div>
+            <div className="text-sm mt-1">Silakan daftarkan biometric Anda terlebih dahulu</div>
+          </div>,
+          { duration: 7000 }
+        );
+        return; // STOP HERE - tidak lanjut cek yang lain
       }
+      
+      console.log('[Requirements] ✅ Biometric registered - proceeding with other checks');
     } catch (error) {
-      console.error('Biometric check error:', error);
+      console.error('[Requirements] ❌ Biometric check error:', error);
+      // Force setup on error
+      setStep('setup');
+      toast.error('Gagal cek biometric. Silakan setup ulang.');
+      return;
     }
 
     // 3. Check WiFi & Network Info (Enhanced with IP tracking)

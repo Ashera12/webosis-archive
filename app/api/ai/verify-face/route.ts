@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getConfig } from '@/lib/adminConfig';
 
 interface FaceVerificationRequest {
   liveSelfieBase64?: string; // New: base64 encoded selfie
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Fetch user's registered biometric data (reference photo)
     const { data: biometricData, error: bioError } = await supabaseAdmin
-      .from('user_biometric')
+      .from('biometric_data')
       .select('reference_photo_url, user_id')
       .eq('user_id', body.userId)
       .single();
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     const aiProviders = [
       {
         name: 'Gemini Vision',
-        check: () => !!process.env.GEMINI_API_KEY,
+        check: async () => !!(await getConfig('GEMINI_API_KEY')),
         execute: () => verifyWithGemini(
           body.liveSelfieBase64 || body.currentPhotoUrl || '', 
           referencePhotoUrl
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       },
       {
         name: 'OpenAI Vision',
-        check: () => !!process.env.OPENAI_API_KEY,
+        check: async () => !!(await getConfig('OPENAI_API_KEY')),
         execute: () => verifyWithOpenAI(
           body.currentPhotoUrl || '', 
           referencePhotoUrl
@@ -268,7 +269,7 @@ export async function POST(request: NextRequest) {
  */
 async function verifyWithGemini(currentPhoto: string, referencePhoto: string): Promise<any> {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = await getConfig('GEMINI_API_KEY');
     if (!apiKey) {
       throw new Error('Gemini API key not configured');
     }
@@ -512,7 +513,7 @@ Perform ultra-accurate face verification analysis:
  */
 async function verifyWithOpenAI(currentPhoto: string, referencePhoto: string): Promise<any> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getConfig('OPENAI_API_KEY');
     
     // Call OpenAI Vision API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

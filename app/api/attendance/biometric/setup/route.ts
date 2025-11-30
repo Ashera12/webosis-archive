@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { checkRateLimit, RateLimitPresets } from '@/lib/rateLimitRedis';
+import { BiometricSetupSchema } from '@/lib/validation';
+import { convertToSignedUrl } from '@/lib/signedUrls';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,15 +24,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { referencePhotoUrl, fingerprintTemplate, webauthnCredentialId } = body;
-
-    if (!referencePhotoUrl || !fingerprintTemplate) {
+    // ✅ RATE LIMITING: 3 setup attempts per day per user (prevent abuse)
+    const rateLimitCheck = await checkRateLimit(request, userId, RateLimitPresets.BIOMETRIC_SETUP, 'biometric');
+    if (!rateLimitCheck.allowed) {
       return NextResponse.json(
-        { error: 'Photo dan fingerprint diperlukan' },
+        { 
+          success: false,
+          error: 'Terlalu banyak percobaan setup. Silakan coba lagi besok.',
+          retryAfter: Math.ceil(rateLimitCheck.resetIn / 1000)
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil(rateLimitCheck.resetIn / 1000).toString()
+          }
+        }
+      );
+    }
+
+    const bodyRaw = await request.json();
+
+    // ✅ INPUT VALIDATION
+    const validation = BiometricSetupSchema.safeParse(bodyRaw);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data tidak valid',
+          details: validation.error.flatten().fieldErrors
+        },
         { status: 400 }
       );
     }
+
+    const { referencePhotoUrl, fingerprintTemplate, webauthnCredentialId } = validation.data;
     
     // webauthnCredentialId is OPTIONAL (null = AI-only mode)
     console.log('[Biometric Setup] Mode:', webauthnCredentialId ? 'WebAuthn + AI' : 'AI-only');
@@ -174,6 +202,16 @@ export async function GET(request: NextRequest) {
 
     if (error && error.code !== 'PGRST116') {
       throw error;
+    }
+
+    // ✅ SECURITY: Convert photo URL to signed URL
+    if (data && data.reference_photo_url) {
+      const signedUrl = await convertToSignedUrl(data.reference_photo_url);
+      
+      if (signedUrl) {
+        data.reference_photo_url = signedUrl.url;
+        data.photo_expires_at = signedUrl.expiresAt;
+      }
     }
 
     return NextResponse.json({

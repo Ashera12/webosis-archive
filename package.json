@@ -16,11 +16,18 @@
     "lint:fix": "next lint --fix",
     "clean": "rimraf .next",
     "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "hash:pw": "node ./scripts/hash-password.js",
     "check:user": "node ./scripts/check-user-status.js",
     "list:users": "node ./scripts/list-all-users.js",
     "test:pw": "node ./scripts/test-password.js",
-    "reset:pw": "node ./scripts/reset-password.js"
+    "reset:pw": "node ./scripts/reset-password.js",
+    "migrate": "node ./scripts/run-migration.js",
+    "configure": "node ./scripts/configure-admin-settings.js",
+    "configure:api-keys": "node ./scripts/configure-admin-settings.js --with-api-keys",
+    "deploy:check": "bash ./deploy.sh",
+    "production:setup": "npm run migrate && npm run configure && npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
@@ -41,6 +48,8 @@
     "@tiptap/extension-link": "^3.10.5",
     "@tiptap/react": "^3.10.5",
     "@tiptap/starter-kit": "^3.10.5",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.35.7",
     "@vercel/speed-insights": "^1.2.0",
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.4.0",

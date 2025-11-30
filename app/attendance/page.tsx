@@ -1423,7 +1423,7 @@ export default function AttendancePage() {
         const { data: biometric } = await biometricResponse.json();
         
         // ✅ FIRST TIME ATTENDANCE: Save reference photo
-        if (!biometric || !biometric.referencePhotoUrl) {
+        if (!biometric || !biometric.reference_photo_url) {
           console.log('[First Time] 📸 No reference photo found - saving current photo as reference');
           setAiProgress('💾 Menyimpan foto reference pertama kali...');
           
@@ -1431,12 +1431,19 @@ export default function AttendancePage() {
           
           const saveReferenceToast = toast.loading('💾 Menyimpan foto reference...');
           
+          // ✅ IMPORTANT: Need fingerprint for first time setup
+          if (!fingerprintHash) {
+            console.error('[First Time] ❌ No fingerprint hash available');
+            throw new Error('Fingerprint tidak tersedia. Refresh halaman dan coba lagi.');
+          }
+          
           // Save current photo as reference
           const saveResponse = await fetch('/api/attendance/biometric/setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               referencePhotoUrl: photoUrl,
+              fingerprintTemplate: fingerprintHash, // ✅ REQUIRED!
               userId: session!.user.id,
             }),
           });
@@ -1446,7 +1453,8 @@ export default function AttendancePage() {
           toast.dismiss(saveReferenceToast);
           
           if (!saveData.success) {
-            throw new Error('Gagal menyimpan foto reference');
+            console.error('[First Time] ❌ Save failed:', saveData);
+            throw new Error(saveData.error || 'Gagal menyimpan foto reference');
           }
           
           toast.success('✅ Foto reference tersimpan! Absensi selanjutnya akan diverifikasi dengan AI.');
@@ -1472,7 +1480,7 @@ export default function AttendancePage() {
           });
           
           console.log('[AI Verify] 🤖 Using Gemini Vision for ultra-accurate verification...');
-          console.log('[AI Verify] Reference photo:', biometric.referencePhotoUrl.substring(0, 50) + '...');
+          console.log('[AI Verify] Reference photo:', biometric.reference_photo_url.substring(0, 50) + '...');
           console.log('[AI Verify] Live selfie:', (photoBase64.length / 1024).toFixed(2), 'KB base64');
           
           setAiProgress('🔬 Membandingkan dengan foto reference...');
@@ -1482,7 +1490,7 @@ export default function AttendancePage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               liveSelfieBase64: photoBase64,
-              referencePhotoUrl: biometric.referencePhotoUrl,
+              referencePhotoUrl: biometric.reference_photo_url,
               userId: session!.user.id
             }),
           });

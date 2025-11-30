@@ -4,7 +4,8 @@ import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 interface FaceVerificationRequest {
-  currentPhotoUrl: string;
+  liveSelfieBase64?: string; // New: base64 encoded selfie
+  currentPhotoUrl?: string; // Legacy support
   referencePhotoUrl: string;
   userId: string;
 }
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     
     console.log('[AI Face Verification] Starting for user:', session.user.email);
     console.log('[AI Face Verification] Photos:', {
-      current: body.currentPhotoUrl.substring(0, 50) + '...',
+      current: body.liveSelfieBase64 ? 'base64 (' + (body.liveSelfieBase64.length / 1024).toFixed(2) + 'KB)' : body.currentPhotoUrl?.substring(0, 50) + '...',
       reference: body.referencePhotoUrl.substring(0, 50) + '...'
     });
 
@@ -54,25 +55,45 @@ export async function POST(request: NextRequest) {
       aiProvider: 'none'
     };
 
+    // ===== PRIORITY: Google Gemini Vision API =====
+    if (process.env.GEMINI_API_KEY) {
+      console.log('[AI Face Verification] Using Google Gemini Vision API');
+      verificationResult = await verifyWithGemini(
+        body.liveSelfieBase64 || body.currentPhotoUrl || '', 
+        body.referencePhotoUrl
+      );
+    }
     // ===== OPTION 1: OpenAI Vision API =====
-    if (process.env.OPENAI_API_KEY) {
+    else if (process.env.OPENAI_API_KEY) {
       console.log('[AI Face Verification] Using OpenAI Vision API');
-      verificationResult = await verifyWithOpenAI(body.currentPhotoUrl, body.referencePhotoUrl);
+      verificationResult = await verifyWithOpenAI(
+        body.currentPhotoUrl || '', 
+        body.referencePhotoUrl
+      );
     }
     // ===== OPTION 2: Google Cloud Vision API =====
     else if (process.env.GOOGLE_CLOUD_API_KEY) {
       console.log('[AI Face Verification] Using Google Cloud Vision API');
-      verificationResult = await verifyWithGoogleVision(body.currentPhotoUrl, body.referencePhotoUrl);
+      verificationResult = await verifyWithGoogleVision(
+        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+        body.referencePhotoUrl
+      );
     }
     // ===== OPTION 3: Azure Face API =====
     else if (process.env.AZURE_FACE_API_KEY) {
       console.log('[AI Face Verification] Using Azure Face API');
-      verificationResult = await verifyWithAzureFace(body.currentPhotoUrl, body.referencePhotoUrl);
+      verificationResult = await verifyWithAzureFace(
+        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+        body.referencePhotoUrl
+      );
     }
     // ===== FALLBACK: Basic Image Analysis =====
     else {
       console.log('[AI Face Verification] Using basic image analysis (fallback)');
-      verificationResult = await basicImageVerification(body.currentPhotoUrl, body.referencePhotoUrl);
+      verificationResult = await basicImageVerification(
+        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+        body.referencePhotoUrl
+      );
     }
 
     console.log('[AI Face Verification] Result:', {
@@ -152,6 +173,250 @@ export async function POST(request: NextRequest) {
 }
 
 // ===== AI PROVIDERS =====
+
+/**
+ * Google Gemini Vision API (PRIORITY)
+ * Best untuk: Akurasi tinggi, liveness detection, anti-spoofing
+ */
+async function verifyWithGemini(currentPhoto: string, referencePhoto: string): Promise<any> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    console.log('[Gemini Vision] Analyzing faces...');
+
+    // Download reference photo and convert to base64
+    let referenceBase64 = '';
+    if (referencePhoto.startsWith('http')) {
+      const refResponse = await fetch(referencePhoto);
+      const refBlob = await refResponse.blob();
+      const refBuffer = await refBlob.arrayBuffer();
+      referenceBase64 = Buffer.from(refBuffer).toString('base64');
+    } else {
+      referenceBase64 = referencePhoto;
+    }
+
+    // Current photo might be base64 or URL
+    let currentBase64 = '';
+    if (currentPhoto.startsWith('http')) {
+      const currResponse = await fetch(currentPhoto);
+      const currBlob = await currResponse.blob();
+      const currBuffer = await currBlob.arrayBuffer();
+      currentBase64 = Buffer.from(currBuffer).toString('base64');
+    } else {
+      currentBase64 = currentPhoto;
+    }
+
+    // Call Gemini Vision API with ultra-detailed prompt
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: `You are a professional facial recognition AI expert. Analyze these two photos with MAXIMUM ACCURACY for identity verification:
+
+**PHOTO 1 (REFERENCE - Registration Photo):**
+This is the registered user's reference photo from their account.
+
+**PHOTO 2 (CURRENT - Live Selfie):**
+This is a live selfie taken just now for attendance verification.
+
+**YOUR TASK:**
+Perform ultra-accurate face verification analysis:
+
+1. **FACE DETECTION** (Both Photos):
+   - Detect human face presence
+   - Count faces (must be exactly 1 in each)
+   - Face quality (clear, blurry, obscured)
+   - Face size (adequate, too small, too far)
+
+2. **LIVENESS DETECTION** (Photo 2 - Live Selfie):
+   - Is this a REAL LIVE PERSON? (not photo of photo, screen, print, video, deepfake)
+   - Detect screen glare/reflections (indicates photo of screen)
+   - Detect paper texture (indicates printed photo)
+   - Detect pixel patterns (indicates digital reproduction)
+   - Natural skin texture vs artificial
+   - Natural lighting vs screen backlight
+   - Eye reflection patterns (real eyes vs screen/photo)
+   - Micro-expressions present? (indicates live person)
+
+3. **IDENTITY MATCHING** (Compare Both Photos):
+   - Facial structure similarity (bone structure, face shape)
+   - Eye shape, color, spacing, eyebrow arch
+   - Nose shape, size, bridge width
+   - Mouth shape, lip thickness, teeth (if visible)
+   - Ear shape (if visible)
+   - Skin tone consistency
+   - Facial landmarks alignment (68+ points)
+   - Age consistency (within reasonable range)
+   - Gender consistency
+   - Unique identifying features (moles, scars, birthmarks)
+
+4. **ANTI-SPOOFING** (Photo 2):
+   - Mask detection (silicone, latex, 3D printed)
+   - Deepfake indicators (AI-generated artifacts)
+   - Video replay attack (screen recording)
+   - Photo manipulation (Photoshop, FaceApp)
+   - Impersonation attempt
+
+5. **QUALITY ASSESSMENT**:
+   - Lighting conditions (both photos)
+   - Image resolution and clarity
+   - Face angle/pose similarity
+   - Expression neutrality
+   - Background appropriateness
+
+**SCORING GUIDELINES:**
+- matchScore: 0.0-1.0 (1.0 = identical person, 0.0 = different people)
+  * 0.95-1.0: Definitely same person (matching all major features)
+  * 0.85-0.94: Very likely same person (matching most features)
+  * 0.70-0.84: Possibly same person (some similarities)
+  * 0.50-0.69: Unlikely same person (few similarities)
+  * 0.0-0.49: Different people
+
+- confidence: 0.0-1.0 (how certain you are)
+  * 1.0: Absolutely certain
+  * 0.9: Very confident
+  * 0.7-0.8: Reasonably confident
+  * 0.5-0.6: Uncertain
+  * <0.5: Very uncertain
+
+**RESPOND IN STRICT JSON FORMAT:**
+{
+  "faceDetected": boolean,
+  "facesCount": {
+    "reference": number,
+    "current": number
+  },
+  "matchScore": number (0.0-1.0),
+  "isLive": boolean,
+  "isFake": boolean,
+  "confidence": number (0.0-1.0),
+  "details": {
+    "facialStructure": "matching|similar|different",
+    "eyesSimilarity": number (0-100),
+    "noseSimilarity": number (0-100),
+    "mouthSimilarity": number (0-100),
+    "skinTone": "matching|similar|different",
+    "ageRange": "consistent|inconsistent",
+    "gender": "matching|different",
+    "uniqueFeatures": ["feature1", "feature2"],
+    "livenessIndicators": {
+      "realPerson": boolean,
+      "screenDetected": boolean,
+      "printDetected": boolean,
+      "maskDetected": boolean,
+      "deepfakeDetected": boolean,
+      "naturalTexture": boolean,
+      "eyeReflection": "natural|artificial|none",
+      "microExpressions": boolean
+    },
+    "qualityScore": {
+      "reference": number (0-100),
+      "current": number (0-100)
+    },
+    "lighting": "excellent|good|fair|poor",
+    "resolution": "high|medium|low",
+    "warnings": ["warning1", "warning2"]
+  },
+  "reasoning": "Detailed explanation of your analysis and decision"
+}
+
+**IMPORTANT:**
+- Be EXTREMELY STRICT with liveness detection
+- Reject ANY photo of screen/print/video
+- Require 85%+ match for verification
+- Consider lighting/angle variations
+- Account for aging (makeup, hair, facial hair changes)
+- Flag ANY suspicious indicators`
+              },
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: referenceBase64
+                }
+              },
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: currentBase64
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.1, // Low temperature for consistent, factual analysis
+            topK: 1,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error('Invalid Gemini API response');
+    }
+
+    const resultText = data.candidates[0].content.parts[0].text;
+    
+    // Extract JSON from markdown code block if present
+    let jsonText = resultText;
+    if (resultText.includes('```json')) {
+      jsonText = resultText.split('```json')[1].split('```')[0].trim();
+    } else if (resultText.includes('```')) {
+      jsonText = resultText.split('```')[1].split('```')[0].trim();
+    }
+
+    const result = JSON.parse(jsonText);
+
+    console.log('[Gemini Vision] Analysis complete:', {
+      faceDetected: result.faceDetected,
+      matchScore: result.matchScore,
+      isLive: result.isLive,
+      confidence: result.confidence
+    });
+
+    return {
+      success: true,
+      faceDetected: result.faceDetected,
+      matchScore: result.matchScore,
+      isLive: result.isLive,
+      isFake: result.isFake,
+      confidence: result.confidence,
+      details: result.details,
+      reasoning: result.reasoning,
+      aiProvider: 'gemini-vision-2.0'
+    };
+
+  } catch (error: any) {
+    console.error('[Gemini Vision] Error:', error);
+    // Fallback to basic verification
+    return await basicImageVerification(
+      currentPhoto.startsWith('http') ? currentPhoto : 'data:image/jpeg;base64,' + currentPhoto,
+      referencePhoto
+    );
+  }
+}
 
 /**
  * OpenAI Vision API

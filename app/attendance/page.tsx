@@ -51,6 +51,12 @@ export default function AttendancePage() {
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [securityValidation, setSecurityValidation] = useState<any>(null);
   const [validating, setValidating] = useState(false);
+  
+  // Enhanced: Multi-method authentication support
+  const [authMethod, setAuthMethod] = useState<'webauthn' | 'pin' | 'ai-face'>('webauthn');
+  const [deviceCapabilities, setDeviceCapabilities] = useState<any>(null);
+  const [pinCode, setPinCode] = useState('');
+  const [aiVerification, setAiVerification] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -60,9 +66,43 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (session?.user) {
+      detectDeviceCapabilities();
       checkAllRequirements();
     }
   }, [session]);
+
+  // Enhanced: Detect device biometric capabilities
+  const detectDeviceCapabilities = async () => {
+    console.log('[Device] 🔍 Detecting capabilities...');
+    
+    const webauthnSupported = isWebAuthnSupported();
+    const platformAuth = await isPlatformAuthenticatorAvailable();
+    const authName = getAuthenticatorName();
+    const authIcon = getAuthenticatorIcon();
+    
+    const capabilities = {
+      webauthn: webauthnSupported,
+      platformAuth,
+      authName,
+      authIcon,
+      supportsFingerprint: /android/i.test(navigator.userAgent) && platformAuth,
+      supportsFaceID: /iphone|ipad/i.test(navigator.userAgent) && platformAuth,
+      supportsWindowsHello: /windows/i.test(navigator.userAgent) && platformAuth,
+      fallbackRequired: !platformAuth,
+    };
+    
+    console.log('[Device] Capabilities:', capabilities);
+    setDeviceCapabilities(capabilities);
+    
+    // Auto-select best auth method
+    if (platformAuth) {
+      setAuthMethod('webauthn');
+      console.log('[Device] ✅ Using WebAuthn:', authName);
+    } else {
+      setAuthMethod('ai-face');
+      console.log('[Device] ⚠️ WebAuthn unavailable, using AI Face Verification');
+    }
+  };
 
   const checkAllRequirements = async () => {
     if (!session?.user) return;
@@ -663,11 +703,25 @@ export default function AttendancePage() {
           throw new Error('Reference photo not found');
         }
         
+        // Convert photoBlob to base64 for AI analysis
+        const photoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            resolve(base64.split(',')[1]); // Remove data:image/jpeg;base64, prefix
+          };
+          reader.readAsDataURL(photoBlob);
+        });
+        
+        console.log('[AI Verify] 🤖 Using Gemini Vision for ultra-accurate verification...');
+        console.log('[AI Verify] Reference photo:', biometric.referencePhotoUrl.substring(0, 50) + '...');
+        console.log('[AI Verify] Live selfie:', (photoBase64.length / 1024).toFixed(2), 'KB base64');
+        
         const aiResponse = await fetch('/api/ai/verify-face', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            currentPhotoUrl: photoUrl,
+            liveSelfieBase64: photoBase64,
             referencePhotoUrl: biometric.referencePhotoUrl,
             userId: session!.user.id
           }),
@@ -677,50 +731,83 @@ export default function AttendancePage() {
         
         toast.dismiss(aiToast);
         
-        console.log('🤖 AI verification result:', aiData);
+        console.log('[AI Verify] 🤖 Gemini result:', aiData);
 
         if (!aiData.success || !aiData.verified) {
-          console.error('❌ AI face verification failed:', aiData.reasons || aiData.error);
+          console.error('[AI Verify] ❌ Face verification failed:', aiData.reasons || aiData.error);
           
-          // Show detailed error
-          const errorMsg = aiData.reasons 
-            ? `🤖 Verifikasi AI gagal:\n${aiData.reasons.join('\n')}`
-            : aiData.error || 'Verifikasi wajah gagal';
+          // Show detailed error with reasoning
+          const errorMsg = aiData.data?.reasoning 
+            ? `🤖 Verifikasi AI Gagal:\n\n${aiData.data.reasoning}\n\n${aiData.reasons?.join('\n') || ''}`
+            : aiData.reasons 
+              ? `🤖 Verifikasi AI gagal:\n${aiData.reasons.join('\n')}`
+              : aiData.error || 'Verifikasi wajah gagal';
           
-          toast.error(errorMsg, {
-            duration: 8000,
-            style: {
-              maxWidth: '500px',
-              padding: '20px',
-              whiteSpace: 'pre-line'
+          toast.error(
+            <div className="max-w-md">
+              <div className="font-bold text-lg mb-2">❌ Verifikasi Wajah Gagal</div>
+              <div className="text-sm space-y-2">
+                {aiData.data?.details?.warnings?.map((warn: string, i: number) => (
+                  <div key={i}>⚠️ {warn}</div>
+                ))}
+                {aiData.reasons?.map((reason: string, i: number) => (
+                  <div key={i}>• {reason}</div>
+                ))}
+              </div>
+              {aiData.data?.details?.livenessIndicators && (
+                <div className="mt-3 text-xs opacity-75">
+                  <div className="font-semibold mb-1">Liveness Check:</div>
+                  {aiData.data.details.livenessIndicators.screenDetected && <div>📱 Screen detected</div>}
+                  {aiData.data.details.livenessIndicators.printDetected && <div>📄 Print detected</div>}
+                  {aiData.data.details.livenessIndicators.maskDetected && <div>😷 Mask detected</div>}
+                  {aiData.data.details.livenessIndicators.deepfakeDetected && <div>🎭 Deepfake detected</div>}
+                </div>
+              )}
+              <div className="mt-3 text-xs">
+                Confidence: {(aiData.data?.confidence * 100 || 0).toFixed(1)}%
+              </div>
+            </div>,
+            { 
+              duration: 12000,
+              style: {
+                maxWidth: '600px',
+                padding: '20px'
+              }
             }
-          });
+          );
           
           setLoading(false);
           setStep('capture');
           return;
         }
         
-        console.log('✅ AI face verification passed!');
-        console.log('📊 Match score:', (aiData.data.matchScore * 100).toFixed(1) + '%');
-        console.log('📊 Confidence:', (aiData.data.confidence * 100).toFixed(1) + '%');
+        console.log('[AI Verify] ✅ Gemini verification PASSED!');
+        console.log('[AI Verify] 📊 Match score:', (aiData.data.matchScore * 100).toFixed(1) + '%');
+        console.log('[AI Verify] 📊 Confidence:', (aiData.data.confidence * 100).toFixed(1) + '%');
+        console.log('[AI Verify] 👤 Liveness:', aiData.data.isLive ? 'REAL PERSON' : 'FAKE');
         
         toast.success(
           <div>
-            <div className="font-bold">🤖 Verifikasi AI Berhasil!</div>
-            <div className="text-sm mt-1">
-              ✅ Match: {(aiData.data.matchScore * 100).toFixed(0)}% • Confidence: {(aiData.data.confidence * 100).toFixed(0)}%
+            <div className="font-bold text-lg mb-2">✅ Verifikasi AI Berhasil!</div>
+            <div className="text-sm space-y-1">
+              <div>🎯 Match: {(aiData.data.matchScore * 100).toFixed(0)}%</div>
+              <div>💯 Confidence: {(aiData.data.confidence * 100).toFixed(0)}%</div>
+              <div>👤 Liveness: {aiData.data.isLive ? '✅ Real Person' : '❌ Fake'}</div>
+              <div className="text-xs opacity-75 mt-2">Powered by Gemini Vision AI</div>
             </div>
           </div>,
-          { duration: 3000 }
+          { duration: 5000 }
         );
+        
+        // Store AI verification result
+        setAiVerification(aiData.data);
         
       } catch (aiError: any) {
         toast.dismiss(aiToast);
-        console.error('⚠️ AI verification error (non-fatal):', aiError);
+        console.error('[AI Verify] ⚠️ AI verification error (non-fatal):', aiError);
         
         // AI verification gagal, tapi bisa lanjut (optional verification)
-        toast('⚠️ AI verification skip (menggunakan fallback)', {
+        toast('⚠️ AI verification unavailable, using fallback security checks', {
           duration: 3000,
           icon: '⚠️'
         });

@@ -25,38 +25,101 @@ const supabaseAdmin = createClient(
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('[WiFi Config API] Fetching school WiFi configuration...');
+    console.log('[WiFi Config API] 🔍 Fetching school WiFi configuration...');
 
-    // Fetch from school_location_config or create a dedicated wifi_config table
+    // Fetch from school_location_config
     const { data: config, error } = await supabaseAdmin
       .from('school_location_config')
       .select('*')
       .eq('is_active', true)
       .single();
 
+    console.log('[WiFi Config API] Query result:', { 
+      hasData: !!config, 
+      hasError: !!error,
+      errorMessage: error?.message,
+      errorCode: error?.code 
+    });
+
     if (error) {
-      console.warn('[WiFi Config API] No active config found:', error.message);
+      console.error('[WiFi Config API] ❌ Database error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       
-      // Return defaults - allows private IP ranges for testing
+      // Try fetching ALL locations as fallback
+      console.log('[WiFi Config API] 🔄 Trying fallback: fetch all locations...');
+      const { data: allConfigs, error: allError } = await supabaseAdmin
+        .from('school_location_config')
+        .select('*')
+        .limit(10);
+      
+      console.log('[WiFi Config API] Fallback result:', {
+        count: allConfigs?.length || 0,
+        configs: allConfigs,
+        error: allError?.message
+      });
+
+      // If we have configs, use the first one
+      if (allConfigs && allConfigs.length > 0) {
+        const fallbackConfig = allConfigs.find(c => c.is_active) || allConfigs[0];
+        console.log('[WiFi Config API] ⚠️ Using fallback config:', fallbackConfig.location_name);
+        
+        const allowedSSIDs = Array.isArray(fallbackConfig.allowed_wifi_ssids) 
+          ? fallbackConfig.allowed_wifi_ssids 
+          : [];
+        const allowedIPRanges = Array.isArray(fallbackConfig.allowed_ip_ranges)
+          ? fallbackConfig.allowed_ip_ranges
+          : ['192.168.', '10.0.', '172.16.'];
+
+        console.log('[WiFi Config API] ✅ Fallback SSIDs:', allowedSSIDs);
+        console.log('[WiFi Config API] ✅ Fallback IP Ranges:', allowedIPRanges);
+
+        return NextResponse.json({
+          allowedSSIDs,
+          allowedIPRanges,
+          config: {
+            locationName: fallbackConfig.location_name,
+            requireWiFi: fallbackConfig.require_wifi || false,
+            isActive: fallbackConfig.is_active
+          },
+          isFallback: true
+        });
+      }
+      
+      // No configs at all - return permissive defaults
+      console.warn('[WiFi Config API] ⚠️ No configs found, using permissive defaults');
       return NextResponse.json({
-        allowedSSIDs: [],
-        allowedIPRanges: ['192.168.', '10.0.', '172.16.'], // Default private IP ranges
-        message: 'No WiFi restrictions configured'
+        allowedSSIDs: ['Villa Lembang', 'Any WiFi'],  // Permissive for testing
+        allowedIPRanges: ['0.0.0.0/0'],  // Allow all IPs for testing
+        message: 'No WiFi restrictions configured - using permissive defaults',
+        isDefault: true
       });
     }
+
+    console.log('[WiFi Config API] 📋 Config found:', {
+      id: config.id,
+      name: config.location_name,
+      isActive: config.is_active,
+      requireWiFi: config.require_wifi,
+      rawSSIDs: config.allowed_wifi_ssids,
+      rawIPRanges: config.allowed_ip_ranges
+    });
 
     // Extract allowed SSIDs and IP ranges from config
     // Note: allowed_wifi_ssids and allowed_ip_ranges are TEXT[] (PostgreSQL arrays)
     const allowedSSIDs = Array.isArray(config.allowed_wifi_ssids) 
       ? config.allowed_wifi_ssids 
-      : (config.allowed_wifi_ssids || []);
+      : (config.allowed_wifi_ssids ? [config.allowed_wifi_ssids] : []);
     
     const allowedIPRanges = Array.isArray(config.allowed_ip_ranges)
       ? config.allowed_ip_ranges
-      : ['192.168.', '10.0.', '172.16.']; // Default private IP ranges
+      : (config.allowed_ip_ranges ? [config.allowed_ip_ranges] : ['192.168.', '10.0.', '172.16.']);
 
-    console.log('[WiFi Config API] ✅ Allowed SSIDs:', allowedSSIDs);
-    console.log('[WiFi Config API] ✅ Allowed IP Ranges:', allowedIPRanges);
+    console.log('[WiFi Config API] ✅ Parsed SSIDs:', allowedSSIDs);
+    console.log('[WiFi Config API] ✅ Parsed IP Ranges:', allowedIPRanges);
 
     return NextResponse.json({
       allowedSSIDs,

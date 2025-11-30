@@ -11,6 +11,7 @@ import PageTransition from './PageTransition';
 import SmoothScroll from './SmoothScroll';
 import ClientOnly from './ClientOnly';
 import { SessionProvider } from 'next-auth/react';
+import { SecurityAnalyzerProvider } from './SecurityAnalyzerProvider';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,9 +20,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <LanguageProvider>
-        <ThemeProvider>
-          <ToastProvider>
+      <SecurityAnalyzerProvider>
+        <LanguageProvider>
+          <ThemeProvider>
+            <ToastProvider>
             <SmoothScroll>
               {/* Navbar - hide on admin & register pages */}
               {!isAdminPage && !isRegisterPage && (
@@ -44,6 +46,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           </ToastProvider>
         </ThemeProvider>
       </LanguageProvider>
+      </SecurityAnalyzerProvider>
     </SessionProvider>
   );
 }

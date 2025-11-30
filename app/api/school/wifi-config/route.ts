@@ -37,21 +37,25 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.warn('[WiFi Config API] No active config found:', error.message);
       
-      // Return empty array - allows all WiFi for testing
+      // Return defaults - allows private IP ranges for testing
       return NextResponse.json({
         allowedSSIDs: [],
+        allowedIPRanges: ['192.168.', '10.0.', '172.16.'], // Default private IP ranges
         message: 'No WiFi restrictions configured'
       });
     }
 
-    // Extract allowed SSIDs from config
-    // Assuming school_location_config has a 'allowed_wifi_ssids' column (JSON array)
+    // Extract allowed SSIDs and IP ranges from config
+    // Assuming school_location_config has 'allowed_wifi_ssids' and 'allowed_ip_ranges' columns (JSON arrays)
     const allowedSSIDs = config.allowed_wifi_ssids || [];
+    const allowedIPRanges = config.allowed_ip_ranges || ['192.168.', '10.0.', '172.16.']; // Default private IP ranges
 
     console.log('[WiFi Config API] ✅ Allowed SSIDs:', allowedSSIDs);
+    console.log('[WiFi Config API] ✅ Allowed IP Ranges:', allowedIPRanges);
 
     return NextResponse.json({
       allowedSSIDs,
+      allowedIPRanges,
       config: {
         locationName: config.location_name,
         latitude: config.latitude,
@@ -68,7 +72,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to fetch WiFi config',
-        allowedSSIDs: [] // Fallback to allow all
+        allowedSSIDs: [], // Fallback to allow all
+        allowedIPRanges: ['192.168.', '10.0.', '172.16.'] // Default private IP ranges
       },
       { status: 500 }
     );
@@ -77,17 +82,18 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/school/wifi-config
- * Update allowed WiFi SSIDs (Admin only)
+ * Update allowed WiFi SSIDs and IP ranges (Admin only)
  * 
  * Body:
  * {
- *   allowedSSIDs: string[]
+ *   allowedSSIDs: string[],
+ *   allowedIPRanges?: string[]
  * }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { allowedSSIDs } = body;
+    const { allowedSSIDs, allowedIPRanges } = body;
 
     if (!Array.isArray(allowedSSIDs)) {
       return NextResponse.json(
@@ -97,14 +103,25 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[WiFi Config API] Updating allowed SSIDs:', allowedSSIDs);
+    if (allowedIPRanges) {
+      console.log('[WiFi Config API] Updating allowed IP ranges:', allowedIPRanges);
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      allowed_wifi_ssids: allowedSSIDs,
+      updated_at: new Date().toISOString()
+    };
+
+    // Add IP ranges if provided
+    if (allowedIPRanges && Array.isArray(allowedIPRanges)) {
+      updateData.allowed_ip_ranges = allowedIPRanges;
+    }
 
     // Update school_location_config
     const { data, error } = await supabaseAdmin
       .from('school_location_config')
-      .update({ 
-        allowed_wifi_ssids: allowedSSIDs,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('is_active', true)
       .select()
       .single();
@@ -118,6 +135,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       allowedSSIDs,
+      allowedIPRanges: data.allowed_ip_ranges || allowedIPRanges,
       config: data
     });
 

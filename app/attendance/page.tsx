@@ -23,6 +23,7 @@ import {
   authenticateCredential,
   testBiometric,
 } from '@/lib/webauthn';
+import { useSecurityAnalysis } from '@/components/SecurityAnalyzerProvider';
 
 interface BiometricSetupData {
   referencePhotoUrl: string;
@@ -31,6 +32,10 @@ interface BiometricSetupData {
 
 export default function AttendancePage() {
   const { data: session, status } = useSession();
+  
+  // 🔒 USE BACKGROUND SECURITY ANALYSIS (runs on login)
+  const { result: backgroundAnalysis, isReady, isBlocked, blockReasons } = useSecurityAnalysis();
+  
   const [step, setStep] = useState<'check' | 'setup' | 'ready' | 'capture' | 'submitting'>('check');
   const [hasSetup, setHasSetup] = useState(false);
   const [requirements, setRequirements] = useState({
@@ -65,6 +70,57 @@ export default function AttendancePage() {
       redirect('/login?callbackUrl=/attendance');
     }
   }, [status]);
+
+  // 🔒 SYNC BACKGROUND ANALYSIS (ran on login) with page state
+  useEffect(() => {
+    if (backgroundAnalysis && step === 'ready') {
+      console.log('[Attendance] 🔒 Using background security analysis:', backgroundAnalysis);
+      
+      // Set WiFi detection from background analysis
+      if (backgroundAnalysis.wifi) {
+        const wifiData = {
+          ssid: backgroundAnalysis.wifi.ssid,
+          ipAddress: backgroundAnalysis.wifi.ipAddress,
+          connectionType: backgroundAnalysis.wifi.connectionType,
+          isConnected: !!backgroundAnalysis.wifi.ipAddress,
+          detectionMethod: 'background_analyzer',
+          timestamp: backgroundAnalysis.timestamp
+        };
+        
+        setWifiDetection(wifiData);
+        setWifiSSID(backgroundAnalysis.wifi.ssid);
+        
+        // Set WiFi validation from background analysis
+        setWifiValidation({
+          isValid: backgroundAnalysis.wifi.isValid,
+          detectedSSID: backgroundAnalysis.wifi.ssid,
+          validationError: backgroundAnalysis.wifi.validationError,
+          aiDecision: backgroundAnalysis.wifi.isValid ? 'VALID' : 'INVALID',
+          aiConfidence: 0.99,
+          aiAnalysis: backgroundAnalysis.wifi.validationError || 'WiFi sesuai dengan jaringan sekolah',
+          isValidating: false
+        });
+        
+        console.log('[Attendance] ✅ WiFi data synced:', {
+          ssid: backgroundAnalysis.wifi.ssid,
+          ip: backgroundAnalysis.wifi.ipAddress,
+          isValid: backgroundAnalysis.wifi.isValid,
+          error: backgroundAnalysis.wifi.validationError
+        });
+      }
+      
+      // Set Location from background analysis
+      if (backgroundAnalysis.location && backgroundAnalysis.location.detected) {
+        setLocationData({
+          latitude: backgroundAnalysis.location.latitude,
+          longitude: backgroundAnalysis.location.longitude,
+          accuracy: backgroundAnalysis.location.accuracy
+        });
+        
+        console.log('[Attendance] ✅ Location synced:', backgroundAnalysis.location);
+      }
+    }
+  }, [backgroundAnalysis, step]);
 
   useEffect(() => {
     if (session?.user) {
@@ -1410,21 +1466,37 @@ export default function AttendancePage() {
                 <div className="flex items-center gap-2 mb-2">
                   <FaWifi className={wifiValidation?.isValid ? 'text-green-600' : 'text-red-600'} />
                   <p className="text-xs sm:text-sm font-bold">
-                    {wifiValidation?.isValid ? '✅ WiFi Terdeteksi - Sesuai' : '❌ WiFi Tidak Sesuai'}
+                    {wifiValidation?.isValid ? '✅ WiFi Terdeteksi - Sesuai' : '❌ Koneksi Tidak Sesuai'}
                   </p>
                 </div>
                 <div className="space-y-1 text-xs">
-                  <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                    SSID: {wifiDetection.ssid}
-                  </div>
-                  {wifiDetection.ipAddress && (
+                  {/* Show connection type */}
+                  {!wifiDetection.ipAddress || wifiDetection.ipAddress === 'DETECTION_FAILED' ? (
+                    <div className="font-semibold text-red-900 dark:text-red-100">
+                      ❌ Tidak Tersambung WiFi atau Menggunakan Data Seluler
+                    </div>
+                  ) : wifiDetection.connectionType === 'cellular' || wifiDetection.connectionType === '4g' || wifiDetection.connectionType === '5g' ? (
+                    <div className="font-semibold text-red-900 dark:text-red-100">
+                      📱 Menggunakan Data Seluler: {wifiDetection.connectionType.toUpperCase()}
+                    </div>
+                  ) : wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
+                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
+                      📶 WiFi: {wifiDetection.ssid}
+                    </div>
+                  ) : (
+                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
+                      📶 WiFi Terhubung (SSID tidak terdeteksi browser)
+                    </div>
+                  )}
+                  
+                  {wifiDetection.ipAddress && wifiDetection.ipAddress !== 'DETECTION_FAILED' && (
                     <div className={wifiValidation?.isValid ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}>
-                      IP: {wifiDetection.ipAddress}
+                      🌐 IP: {wifiDetection.ipAddress}
                     </div>
                   )}
                   {wifiDetection.networkStrength && (
                     <div className={wifiValidation?.isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                      Kekuatan: {wifiDetection.networkStrength}
+                      📶 Kekuatan: {wifiDetection.networkStrength}
                     </div>
                   )}
                   {wifiValidation && (
@@ -1510,13 +1582,35 @@ export default function AttendancePage() {
                   </div>
                   <div>
                     <p className="font-bold text-red-900 dark:text-red-100">⚠️ Tidak Dapat Absen</p>
-                    <p className="text-xs text-red-700 dark:text-red-300">WiFi tidak sesuai dengan jaringan sekolah</p>
+                    <p className="text-xs text-red-700 dark:text-red-300">{wifiValidation.validationError || 'Koneksi tidak sesuai'}</p>
                   </div>
                 </div>
                 <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
-                  <p>📶 WiFi terdeteksi: <strong>{wifiDetection?.ssid}</strong></p>
-                  <p>✅ WiFi yang diizinkan: <strong>{wifiValidation.allowedSSIDs?.join(', ') || 'Tidak ada'}</strong></p>
-                  <p className="mt-2 text-xs">Hubungkan ke WiFi sekolah dan refresh halaman ini.</p>
+                  {!wifiDetection?.ipAddress || wifiDetection.ipAddress === 'DETECTION_FAILED' ? (
+                    <>
+                      <p>❌ Anda tidak tersambung ke WiFi atau menggunakan data seluler</p>
+                      <p className="mt-2 text-xs">Hubungkan ke WiFi sekolah dan refresh halaman ini.</p>
+                    </>
+                  ) : wifiDetection.connectionType === 'cellular' || wifiDetection.connectionType === '4g' || wifiDetection.connectionType === '5g' ? (
+                    <>
+                      <p>📱 Anda menggunakan data seluler: <strong>{wifiDetection.connectionType.toUpperCase()}</strong></p>
+                      <p className="mt-2 text-xs">Matikan data seluler, hubungkan ke WiFi sekolah, dan refresh halaman.</p>
+                    </>
+                  ) : wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
+                    <>
+                      <p>📶 WiFi terdeteksi: <strong>{wifiDetection.ssid}</strong></p>
+                      <p>✅ WiFi yang diizinkan: <strong>{wifiValidation.allowedSSIDs?.join(', ') || 'Villa Lembang'}</strong></p>
+                      <p className="mt-2 text-xs">Hubungkan ke WiFi sekolah dan refresh halaman ini.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>🌐 IP Anda: <strong>{wifiDetection.ipAddress}</strong></p>
+                      <p>✅ WiFi yang diizinkan: <strong>{wifiValidation.allowedSSIDs?.join(', ') || 'Villa Lembang'}</strong></p>
+                      <p className="mt-2 text-xs">
+                        Browser tidak dapat membaca nama WiFi. Pastikan terhubung ke WiFi sekolah dan refresh.
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1560,13 +1654,30 @@ export default function AttendancePage() {
                   setStep('capture');
                 }
               }}
-              disabled={validating || !wifiSSID.trim() || !locationData || (wifiValidation && !wifiValidation.isValid)}
+              disabled={
+                validating || 
+                !backgroundAnalysis || // ⚠️ Wait for background analysis
+                isBlocked || // ⚠️ Blocked by security validation
+                !wifiSSID.trim() || 
+                !locationData || 
+                (wifiValidation && !wifiValidation.isValid)
+              }
               className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {validating ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   Memvalidasi Keamanan...
+                </>
+              ) : !backgroundAnalysis ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Menganalisis Keamanan...
+                </>
+              ) : isBlocked ? (
+                <>
+                  <FaLock className="text-xl sm:text-2xl" />
+                  Tidak Dapat Absen: {blockReasons.join(', ')}
                 </>
               ) : (
                 <>

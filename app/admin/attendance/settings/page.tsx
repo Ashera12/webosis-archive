@@ -53,6 +53,9 @@ interface SchoolConfig extends NetworkConfig {
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
+  
+  // ✅ GPS Bypass (for testing/development)
+  bypass_gps_validation?: boolean; // true = allow attendance from anywhere
 }
 
 export default function AttendanceSettingsPage() {
@@ -1048,6 +1051,37 @@ export default function AttendanceSettingsPage() {
                 <p className="text-xs text-gray-600 dark:text-gray-300">
                   ✅ <strong>Gunakan IP Whitelisting saja</strong> (lebih reliable dan sesuai standar Google/Microsoft/Cisco)
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ✅ GPS BYPASS TOGGLE (Testing Mode) */}
+          <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-300 dark:border-orange-700 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="bypass-gps"
+                checked={config.bypass_gps_validation === true} 
+                onChange={(e) => setConfig({ ...config, bypass_gps_validation: e.target.checked })}
+                className="mt-1 w-5 h-5 text-orange-600 focus:ring-2 focus:ring-orange-500 rounded"
+              />
+              <div className="flex-1">
+                <label htmlFor="bypass-gps" className="block text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                  🧪 GPS Bypass Mode (Testing/Development)
+                </label>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                  ⚠️ <strong>TESTING ONLY:</strong> Izinkan absensi dari MANA SAJA (skip GPS validation)
+                </p>
+                <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                  💡 Berguna saat testing dari rumah/luar sekolah. <strong>MATIKAN untuk production!</strong>
+                </p>
+                {config.bypass_gps_validation && (
+                  <div className="mt-2 bg-orange-100 dark:bg-orange-800/30 border border-orange-300 dark:border-orange-600 rounded px-2 py-1">
+                    <p className="text-xs font-bold text-orange-800 dark:text-orange-200">
+                      ⚠️ WARNING: GPS validation DISABLED - Users can attend from anywhere!
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

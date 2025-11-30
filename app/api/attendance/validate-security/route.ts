@@ -266,50 +266,75 @@ export async function POST(request: NextRequest) {
 
     // ===== 3. VALIDATE LOCATION =====
     console.log('[Security Validation] Checking location...');
-    const distance = calculateDistance(
-      body.latitude,
-      body.longitude,
-      parseFloat(activeConfig.latitude),
-      parseFloat(activeConfig.longitude)
-    );
+    
+    // ✅ GPS BYPASS MODE (for testing/development)
+    const bypassGPS = activeConfig.bypass_gps_validation === true;
+    
+    if (bypassGPS) {
+      console.log('[Security Validation] ⚠️ GPS BYPASS MODE ACTIVE - skipping location validation');
+      warnings.push('GPS_BYPASS_ACTIVE');
+      securityScore -= 10; // Small penalty for bypass mode
+      
+      // Log bypass for audit
+      await supabaseAdmin.from('security_events').insert({
+        user_id: userId,
+        event_type: 'gps_bypass_used',
+        description: 'GPS validation bypassed (testing mode)',
+        metadata: {
+          actual_location: { lat: body.latitude, lng: body.longitude },
+          school_location: { lat: activeConfig.latitude, lng: activeConfig.longitude },
+          bypass_reason: 'Testing/Development'
+        }
+      });
+      
+    } else {
+      // NORMAL GPS VALIDATION
+      const distance = calculateDistance(
+        body.latitude,
+        body.longitude,
+        parseFloat(activeConfig.latitude),
+        parseFloat(activeConfig.longitude)
+      );
 
-    const allowedRadius = activeConfig.radius_meters;
-    const isLocationValid = distance <= allowedRadius;
+      const allowedRadius = activeConfig.radius_meters;
+      const isLocationValid = distance <= allowedRadius;
 
-    console.log('[Security Validation] Distance:', {
-      calculated: Math.round(distance) + 'm',
-      allowed: allowedRadius + 'm',
-      valid: isLocationValid
-    });
+      console.log('[Security Validation] Distance:', {
+        calculated: Math.round(distance) + 'm',
+        allowed: allowedRadius + 'm',
+        valid: isLocationValid
+      });
 
-    if (!isLocationValid) {
-      violations.push('OUTSIDE_RADIUS');
-      securityScore -= 50;
+      if (!isLocationValid) {
+        violations.push('OUTSIDE_RADIUS');
+        securityScore -= 50;
 
-      console.error('[Security Validation] ❌ Location OUTSIDE radius');
+        console.error('[Security Validation] ❌ Location OUTSIDE radius');
 
-      return NextResponse.json({
-        success: false,
-        error: `Anda berada di luar area sekolah!`,
-        details: {
-          yourDistance: Math.round(distance) + ' meter',
-          allowedRadius: allowedRadius + ' meter',
-          schoolName: activeConfig.location_name,
-          hint: `Anda harus berada dalam radius ${allowedRadius}m dari sekolah`
-        },
-        action: 'BLOCK_ATTENDANCE',
-        severity: 'HIGH',
-        violations,
-        securityScore
-      }, { status: 403 });
-    }
+        return NextResponse.json({
+          success: false,
+          error: `Anda berada di luar area sekolah!`,
+          details: {
+            yourDistance: Math.round(distance) + ' meter',
+            allowedRadius: allowedRadius + ' meter',
+            schoolName: activeConfig.location_name,
+            hint: `Anda harus berada dalam radius ${allowedRadius}m dari sekolah`,
+            adminHint: 'Admin dapat mengaktifkan GPS bypass mode di settings untuk testing'
+          },
+          action: 'BLOCK_ATTENDANCE',
+          severity: 'HIGH',
+          violations,
+          securityScore
+        }, { status: 403 });
+      }
 
-    console.log('[Security Validation] ✅ Location valid');
+      console.log('[Security Validation] ✅ Location valid');
 
-    // Warning jika mendekati batas radius
-    if (distance > allowedRadius * 0.8) {
-      warnings.push('NEAR_BOUNDARY');
-      securityScore -= 10;
+      // Warning jika mendekati batas radius
+      if (distance > allowedRadius * 0.8) {
+        warnings.push('NEAR_BOUNDARY');
+        securityScore -= 10;
+      }
     }
 
     // ===== 4. VALIDATE FINGERPRINT =====
@@ -510,6 +535,15 @@ export async function POST(request: NextRequest) {
     console.log('[Security Validation] ✅ All validations passed!');
     console.log('[Security Validation] Security Score:', securityScore);
 
+    // Calculate distance for response (use 0 if bypassed)
+    const responseDistance = bypassGPS ? 0 : calculateDistance(
+      body.latitude,
+      body.longitude,
+      parseFloat(activeConfig.latitude),
+      parseFloat(activeConfig.longitude)
+    );
+    const responseRadius = activeConfig.radius_meters;
+
     return NextResponse.json({
       success: true,
       message: 'Validasi keamanan berhasil. Silakan lanjut ambil foto.',
@@ -517,12 +551,13 @@ export async function POST(request: NextRequest) {
         attendanceType,
         configId: activeConfig.id,
         schoolName: activeConfig.location_name,
-        distance: Math.round(distance),
-        allowedRadius,
+        distance: Math.round(responseDistance),
+        allowedRadius: responseRadius,
         wifiSSID: body.wifiSSID,
         securityScore,
         warnings,
-        biometricVerified: true
+        biometricVerified: true,
+        gpsBypassActive: bypassGPS
       },
       action: 'PROCEED_PHOTO'
     });

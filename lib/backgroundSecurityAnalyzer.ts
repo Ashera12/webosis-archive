@@ -270,16 +270,37 @@ class BackgroundSecurityAnalyzer {
       });
 
       if (!response.ok) {
-        return { isValid: false, error: 'Gagal memuat konfigurasi WiFi' };
+        console.warn('[WiFi Validation] ⚠️ Config fetch failed, allowing access (permissive mode)');
+        return { isValid: true }; // Permissive: allow if config unavailable
       }
 
       const data = await response.json();
       const allowedSSIDs: string[] = data.allowedSSIDs || [];
-      const allowedIPRanges: string[] = data.allowedIPRanges || ['192.168.', '10.0.', '172.16.'];
+      const allowedIPRanges: string[] = data.allowedIPRanges || ['0.0.0.0/0']; // Default: allow all
       const requireWiFi = data.config?.requireWiFi || false;
+      
+      console.log('[WiFi Validation] 📋 Config loaded:', {
+        allowedSSIDs,
+        allowedIPRanges,
+        requireWiFi,
+        isPermissive: data.isPermissive,
+        isDefault: data.isDefault
+      });
+
+      // 🔓 PERMISSIVE MODE: If config allows all IPs (0.0.0.0/0), bypass all checks
+      if (allowedIPRanges.includes('0.0.0.0/0')) {
+        console.log('[WiFi Validation] 🔓 PERMISSIVE MODE detected - allowing all access');
+        console.log('[WiFi Validation] ✅ Access granted (development/testing mode)');
+        return { isValid: true };
+      }
 
       // 1️⃣ Check if user is NOT connected (no IP)
       if (!ipAddress || ipAddress === 'DETECTION_FAILED') {
+        // If not requiring WiFi, allow access
+        if (!requireWiFi) {
+          console.log('[WiFi Validation] ⚠️ No IP detected, but WiFi not required - allowing');
+          return { isValid: true };
+        }
         return {
           isValid: false,
           error: '❌ Anda tidak tersambung WiFi atau menggunakan data seluler',
@@ -288,6 +309,11 @@ class BackgroundSecurityAnalyzer {
 
       // 2️⃣ Check if using cellular data
       if (connectionType === 'cellular' || connectionType === '4g' || connectionType === '5g') {
+        // If not requiring WiFi, allow cellular
+        if (!requireWiFi) {
+          console.log('[WiFi Validation] ⚠️ Cellular detected, but WiFi not required - allowing');
+          return { isValid: true };
+        }
         return {
           isValid: false,
           error: '❌ Menggunakan data seluler. Harap sambungkan ke WiFi sekolah',
@@ -296,9 +322,13 @@ class BackgroundSecurityAnalyzer {
 
       // 3️⃣ Try SSID validation first (if available)
       if (ssid && ssid !== 'Unknown' && ssid !== 'DETECTION_FAILED') {
-        const isSSIDValid = allowedSSIDs.includes(ssid);
+        const isSSIDValid = allowedSSIDs.includes(ssid) || allowedSSIDs.includes('Any WiFi');
         
         if (isSSIDValid) {
+          console.log('[WiFi Validation] ✅ SSID matched:', ssid);
+          return { isValid: true };
+        } else if (!requireWiFi) {
+          console.log('[WiFi Validation] ⚠️ SSID mismatch but WiFi not required - allowing');
           return { isValid: true };
         } else {
           return {

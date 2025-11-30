@@ -91,11 +91,18 @@ export async function GET(request: NextRequest) {
       
       // No configs at all - return permissive defaults
       console.warn('[WiFi Config API] ⚠️ No configs found, using permissive defaults');
+      console.log('[WiFi Config API] 🔓 PERMISSIVE MODE: Allowing all IPs for development');
       return NextResponse.json({
-        allowedSSIDs: ['Villa Lembang', 'Any WiFi'],  // Permissive for testing
-        allowedIPRanges: ['0.0.0.0/0'],  // Allow all IPs for testing
-        message: 'No WiFi restrictions configured - using permissive defaults',
-        isDefault: true
+        allowedSSIDs: ['Any WiFi'],  // Accept any SSID
+        allowedIPRanges: ['0.0.0.0/0'],  // Allow ALL IPs (development mode)
+        config: {
+          locationName: 'Development - Permissive Mode',
+          requireWiFi: false,
+          isActive: true
+        },
+        message: '🔓 PERMISSIVE MODE: All IPs allowed for development',
+        isDefault: true,
+        isPermissive: true
       });
     }
 

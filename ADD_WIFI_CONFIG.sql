@@ -26,10 +26,14 @@ COMMENT ON COLUMN school_location_config.require_wifi IS
 -- Step 5: Verify
 SELECT 
   id,
-  school_name,
+  location_name,
+  latitude,
+  longitude,
+  radius_meters,
   allowed_wifi_ssids,
   require_wifi,
-  is_active
+  is_active,
+  created_at
 FROM school_location_config
 WHERE is_active = true;
 

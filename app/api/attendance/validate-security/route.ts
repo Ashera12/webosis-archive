@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
     // ===== 4. VALIDATE FINGERPRINT =====
     console.log('[Security Validation] Checking fingerprint...');
     const { data: biometric, error: bioError } = await supabaseAdmin
-      .from('user_biometric')
+      .from('biometric_data')
       .select('*')
       .eq('user_id', userId)
       .single();

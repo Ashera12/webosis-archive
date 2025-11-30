@@ -50,11 +50,14 @@ export async function POST(request: NextRequest) {
       });
 
     // WebAuthn registration options
+    // RP ID must be the domain WITHOUT protocol and WITHOUT port
+    const rpId = 'biezz.my.id'; // Parent domain works for all subdomains
+    
     const options = {
       challenge,
       rp: {
         name: process.env.NEXT_PUBLIC_APP_NAME || 'OSIS SMK Fithrah Insani',
-        id: process.env.NEXT_PUBLIC_RP_ID || 'osissmktest.biezz.my.id',
+        id: rpId, // Must match domain exactly (no https://, no port)
       },
       user: {
         id: Buffer.from(userId).toString('base64'),

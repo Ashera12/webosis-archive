@@ -426,8 +426,8 @@ export default function AttendancePage() {
       toast.dismiss(uploadToast);
       toast.success('✅ Foto berhasil diupload!');
       
-      // Step 3: Register WebAuthn credential
-      console.log('[Setup] 🔐 Registering WebAuthn credential...');
+      // Step 3: Register WebAuthn credential (OPTIONAL - fallback to AI-only if fails)
+      console.log('[Setup] 🔐 Attempting WebAuthn credential registration...');
       
       const registerToast = toast.loading(
         <div>
@@ -436,37 +436,54 @@ export default function AttendancePage() {
         </div>
       );
       
-      let webauthnResult: any;
+      let webauthnCredentialId: string | null = null;
+      
       try {
-        webauthnResult = await registerCredential(
+        const webauthnResult = await registerCredential(
           session.user.id,
           session.user.email || 'user',
           session.user.name || 'User'
         );
         console.log('[Setup] WebAuthn result:', webauthnResult);
+        
+        if (webauthnResult.success) {
+          webauthnCredentialId = webauthnResult.credentialId || null;
+          console.log('[Setup] ✅ WebAuthn credential registered!');
+          console.log('[Setup] Credential ID:', webauthnCredentialId);
+          toast.dismiss(registerToast);
+          toast.success('✅ Biometric authentication configured!');
+        } else {
+          throw new Error(webauthnResult.error || 'Registration failed');
+        }
       } catch (webauthnError: any) {
         toast.dismiss(registerToast);
-        console.error('[Setup] ❌ WebAuthn registration error:', webauthnError);
-        throw new Error(`WebAuthn registration failed: ${webauthnError.message || 'Unknown error'}`);
+        console.warn('[Setup] ⚠️ WebAuthn registration failed:', webauthnError.message);
+        console.log('[Setup] 📱 Continuing with AI-only biometric mode...');
+        
+        // Show info but continue - this is not a fatal error
+        toast(
+          <div>
+            <div className="font-bold">⚠️ Platform biometric unavailable</div>
+            <div className="text-sm mt-1">Menggunakan AI Face Recognition saja</div>
+          </div>,
+          { 
+            duration: 3000,
+            icon: '⚠️',
+          }
+        );
+        
+        // Don't throw - continue with AI-only mode
+        webauthnCredentialId = null;
       }
-      
-      toast.dismiss(registerToast);
-      
-      if (!webauthnResult.success) {
-        console.error('[Setup] ❌ WebAuthn registration failed:', webauthnResult.error);
-        throw new Error(webauthnResult.error || 'Biometric registration failed');
-      }
-      
-      console.log('[Setup] ✅ WebAuthn credential registered!');
-      console.log('[Setup] Credential ID:', webauthnResult.credentialId);
       
       // Step 4: Save to biometric setup API
       console.log('[Setup] 💾 Saving biometric data to database...');
+      console.log('[Setup] Mode:', webauthnCredentialId ? 'WebAuthn + AI' : 'AI-only');
       
       const setupPayload = {
         referencePhotoUrl: photoUrl,
         fingerprintTemplate: fingerprintHash,
-        webauthnCredentialId: webauthnResult.credentialId,
+        webauthnCredentialId: webauthnCredentialId, // null = AI-only mode
       };
       
       console.log('[Setup] Setup payload:', setupPayload);

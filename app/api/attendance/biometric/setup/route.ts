@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // webauthnCredentialId is OPTIONAL (null = AI-only mode)
+    console.log('[Biometric Setup] Mode:', webauthnCredentialId ? 'WebAuthn + AI' : 'AI-only');
 
     // SECURITY: Verify photo URL belongs to this user (prevent photo swap)
     console.log('[Biometric Setup] Validating photo ownership for user:', userId);

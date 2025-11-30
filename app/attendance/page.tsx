@@ -1121,50 +1121,58 @@ export default function AttendancePage() {
     );
     
     try {
-      // ===== 1. CHECK IF BIOMETRIC IS REGISTERED =====
+      // ===== 0. GENERATE CURRENT FINGERPRINT =====
+      console.log('[Biometric Verify] Generating current device fingerprint...');
+      const currentFingerprint = await generateBrowserFingerprint();
+      const fingerprintHash = currentFingerprint.hash;
+      
+      console.log('[Biometric Verify] Current fingerprint:', fingerprintHash);
+      
+      // ===== 1. CHECK IF BIOMETRIC IS REGISTERED & VERIFY =====
       console.log('[Biometric Verify] Checking registration...');
       
       const biometricResponse = await fetch('/api/attendance/biometric/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session!.user.id }),
+        body: JSON.stringify({ 
+          userId: session!.user.id,
+          fingerprint: fingerprintHash, // ✅ REQUIRED!
+        }),
       });
       
       const biometricData = await biometricResponse.json();
       
-      if (!biometricResponse.ok || !biometricData.isRegistered) {
+      if (!biometricResponse.ok) {
         toast.dismiss(verifyToast);
-        toast.error('❌ Biometrik belum terdaftar! Silakan setup dulu.');
-        setStep('ready');
+        
+        // Check if needs enrollment
+        if (biometricData.needsEnrollment || biometricData.isFirstTime) {
+          toast.error(
+            <div>
+              <div className="font-bold">❌ Biometrik Belum Terdaftar</div>
+              <div className="text-sm mt-1">Silakan setup biometric terlebih dahulu</div>
+            </div>,
+            { duration: 5000 }
+          );
+          setStep('setup'); // Force to setup
+        } else {
+          toast.error(`❌ Verifikasi gagal: ${biometricData.error || 'Unknown error'}`);
+          setStep('ready');
+        }
+        
         setLoading(false);
         return false;
       }
       
       console.log('[Biometric Verify] ✅ Registration confirmed');
+      console.log('[Biometric Verify] Verification result:', biometricData);
       
-      // ===== 2. BROWSER FINGERPRINT VERIFICATION =====
-      console.log('[Biometric Verify] Verifying browser fingerprint...');
+      // ===== 2. CHECK VERIFICATION RESULT =====
       toast.dismiss(verifyToast);
       
-      const fingerprintToast = toast.loading(
-        <div>
-          <div className="font-bold">🔐 Fingerprint Verification</div>
-          <div className="text-sm mt-1">Memeriksa device fingerprint...</div>
-        </div>
-      );
+      const fingerprintPassed = biometricData.checks?.fingerprint?.passed;
       
-      const currentFingerprint = await generateBrowserFingerprint();
-      const fingerprintHash = currentFingerprint.hash;
-      
-      console.log('[Biometric Verify] Current fingerprint:', fingerprintHash);
-      console.log('[Biometric Verify] Stored fingerprint:', biometricData.data?.fingerprintTemplate);
-      
-      // Compare fingerprints
-      const fingerprintMatch = fingerprintHash === biometricData.data?.fingerprintTemplate;
-      
-      toast.dismiss(fingerprintToast);
-      
-      if (!fingerprintMatch) {
+      if (!fingerprintPassed) {
         console.warn('[Biometric Verify] ⚠️ Fingerprint mismatch!');
         toast.error(
           <div>
@@ -1189,8 +1197,10 @@ export default function AttendancePage() {
         { duration: 2000 }
       );
       
-      // ===== 3. WEBAUTHN VERIFICATION (Optional but recommended) =====
-      if (biometricData.data?.webauthnCredentialId) {
+      // ===== 3. CHECK IF HAS WEBAUTHN (from database) =====
+      const hasWebAuthn = biometricData.biometricData?.hasWebAuthn;
+      
+      if (hasWebAuthn) {
         console.log('[Biometric Verify] WebAuthn credential detected, attempting authentication...');
         
         const webauthnToast = toast.loading(

@@ -25,10 +25,23 @@ export async function GET(request: NextRequest) {
     
     const userId = session.user.id;
     
+    // Get enrollment configuration from school settings
+    const { data: config } = await supabaseAdmin
+      .from('school_location_config')
+      .select('require_enrollment, require_face_anchor, require_device_binding')
+      .limit(1)
+      .single();
+    
+    const enrollmentConfig = {
+      requireEnrollment: config?.require_enrollment ?? true,
+      requireFaceAnchor: config?.require_face_anchor ?? true,
+      requireDeviceBinding: config?.require_device_binding ?? true,
+    };
+    
     // Check for reference photo
     const { data: biometricData } = await supabaseAdmin
       .from('biometric_data')
-      .select('reference_photo_url')
+      .select('reference_photo_url, enrollment_status')
       .eq('user_id', userId)
       .single();
     
@@ -52,15 +65,33 @@ export async function GET(request: NextRequest) {
     
     const hasDevice = devices && devices.length > 0;
     
-    const isComplete = hasReferencePhoto && hasPasskey;
+    // Calculate completion based on configuration
+    let isComplete = true;
+    
+    // If enrollment not required, user is complete
+    if (!enrollmentConfig.requireEnrollment) {
+      isComplete = true;
+    } else {
+      // Check face anchor requirement
+      if (enrollmentConfig.requireFaceAnchor && !hasReferencePhoto) {
+        isComplete = false;
+      }
+      
+      // Check device binding requirement
+      if (enrollmentConfig.requireDeviceBinding && !hasPasskey) {
+        isComplete = false;
+      }
+    }
     
     return NextResponse.json({
       success: true,
+      config: enrollmentConfig,
       status: {
         hasReferencePhoto,
         hasPasskey,
         hasDevice,
         isComplete,
+        enrollmentStatus: biometricData?.enrollment_status || 'pending',
       },
     });
     

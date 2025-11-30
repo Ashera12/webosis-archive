@@ -25,6 +25,12 @@ COMMENT ON COLUMN biometric_data.reference_photo_url IS 'Face anchor photo URL f
 -- Enable RLS on biometric_data
 ALTER TABLE biometric_data ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist to avoid conflicts
+DROP POLICY IF EXISTS "Users can view own biometric data" ON biometric_data;
+DROP POLICY IF EXISTS "Users can insert own biometric data" ON biometric_data;
+DROP POLICY IF EXISTS "Users can update own biometric data" ON biometric_data;
+DROP POLICY IF EXISTS "Admins can view all biometric data" ON biometric_data;
+
 -- Users can view their own biometric data
 CREATE POLICY "Users can view own biometric data"
   ON biometric_data FOR SELECT
@@ -100,8 +106,6 @@ CREATE TABLE IF NOT EXISTS webauthn_credentials (
   credential_id TEXT NOT NULL UNIQUE,
   public_key TEXT NOT NULL,
   counter BIGINT DEFAULT 0,
-  device_type VARCHAR(20) DEFAULT 'platform',
-  transports TEXT[],
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_used_at TIMESTAMPTZ
 );
@@ -110,11 +114,15 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user_id ON webauthn_credenti
 CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_credential_id ON webauthn_credentials(credential_id);
 
 COMMENT ON TABLE webauthn_credentials IS 'Stores WebAuthn/Passkey credentials for device binding';
-COMMENT ON COLUMN webauthn_credentials.device_type IS 'platform (Windows Hello, TouchID) or cross-platform (YubiKey)';
-COMMENT ON COLUMN webauthn_credentials.transports IS 'Supported transports: usb, nfc, ble, internal';
 
 -- Enable RLS on webauthn_credentials
 ALTER TABLE webauthn_credentials ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist to avoid conflicts
+DROP POLICY IF EXISTS "Users can view own credentials" ON webauthn_credentials;
+DROP POLICY IF EXISTS "Users can insert own credentials" ON webauthn_credentials;
+DROP POLICY IF EXISTS "Users can delete own credentials" ON webauthn_credentials;
+DROP POLICY IF EXISTS "Admins can view all credentials" ON webauthn_credentials;
 
 -- Users can view their own credentials
 CREATE POLICY "Users can view own credentials"
@@ -142,7 +150,7 @@ CREATE POLICY "Admins can view all credentials"
     )
   );
 
--- Update existing webauthn_credentials table structure (if columns don't exist)
+-- Add device_type and transports columns (safe to run multiple times)
 DO $$ 
 BEGIN
   -- Add device_type column if not exists
@@ -151,6 +159,7 @@ BEGIN
     WHERE table_name = 'webauthn_credentials' AND column_name = 'device_type'
   ) THEN
     ALTER TABLE webauthn_credentials ADD COLUMN device_type VARCHAR(20) DEFAULT 'platform';
+    COMMENT ON COLUMN webauthn_credentials.device_type IS 'platform (Windows Hello, TouchID) or cross-platform (YubiKey)';
   END IF;
   
   -- Add transports column if not exists
@@ -159,6 +168,7 @@ BEGIN
     WHERE table_name = 'webauthn_credentials' AND column_name = 'transports'
   ) THEN
     ALTER TABLE webauthn_credentials ADD COLUMN transports TEXT[];
+    COMMENT ON COLUMN webauthn_credentials.transports IS 'Supported transports: usb, nfc, ble, internal';
   END IF;
 END $$;
 
@@ -309,6 +319,12 @@ LIMIT 5;
 -- STEP 8: Add RLS policies for webauthn_challenges
 -- ========================================
 ALTER TABLE webauthn_challenges ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist to avoid conflicts
+DROP POLICY IF EXISTS "Users can view own challenges" ON webauthn_challenges;
+DROP POLICY IF EXISTS "Users can create own challenges" ON webauthn_challenges;
+DROP POLICY IF EXISTS "Users can delete own challenges" ON webauthn_challenges;
+DROP POLICY IF EXISTS "Admins can view all challenges" ON webauthn_challenges;
 
 -- Users can only see their own challenges
 CREATE POLICY "Users can view own challenges"

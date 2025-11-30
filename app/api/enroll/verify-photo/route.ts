@@ -40,7 +40,24 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Get enrollment configuration from school settings
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    const { data: config } = await supabaseAdmin
+      .from('school_location_config')
+      .select('anti_spoofing_threshold, min_anti_spoofing_layers')
+      .limit(1)
+      .single();
+    
+    const antiSpoofingThreshold = config?.anti_spoofing_threshold ?? 0.95;
+    const minAntiSpoofingLayers = config?.min_anti_spoofing_layers ?? 7;
+    
     console.log('[8-Layer Anti-Spoofing] Starting verification...');
+    console.log('[Config] Threshold:', antiSpoofingThreshold, 'Min Layers:', minAntiSpoofingLayers);
     
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
@@ -187,12 +204,6 @@ If photo fails any critical layer, set recommendation to REJECT.`;
     console.log('[Anti-Spoofing Result]', antiSpoofing);
     
     // Log security event
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
     await supabaseAdmin.from('security_events').insert({
       user_id: session.user.id,
       event_type: 'enrollment_photo_verification',
@@ -204,12 +215,26 @@ If photo fails any critical layer, set recommendation to REJECT.`;
         maskDetected: antiSpoofing.maskDetected,
         deepfakeDetected: antiSpoofing.deepfakeDetected,
         recommendation: antiSpoofing.recommendation,
+        configuredThreshold: antiSpoofingThreshold,
+        configuredMinLayers: minAntiSpoofingLayers,
       },
     });
+    
+    // Check if verification passes configured thresholds
+    const meetsThreshold = antiSpoofing.overallScore >= antiSpoofingThreshold;
+    const meetsLayerCount = antiSpoofing.passedLayers >= minAntiSpoofingLayers;
+    const verificationPassed = meetsThreshold && meetsLayerCount;
     
     return NextResponse.json({
       success: true,
       antiSpoofing,
+      config: {
+        requiredThreshold: antiSpoofingThreshold,
+        requiredMinLayers: minAntiSpoofingLayers,
+        meetsThreshold,
+        meetsLayerCount,
+        verificationPassed,
+      },
     });
     
   } catch (error: any) {

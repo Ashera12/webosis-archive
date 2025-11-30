@@ -523,13 +523,27 @@ export default function AttendancePage() {
         return;
       }
 
-      console.log('📸 Foto berhasil diambil, size:', (blob.size / 1024).toFixed(2), 'KB');
+      console.log('[Camera] Photo captured, size:', (blob.size / 1024).toFixed(2), 'KB');
       
+      // Set photo data
       setPhotoBlob(blob);
       setPhotoPreview(URL.createObjectURL(blob));
+      
+      // Generate browser fingerprint
+      console.log('[Camera] Generating browser fingerprint...');
+      const fingerprint = await generateBrowserFingerprint();
+      console.log('[Camera] Fingerprint generated:', fingerprint.hash.substring(0, 16) + '...');
+      setFingerprintHash(fingerprint.hash);
+      
+      // Get network info for display
+      console.log('[Camera] Getting network info...');
+      const networkInfo = await getNetworkInfo();
+      console.log('[Camera] Network info obtained:', networkInfo);
+      setFingerprintDetails(networkInfo);
+      
       setShowCamera(false);
       
-      toast.success('✅ Foto berhasil diambil!', {
+      toast.success('✅ Foto dan fingerprint berhasil diambil!', {
         duration: 3000,
         icon: '📸',
       });

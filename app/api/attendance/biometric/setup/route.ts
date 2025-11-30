@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // SECURITY: Check if photo is already used by another user
     const { data: photoCheck } = await supabaseAdmin
-      .from('user_biometric')
+      .from('biometric_data')
       .select('user_id')
       .eq('reference_photo_url', referencePhotoUrl)
       .neq('user_id', userId)
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Cek apakah sudah ada data biometric
     const { data: existing } = await supabaseAdmin
-      .from('user_biometric')
+      .from('biometric_data')
       .select('*')
       .eq('user_id', userId)
       .single();
@@ -79,12 +79,12 @@ export async function POST(request: NextRequest) {
     if (existing) {
       // Update data yang sudah ada
       const { data, error } = await supabaseAdmin
-        .from('user_biometric')
+        .from('biometric_data')
         .update({
           reference_photo_url: referencePhotoUrl,
           fingerprint_template: fingerprintTemplate,
           webauthn_credential_id: webauthnCredentialId,
-          last_updated: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId)
         .select()
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Insert data baru
       const { data, error } = await supabaseAdmin
-        .from('user_biometric')
+        .from('biometric_data')
         .insert({
           user_id: userId,
           reference_photo_url: referencePhotoUrl,
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
 
     const { data, error } = await supabaseAdmin
-      .from('user_biometric')
+      .from('biometric_data')
       .select('*')
       .eq('user_id', userId)
       .single();

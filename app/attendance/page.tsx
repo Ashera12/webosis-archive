@@ -81,40 +81,10 @@ export default function AttendancePage() {
       redirect('/login?callbackUrl=/attendance');
     }
     
-    // 🔒 ENROLLMENT GATE: Check enrollment status
-    if (status === 'authenticated' && session?.user) {
-      checkEnrollmentStatus();
-    }
+    // ✅ NO ENROLLMENT GATE - First-time users auto-enroll on submit
+    // Set checkingEnrollment false immediately to avoid blocking UI
+    setCheckingEnrollment(false);
   }, [status, session]);
-  
-  const checkEnrollmentStatus = async () => {
-    try {
-      setCheckingEnrollment(true);
-      const response = await fetch('/api/enroll/status');
-      const data = await response.json();
-      
-      if (data.success) {
-        setEnrollmentStatus(data.status);
-        
-        if (!data.status.isComplete) {
-          // NOT ENROLLED → First-time attendance (auto-enrollment)
-          console.log('[Enrollment Gate] 🎉 First-time attendance - will auto-enroll on submit');
-          toast('📸 Absensi pertama - Data biometrik akan disimpan otomatis', {
-            duration: 5000,
-          });
-          setCheckingEnrollment(false);
-        } else {
-          // ✅ ENROLLED → Verification mode
-          console.log('[Enrollment Gate] ✅ User enrolled, verification mode enabled');
-          setCheckingEnrollment(false);
-        }
-      }
-    } catch (error) {
-      console.error('[Enrollment Check Failed]', error);
-      // On error, assume enrolled to avoid blocking (failsafe)
-      setCheckingEnrollment(false);
-    }
-  };
 
   // 🔒 SYNC BACKGROUND ANALYSIS (ran on login) with page state
   useEffect(() => {

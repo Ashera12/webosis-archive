@@ -83,19 +83,62 @@ export async function POST(request: NextRequest) {
     // Combined with GPS + Fingerprint + AI Pattern Detection for maximum security
     console.log('[Security Validation] Checking WiFi (STRICT MODE)...');
     const allowedSSIDs = activeConfig.allowed_wifi_ssids || [];
+    const requireWiFi = activeConfig.require_wifi || false;
     const providedWiFi = body.wifiSSID.trim();
     
-    // Strict WiFi validation
+    console.log('[Security Validation] WiFi Config:', {
+      allowedSSIDs,
+      requireWiFi,
+      providedWiFi
+    });
+    
+    // ❌ BLOCK if WiFi is Unknown/Not Detected
+    if (providedWiFi === 'Unknown' || providedWiFi === 'DETECTION_FAILED' || !providedWiFi) {
+      violations.push('WIFI_NOT_DETECTED');
+      securityScore -= 50;
+      
+      console.error('[Security Validation] ❌ WiFi NOT DETECTED:', providedWiFi);
+      
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'wifi_not_detected',
+        severity: 'HIGH',
+        description: 'WiFi SSID not detected - Browser limitation or not connected',
+        metadata: {
+          provided_wifi: providedWiFi,
+          allowed_wifis: allowedSSIDs,
+          location: { lat: body.latitude, lng: body.longitude },
+          timestamp: new Date(body.timestamp).toISOString()
+        }
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: `WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi.`,
+        details: {
+          yourWiFi: providedWiFi,
+          allowedWiFi: allowedSSIDs,
+          hint: 'Pastikan Anda terhubung ke WiFi sekolah: ' + allowedSSIDs.join(', '),
+          note: 'Browser security mencegah pembacaan nama WiFi. Sistem akan menggunakan IP address validation sebagai backup.'
+        },
+        action: 'BLOCK_ATTENDANCE',
+        severity: 'HIGH',
+        violations,
+        securityScore
+      }, { status: 403 });
+    }
+    
+    // Strict WiFi validation (case-insensitive)
     const isWiFiValid = allowedSSIDs.some((ssid: string) => ssid.toLowerCase() === providedWiFi.toLowerCase());
 
-    if (!isWiFiValid) {
+    if (!isWiFiValid && (requireWiFi || allowedSSIDs.length > 0)) {
       violations.push('INVALID_WIFI');
       securityScore -= 40;
       
       console.error('[Security Validation] ❌ WiFi INVALID (STRICT MODE):', {
         provided: providedWiFi,
         allowed: allowedSSIDs,
-        caseSensitive: false
+        requireWiFi
       });
 
       // Log to security events for AI analysis

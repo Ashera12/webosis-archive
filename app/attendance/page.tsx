@@ -84,25 +84,40 @@ export default function AttendancePage() {
   // Enhanced: Detect device biometric capabilities
   // AUTO WIFI DETECTION - User cannot modify
   const detectWiFiAutomatic = async () => {
-    console.log('[WiFi] 🤖 AI Auto-detecting WiFi...');
+    console.log('[WiFi] 🤖 AI Auto-detecting WiFi & Network...');
     
     try {
-      // Get network info
+      // Get network info (IP, connection type, etc.)
       const network = await getNetworkInfo();
       
-      // Try to detect SSID (browser limitation - usually returns "Unknown")
-      const detectedSSID = 'Unknown'; // Browser cannot access WiFi SSID directly
-      const wifiDetails = await getWiFiNetworkDetails(detectedSSID);
-      
       console.log('[WiFi] Network info:', network);
-      console.log('[WiFi] WiFi details:', wifiDetails);
+      
+      // ⚠️ BROWSER LIMITATION: Cannot detect WiFi SSID directly
+      // Browser security prevents reading WiFi name (SSID)
+      // We can only detect: IP, connection type (wifi/ethernet/cellular), signal strength
+      
+      let detectedSSID = 'Unknown';
+      let detectionMethod = 'browser_limitation';
+      
+      // Try to detect SSID (usually fails due to browser security)
+      try {
+        const wifiDetails = await getWiFiNetworkDetails('Unknown');
+        if (wifiDetails.ssid && wifiDetails.ssid !== 'Unknown') {
+          detectedSSID = wifiDetails.ssid;
+          detectionMethod = 'network_info_api';
+        }
+      } catch (err) {
+        console.warn('[WiFi] SSID detection not supported:', err);
+      }
       
       const detection = {
-        ssid: wifiDetails.ssid || detectedSSID,
+        ssid: detectedSSID,
         ipAddress: network.ipAddress,
         connectionType: network.connectionType,
         networkStrength: network.networkStrength,
         isConnected: !!network.ipAddress,
+        detectionMethod,
+        browserLimitation: detectedSSID === 'Unknown',
         timestamp: new Date().toISOString()
       };
       
@@ -111,17 +126,52 @@ export default function AttendancePage() {
       
       console.log('[WiFi] ✅ Detection complete:', detection);
       
+      // Show warning if WiFi cannot be detected
+      if (detectedSSID === 'Unknown') {
+        console.warn('[WiFi] ⚠️ WiFi SSID cannot be detected - Browser security restriction');
+        toast(
+          <div>
+            <div className="font-bold">⚠️ WiFi Tidak Terdeteksi</div>
+            <div className="text-sm mt-1">Browser tidak dapat membaca nama WiFi</div>
+            <div className="text-xs mt-1">Pastikan Anda terhubung ke WiFi sekolah!</div>
+          </div>,
+          { 
+            duration: 5000,
+            icon: '⚠️',
+            style: {
+              background: '#FEF3C7',
+              color: '#92400E',
+              border: '2px solid #F59E0B'
+            }
+          }
+        );
+      }
+      
       // AI VALIDATES WiFi automatically
       await validateWiFiWithAI(detection);
       
     } catch (error) {
       console.error('[WiFi] ❌ Detection failed:', error);
-      setWifiDetection({
+      
+      const detection = {
         ssid: 'DETECTION_FAILED',
         error: (error as Error).message,
         isConnected: false,
         timestamp: new Date().toISOString()
-      });
+      };
+      
+      setWifiDetection(detection);
+      
+      toast.error(
+        <div>
+          <div className="font-bold">❌ Gagal Deteksi Jaringan</div>
+          <div className="text-sm mt-1">{(error as Error).message}</div>
+        </div>,
+        { duration: 5000 }
+      );
+      
+      // Still validate (will fail)
+      await validateWiFiWithAI(detection);
     }
   };
   
@@ -131,26 +181,76 @@ export default function AttendancePage() {
     
     try {
       // Fetch school WiFi config from database
-      const configResponse = await fetch('/api/school/wifi-config');
+      const configResponse = await fetch('/api/school/wifi-config', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
       const configData = await configResponse.json();
       
       const allowedSSIDs = configData.allowedSSIDs || [];
-      console.log('[WiFi AI] Allowed SSIDs from DB:', allowedSSIDs);
+      const requireWiFi = configData.config?.requireWiFi || false;
+      console.log('[WiFi AI] Config from DB:', {
+        allowedSSIDs,
+        requireWiFi,
+        detectedSSID: detection.ssid
+      });
       
-      // AI validates if WiFi matches
-      const isValid = allowedSSIDs.length === 0 || // No restriction if empty
-                      allowedSSIDs.includes(detection.ssid) ||
-                      detection.ssid === 'Unknown'; // Allow Unknown for testing
+      // ❌ REJECT if WiFi is Unknown/DETECTION_FAILED
+      if (detection.ssid === 'Unknown' || detection.ssid === 'DETECTION_FAILED' || !detection.ssid) {
+        const validation = {
+          isValid: false,
+          detectedSSID: detection.ssid,
+          allowedSSIDs,
+          requireWiFi,
+          aiDecision: 'WIFI_NOT_DETECTED',
+          aiConfidence: 0.99,
+          aiAnalysis: `WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi. Pastikan Anda terhubung ke WiFi sekolah: ${allowedSSIDs.join(', ')}`,
+          reason: 'Browser limitation - cannot detect WiFi SSID',
+          timestamp: new Date().toISOString()
+        };
+        setWifiValidation(validation);
+        console.log('[WiFi AI] ❌ WiFi not detected:', validation);
+        
+        toast.error(
+          <div>
+            <div className="font-bold">❌ WiFi Tidak Terdeteksi!</div>
+            <div className="text-sm mt-1">Browser tidak dapat membaca nama WiFi</div>
+            <div className="text-xs mt-1">Pastikan terhubung: {allowedSSIDs.join(', ')}</div>
+          </div>,
+          { duration: 6000 }
+        );
+        
+        await fetch('/api/attendance/log-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: session?.user?.id,
+            activityType: 'ai_wifi_validation',
+            description: 'AI WiFi validation: WIFI_NOT_DETECTED',
+            status: 'failure',
+            metadata: validation
+          })
+        });
+        
+        return;
+      }
+      
+      // ✅ VALIDATE WiFi against allowed list
+      // If requireWiFi=false and allowedSSIDs is empty, allow any WiFi
+      // If requireWiFi=true or allowedSSIDs has values, must match
+      const mustValidate = requireWiFi || allowedSSIDs.length > 0;
+      const isValid = mustValidate ? allowedSSIDs.includes(detection.ssid) : true;
       
       const validation = {
         isValid,
         detectedSSID: detection.ssid,
         allowedSSIDs,
+        requireWiFi,
         aiDecision: isValid ? 'VALID_WIFI' : 'INVALID_WIFI',
         aiConfidence: isValid ? 0.95 : 0.98,
         aiAnalysis: isValid 
-          ? `WiFi "${detection.ssid}" sesuai dengan jaringan sekolah` 
-          : `WiFi "${detection.ssid}" TIDAK SESUAI. Harap gunakan WiFi sekolah: ${allowedSSIDs.join(', ')}`,
+          ? `✅ WiFi "${detection.ssid}" sesuai dengan jaringan sekolah` 
+          : `❌ WiFi "${detection.ssid}" TIDAK SESUAI! Harap gunakan WiFi sekolah yang terdaftar: ${allowedSSIDs.join(', ')}`,
         timestamp: new Date().toISOString()
       };
       

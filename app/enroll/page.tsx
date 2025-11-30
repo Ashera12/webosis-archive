@@ -48,6 +48,11 @@ export default function EnrollmentPage() {
   const [verifying, setVerifying] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState('');
   
+  // Live camera preview
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useState<HTMLVideoElement | null>(null)[0];
+  
   // Passkey registration
   const [passkeyRegistered, setPasskeyRegistered] = useState(false);
 
@@ -87,38 +92,60 @@ export default function EnrollmentPage() {
     }
   };
 
-  const handleCapturePhoto = async () => {
+  const startCameraPreview = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 1280, height: 720 }
+        video: { 
+          facingMode: 'user', 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 }
+        }
       });
       
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
+      setCameraStream(stream);
+      setShowCamera(true);
       
-      await new Promise(resolve => {
-        video.onloadedmetadata = resolve;
-      });
+      toast.success('📸 Posisikan wajah Anda di tengah frame');
       
+    } catch (error) {
+      toast.error('❌ Gagal mengakses kamera. Pastikan kamera diizinkan.');
+      console.error('[Camera Error]', error);
+    }
+  };
+
+  const stopCameraPreview = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhotoFromPreview = () => {
+    if (!videoRef || !cameraStream) {
+      toast.error('Kamera belum siap');
+      return;
+    }
+
+    try {
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = videoRef.videoWidth;
+      canvas.height = videoRef.videoHeight;
       const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0);
-      
-      stream.getTracks().forEach(track => track.stop());
+      ctx?.drawImage(videoRef, 0, 0);
       
       canvas.toBlob((blob) => {
         if (blob) {
           setPhotoBlob(blob);
           setPhotoPreview(canvas.toDataURL('image/jpeg'));
+          stopCameraPreview();
+          toast.success('✅ Foto berhasil diambil!');
         }
       }, 'image/jpeg', 0.95);
       
     } catch (error) {
-      toast.error('Gagal mengakses kamera');
-      console.error(error);
+      toast.error('Gagal mengambil foto');
+      console.error('[Capture Error]', error);
     }
   };
 
@@ -385,14 +412,52 @@ export default function EnrollmentPage() {
               </ul>
             </div>
             
-            {!photoPreview ? (
+            {!photoPreview && !showCamera ? (
               <button
-                onClick={handleCapturePhoto}
+                onClick={startCameraPreview}
                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-3"
               >
                 <FaCamera className="text-xl" />
-                Capture Face Photo
+                Start Camera Preview
               </button>
+            ) : showCamera ? (
+              <div className="space-y-4">
+                <div className="relative rounded-xl overflow-hidden shadow-2xl border-4 border-blue-500">
+                  <video
+                    ref={(el) => {
+                      if (el && cameraStream) {
+                        el.srcObject = cameraStream;
+                        el.play();
+                        (videoRef as any) = el;
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-auto transform -scale-x-100"
+                  />
+                  <div className="absolute inset-0 border-4 border-dashed border-yellow-400 m-8 rounded-lg pointer-events-none"></div>
+                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold">
+                    📸 Posisikan wajah di tengah frame
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={stopCameraPreview}
+                    className="py-3 bg-gray-500 text-white font-bold rounded-xl hover:bg-gray-600 transition-all"
+                  >
+                    ❌ Batal
+                  </button>
+                  <button
+                    onClick={capturePhotoFromPreview}
+                    className="py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <FaCamera className="text-xl" />
+                    📸 Ambil Foto
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 <img src={photoPreview} alt="Preview" className="w-full rounded-xl shadow-lg" />

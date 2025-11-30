@@ -55,31 +55,22 @@ export async function POST(request: NextRequest) {
     // STEP 1: GET ALL BIOMETRIC DATA FROM DATABASE
     // ============================================
     const { data: biometric, error: biometricError } = await supabase
-      .from('user_biometric')
-      .select(`
-        *,
-        user_id,
-        reference_photo_url,
-        fingerprint_template,
-        webauthn_credential_id,
-        created_at,
-        updated_at
-      `)
+      .from('biometric_data')
+      .select('*')
       .eq('user_id', userId)
       .single();
 
     if (biometricError || !biometric) {
       console.error('[Biometric Verify] ❌ No biometric data found:', biometricError);
       return NextResponse.json(
-        { success: false, error: 'Biometric data not found. Please setup first.' },
-        { status: 404 }
+        { success: false, error: 'Enrollment required. Please complete enrollment first at /enroll' },
+        { status: 400 }
       );
     }
 
     console.log('[Biometric Verify] ✅ Biometric data loaded from database');
     console.log('[Biometric Verify] Has photo:', !!biometric.reference_photo_url);
-    console.log('[Biometric Verify] Has fingerprint:', !!biometric.fingerprint_template);
-    console.log('[Biometric Verify] Has WebAuthn:', !!biometric.webauthn_credential_id);
+    console.log('[Biometric Verify] Enrollment status:', biometric.enrollment_status);
 
     // ============================================
     // STEP 2: VERIFY FINGERPRINT (Browser fingerprint)
@@ -89,10 +80,30 @@ export async function POST(request: NextRequest) {
 
     if (!fingerprintMatch) {
       console.warn('[Biometric Verify] ⚠️ Fingerprint mismatch - different device?');
+      // Note: fingerprint_template might be null if not stored yet
     }
 
     // ============================================
-    // STEP 3: VERIFY PHOTO with AI (if provided)
+    // STEP 3: GET WEBAUTHN CREDENTIALS
+    // ============================================
+    let webauthnMatch = false;
+    
+    if (webauthnCredentialId) {
+      const { data: credentials } = await supabase
+        .from('webauthn_credentials')
+        .select('credential_id')
+        .eq('user_id', userId)
+        .eq('credential_id', webauthnCredentialId)
+        .single();
+      
+      webauthnMatch = !!credentials;
+      console.log('[Biometric Verify] 🔑 WebAuthn match:', webauthnMatch);
+    } else {
+      console.log('[Biometric Verify] ⏭️ No WebAuthn credential provided');
+    }
+
+    // ============================================
+    // STEP 4: VERIFY PHOTO with AI (if provided)
     // ============================================
     let aiVerification = null;
     
@@ -137,24 +148,16 @@ export async function POST(request: NextRequest) {
     // ============================================
     // STEP 4: VERIFY WEBAUTHN CREDENTIAL (if available)
     // ============================================
-    let webauthnMatch = false;
     
-    if (webauthnCredentialId && biometric.webauthn_credential_id) {
-      webauthnMatch = webauthnCredentialId === biometric.webauthn_credential_id;
-      console.log('[Biometric Verify] 🔑 WebAuthn match:', webauthnMatch);
-    } else if (biometric.webauthn_credential_id) {
-      console.log('[Biometric Verify] ⏭️ WebAuthn credential exists in DB but not provided in request');
-    } else {
-      console.log('[Biometric Verify] ⏭️ No WebAuthn credential (AI-only mode)');
-    }
+    // Already checked above in STEP 3
 
     // ============================================
     // STEP 5: COMPREHENSIVE VERIFICATION RESULT
     // ============================================
     const verificationChecks = {
       fingerprint: {
-        checked: true,
-        passed: fingerprintMatch,
+        checked: !!biometric.fingerprint_template,
+        passed: fingerprintMatch || !biometric.fingerprint_template,
         stored: biometric.fingerprint_template,
         provided: fingerprint,
       },
@@ -170,17 +173,16 @@ export async function POST(request: NextRequest) {
       webauthn: {
         checked: !!webauthnCredentialId,
         passed: webauthnMatch,
-        stored: biometric.webauthn_credential_id,
         provided: webauthnCredentialId,
       },
     };
 
     // Overall verification logic:
-    // - Fingerprint MUST match (device verification)
-    // - AI face MUST pass if photo provided (identity verification)
-    // - WebAuthn is bonus security if available
+    // - Photo reference MUST exist (enrollment completed)
+    // - AI face verification MUST pass if photo provided
+    // - Fingerprint/WebAuthn are bonus security
     const overallVerified = 
-      fingerprintMatch && 
+      !!biometric.reference_photo_url && 
       (!photoUrl || (aiVerification?.verified && aiVerification?.matchScore >= 0.75));
 
     console.log('[Biometric Verify] 📊 Verification summary:', {
@@ -198,7 +200,8 @@ export async function POST(request: NextRequest) {
       biometricData: {
         hasPhoto: !!biometric.reference_photo_url,
         hasFingerprint: !!biometric.fingerprint_template,
-        hasWebAuthn: !!biometric.webauthn_credential_id,
+        hasWebAuthn: webauthnMatch,
+        enrollmentStatus: biometric.enrollment_status,
         setupDate: biometric.created_at,
         lastUpdate: biometric.updated_at,
       },

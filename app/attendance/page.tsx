@@ -649,6 +649,9 @@ export default function AttendancePage() {
       // Submit attendance
       const submitToast = toast.loading('💾 Menyimpan data absensi...');
       
+      // Get network connection info for enhanced security
+      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      
       const payload = {
         latitude: locationData.latitude,
         longitude: locationData.longitude,
@@ -656,16 +659,25 @@ export default function AttendancePage() {
         photoSelfieUrl: photoUrl,
         fingerprintHash,
         wifiSSID: wifiSSID.trim(),
+        wifiBSSID: networkInfo?.bssid || undefined,
         deviceInfo: {
           userAgent: navigator.userAgent,
           platform: navigator.platform,
           language: navigator.language,
         },
+        networkInfo: {
+          ipAddress: networkInfo?.ipAddress,
+          macAddress: networkInfo?.macAddress,
+          networkType: connection?.type || connection?.effectiveType,
+          downlink: connection?.downlink,
+          effectiveType: connection?.effectiveType,
+        },
       };
       
       console.log('📤 Submitting attendance with payload:', {
         ...payload,
-        photoSelfieUrl: photoUrl.substring(0, 50) + '...'
+        photoSelfieUrl: photoUrl.substring(0, 50) + '...',
+        networkInfo: payload.networkInfo,
       });
       
       const response = await fetch('/api/attendance/submit', {

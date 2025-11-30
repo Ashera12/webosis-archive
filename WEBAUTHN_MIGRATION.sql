@@ -119,7 +119,7 @@ WHERE expires_at < NOW();
 -- Check if user has registered credentials
 SELECT EXISTS(
   SELECT 1 FROM webauthn_credentials 
-  WHERE user_id = 'user-uuid-here' 
+  WHERE user_id = auth.uid() 
   AND is_active = true
 ) as has_biometric;
 
@@ -127,7 +127,7 @@ SELECT EXISTS(
 SELECT credential_id, device_name, transports, 
        created_at, last_used_at, counter
 FROM webauthn_credentials
-WHERE user_id = 'user-uuid-here' 
+WHERE user_id = auth.uid() 
 AND is_active = true
 ORDER BY last_used_at DESC;
 

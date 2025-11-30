@@ -17,6 +17,13 @@ interface AttendanceSubmit {
     platform: string;
     language: string;
   };
+  networkInfo?: {
+    ipAddress?: string;
+    macAddress?: string;
+    networkType?: string;
+    downlink?: number;
+    effectiveType?: string;
+  };
   notes?: string;
 }
 
@@ -39,6 +46,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body: AttendanceSubmit = await request.json();
+
+    // Extract security info from request
+    const clientIp = getIpAddress(request);
+    const userAgent = request.headers.get('user-agent') || '';
+    const deviceInfo = parseUserAgent(userAgent);
+    
+    // Security logging
+    console.log('[Attendance Security] 🔐 Request Info:', {
+      userId,
+      userRole,
+      clientIp,
+      wifiSSID: body.wifiSSID,
+      wifiBSSID: body.wifiBSSID,
+      macAddress: body.networkInfo?.macAddress,
+      location: `${body.latitude},${body.longitude}`,
+      accuracy: body.locationAccuracy,
+      device: `${deviceInfo.browser} on ${deviceInfo.os}`,
+    });
 
     // 1. Get active config & STRICT WiFi validation
     const { data: locationConfigs } = await supabaseAdmin
@@ -187,7 +212,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Insert data absensi baru (check-in)
+    // 6. Insert data absensi baru (check-in) with ENHANCED SECURITY DATA
     const { data: attendance, error } = await supabaseAdmin
       .from('attendance')
       .insert({
@@ -201,7 +226,19 @@ export async function POST(request: NextRequest) {
         fingerprint_hash: body.fingerprintHash,
         wifi_ssid: body.wifiSSID,
         wifi_bssid: body.wifiBSSID,
-        device_info: body.deviceInfo,
+        device_info: {
+          ...body.deviceInfo,
+          // Enhanced security tracking
+          clientIp,
+          macAddress: body.networkInfo?.macAddress,
+          networkType: body.networkInfo?.networkType,
+          downlink: body.networkInfo?.downlink,
+          effectiveType: body.networkInfo?.effectiveType,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          device_type: deviceInfo.device_type,
+          is_mobile: deviceInfo.is_mobile,
+        },
         notes: body.notes,
         status: 'present',
         is_verified: false,
@@ -211,7 +248,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    // Log activity - attendance checkin
+    // Log activity - attendance checkin with ENHANCED SECURITY METADATA
     await logActivity({
       userId,
       userName: session.user.name || undefined,
@@ -219,17 +256,24 @@ export async function POST(request: NextRequest) {
       userRole,
       activityType: 'attendance_checkin',
       action: 'User checked in to school',
-      description: `Absen masuk di ${body.wifiSSID}`,
+      description: `Absen masuk di ${body.wifiSSID} (IP: ${clientIp})`,
       metadata: {
         attendance_id: attendance.id,
         location: `${body.latitude}, ${body.longitude}`,
         wifi_ssid: body.wifiSSID,
         wifi_bssid: body.wifiBSSID,
+        mac_address: body.networkInfo?.macAddress,
+        client_ip: clientIp,
+        network_type: body.networkInfo?.networkType,
+        downlink: body.networkInfo?.downlink,
+        effective_type: body.networkInfo?.effectiveType,
         accuracy: body.locationAccuracy,
+        fingerprint_verified: true,
+        webauthn_verified: true,
       },
-      ipAddress: getIpAddress(request),
-      userAgent: request.headers.get('user-agent') || undefined,
-      deviceInfo: parseUserAgent(request.headers.get('user-agent') || ''),
+      ipAddress: clientIp,
+      userAgent,
+      deviceInfo,
       locationData: {
         latitude: body.latitude,
         longitude: body.longitude,

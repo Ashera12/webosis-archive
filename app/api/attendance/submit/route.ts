@@ -131,26 +131,158 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Cek apakah user sudah punya data biometric
-    const { data: biometric } = await supabaseAdmin
+    // 3. COMPREHENSIVE BIOMETRIC VERIFICATION - Ambil SEMUA data dari database
+    console.log('[Attendance Submit] 🔍 Fetching complete biometric data from database...');
+    
+    const { data: biometric, error: biometricError } = await supabaseAdmin
       .from('user_biometric')
-      .select('*')
+      .select(`
+        *,
+        user_id,
+        reference_photo_url,
+        fingerprint_template,
+        webauthn_credential_id,
+        created_at,
+        updated_at
+      `)
       .eq('user_id', userId)
       .single();
 
-    if (!biometric) {
+    if (biometricError || !biometric) {
+      console.error('[Attendance Submit] ❌ No biometric data:', biometricError);
       return NextResponse.json(
         { error: 'Biometric belum terdaftar', requireSetup: true },
         { status: 400 }
       );
     }
 
-    // 4. Verifikasi fingerprint hash
+    console.log('[Attendance Submit] ✅ Biometric data loaded from database');
+    console.log('[Attendance Submit] Complete data:', {
+      hasPhoto: !!biometric.reference_photo_url,
+      hasFingerprint: !!biometric.fingerprint_template,
+      hasWebAuthn: !!biometric.webauthn_credential_id,
+      setupDate: biometric.created_at,
+      photoUrl: biometric.reference_photo_url?.substring(0, 80),
+    });
+
+    // 4. VERIFY FINGERPRINT (Device fingerprint from database)
+    console.log('[Attendance Submit] 🔐 Verifying fingerprint...');
+    console.log('[Attendance Submit] Stored fingerprint:', biometric.fingerprint_template?.substring(0, 20) + '...');
+    console.log('[Attendance Submit] Provided fingerprint:', body.fingerprintHash?.substring(0, 20) + '...');
+    
     if (body.fingerprintHash !== biometric.fingerprint_template) {
+      console.error('[Attendance Submit] ❌ Fingerprint mismatch!');
+      
+      // Log security violation
+      await logActivity({
+        userId,
+        userName: session.user.name || undefined,
+        userEmail: session.user.email || undefined,
+        userRole,
+        activityType: 'security_validation',
+        action: 'Fingerprint verification failed',
+        description: `Fingerprint mismatch detected - possible device change or spoofing attempt`,
+        metadata: {
+          stored_fingerprint_preview: biometric.fingerprint_template?.substring(0, 20),
+          provided_fingerprint_preview: body.fingerprintHash?.substring(0, 20),
+          location: `${body.latitude}, ${body.longitude}`,
+          wifi_ssid: body.wifiSSID,
+        },
+        ipAddress: clientIp,
+        userAgent,
+        deviceInfo,
+        status: 'failure',
+      });
+      
       return NextResponse.json(
-        { error: 'Verifikasi sidik jari gagal. Silakan coba lagi' },
+        { error: 'Verifikasi sidik jari gagal. Device tidak dikenali. Gunakan device yang sama saat setup.' },
         { status: 403 }
       );
+    }
+
+    console.log('[Attendance Submit] ✅ Fingerprint verified!');
+
+    // 5. VERIFY AI FACE RECOGNITION (if photo provided)
+    let aiVerificationResult = null;
+    
+    if (body.photoSelfieUrl && biometric.reference_photo_url) {
+      console.log('[Attendance Submit] 📸 Verifying face with AI...');
+      console.log('[Attendance Submit] Reference photo (DB):', biometric.reference_photo_url.substring(0, 80) + '...');
+      console.log('[Attendance Submit] Current selfie:', body.photoSelfieUrl.substring(0, 80) + '...');
+
+      try {
+        // Call AI verification API (automatically fetches reference from database)
+        const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://osissmktest.biezz.my.id'}/api/ai/verify-face`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            currentPhotoUrl: body.photoSelfieUrl,
+            // referencePhotoUrl will be fetched from database in verify-face API
+          }),
+        });
+
+        const aiData = await aiResponse.json();
+        aiVerificationResult = aiData;
+
+        console.log('[Attendance Submit] 🤖 AI verification result:', {
+          verified: aiData.verified,
+          matchScore: aiData.matchScore,
+          confidence: aiData.confidence,
+          isLive: aiData.isLive,
+          provider: aiData.provider,
+        });
+
+        // AI verification must pass (75% match minimum)
+        if (!aiData.verified || aiData.matchScore < 0.75) {
+          console.error('[Attendance Submit] ❌ AI face verification failed!');
+          
+          // Log security violation
+          await logActivity({
+            userId,
+            userName: session.user.name || undefined,
+            userEmail: session.user.email || undefined,
+            userRole,
+            activityType: 'security_validation',
+            action: 'AI face verification failed',
+            description: `Face mismatch detected - Match score: ${(aiData.matchScore * 100).toFixed(1)}%`,
+            metadata: {
+              match_score: aiData.matchScore,
+              confidence: aiData.confidence,
+              is_live: aiData.isLive,
+              provider: aiData.provider,
+              threshold: 0.75,
+              location: `${body.latitude}, ${body.longitude}`,
+            },
+            ipAddress: clientIp,
+            userAgent,
+            deviceInfo,
+            status: 'failure',
+          });
+
+          return NextResponse.json(
+            { 
+              error: `Verifikasi wajah gagal. Tingkat kemiripan: ${(aiData.matchScore * 100).toFixed(1)}% (minimum 75%). Gunakan foto wajah Anda sendiri.`,
+              aiVerification: {
+                verified: false,
+                matchScore: aiData.matchScore,
+                threshold: 0.75,
+              }
+            },
+            { status: 403 }
+          );
+        }
+
+        console.log('[Attendance Submit] ✅ AI face verification passed!');
+      } catch (aiError: any) {
+        console.error('[Attendance Submit] ❌ AI verification error:', aiError);
+        return NextResponse.json(
+          { error: `AI verification failed: ${aiError.message}. Please try again.` },
+          { status: 500 }
+        );
+      }
+    } else {
+      console.log('[Attendance Submit] ⏭️ Skipping AI verification (no photo provided or no reference photo in database)');
     }
 
     // 5. Cek apakah sudah absen hari ini

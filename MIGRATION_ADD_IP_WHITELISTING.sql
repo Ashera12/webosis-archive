@@ -54,20 +54,44 @@ WHERE table_name = 'school_location_config'
 ORDER BY column_name;
 
 -- ================================================================
--- IMPORTANT: After running this migration
+-- IMPORTANT: Quick Setup for Current User
 -- ================================================================
--- 1. Update active school_location_config with IP ranges:
---    UPDATE school_location_config 
---    SET 
---      allowed_ip_ranges = ARRAY['192.168.0.0/16', '182.10.0.0/16'],
---      require_wifi = false,
---      network_security_level = 'high'
---    WHERE is_active = true;
---
--- 2. Configure IP ranges via Admin Panel:
---    - Login as Admin
---    - Go to Attendance Settings
---    - Add IP ranges in CIDR notation
---    - Set security level to HIGH
---    - Save configuration
+-- Jalankan ini untuk setup IP range berdasarkan IP Anda saat ini:
+-- (Sesuaikan IP range dengan situasi sekolah Anda)
+
+UPDATE school_location_config 
+SET 
+  -- Tambahkan IP ranges (edit sesuai kebutuhan)
+  allowed_ip_ranges = ARRAY[
+    '192.168.0.0/16',      -- WiFi lokal sekolah
+    '182.10.0.0/16',       -- IP Public ISP (EDIT!)
+    '100.64.0.0/10'        -- CGNAT untuk data seluler (optional)
+  ],
+  require_wifi = false,    -- Tidak wajib WiFi SSID
+  network_security_level = 'high',
+  updated_at = NOW()
+WHERE is_active = true;
+
+-- Verify configuration
+SELECT 
+  id,
+  location_name,
+  allowed_ip_ranges,
+  require_wifi,
+  network_security_level,
+  is_active
+FROM school_location_config
+WHERE is_active = true;
+
+-- ================================================================
+-- ALTERNATIVE: Configure via Admin Panel (RECOMMENDED)
+-- ================================================================
+-- 1. Login as Admin
+-- 2. Go to: /admin/attendance/settings  
+-- 3. Section "Enterprise IP Whitelisting"
+-- 4. Add IP ranges (one per line):
+--    192.168.0.0/16
+--    182.10.0.0/16
+-- 5. Set Security Level = HIGH
+-- 6. Click "Simpan Konfigurasi"
 -- ================================================================

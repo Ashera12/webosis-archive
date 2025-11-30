@@ -1617,21 +1617,19 @@ export default function AttendancePage() {
                 </div>
                 <div className="space-y-1 text-xs">
                   {/* Show connection type */}
-                  {!wifiDetection.ipAddress || wifiDetection.ipAddress === 'DETECTION_FAILED' ? (
-                    <div className="font-semibold text-red-900 dark:text-red-100">
-                      ❌ Tidak Tersambung WiFi atau Menggunakan Data Seluler
-                    </div>
-                  ) : wifiDetection.connectionType === 'cellular' || wifiDetection.connectionType === '4g' || wifiDetection.connectionType === '5g' ? (
-                    <div className="font-semibold text-red-900 dark:text-red-100">
-                      📱 Menggunakan Data Seluler: {wifiDetection.connectionType.toUpperCase()}
-                    </div>
-                  ) : wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
-                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
+                  {wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
+                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-gray-700 dark:text-gray-300'}`}>
                       📶 WiFi: {wifiDetection.ssid}
                     </div>
                   ) : (
-                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
-                      📶 WiFi Terhubung (SSID tidak terdeteksi browser)
+                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                      🌐 Internet Terhubung
+                    </div>
+                  )}
+                  
+                  {wifiDetection.connectionType && (
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">
+                      📡 Koneksi: {wifiDetection.connectionType.toUpperCase()}
                     </div>
                   )}
                   
@@ -1646,11 +1644,12 @@ export default function AttendancePage() {
                     </div>
                   )}
                   {wifiValidation && (
-                    <div className={`mt-2 p-2 rounded ${wifiValidation.isValid ? 'bg-green-100 dark:bg-green-800' : 'bg-red-100 dark:bg-red-800'}`}>
-                      <div className="font-bold">🤖 AI Analysis:</div>
-                      <div className="mt-1">{wifiValidation.aiAnalysis}</div>
-                      <div className="mt-1 text-xs opacity-80">
-                        Confidence: {(wifiValidation.aiConfidence * 100).toFixed(0)}%
+                    <div className={`mt-2 p-2 rounded ${wifiValidation.isValid ? 'bg-green-100 dark:bg-green-800' : 'bg-blue-100 dark:bg-blue-800'}`}>
+                      <div className={`font-bold ${wifiValidation.isValid ? 'text-green-900 dark:text-green-100' : 'text-blue-900 dark:text-blue-100'}`}>
+                        🔐 IP Validation:
+                      </div>
+                      <div className={`mt-1 text-sm ${wifiValidation.isValid ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                        {wifiValidation.isValid ? '✅ IP Anda dalam whitelist sekolah' : 'ℹ️ IP validation akan diverifikasi saat absensi'}
                       </div>
                     </div>
                   )}
@@ -1732,69 +1731,17 @@ export default function AttendancePage() {
                   </div>
                 </div>
                 <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
-                  {!wifiDetection?.ipAddress || wifiDetection.ipAddress === 'DETECTION_FAILED' ? (
-                    <>
-                      <p>❌ Anda tidak tersambung ke WiFi atau menggunakan data seluler</p>
-                      <p className="mt-2 text-xs">Hubungkan ke WiFi sekolah dan refresh halaman ini.</p>
-                    </>
-                  ) : wifiDetection.connectionType === 'cellular' || wifiDetection.connectionType === '4g' || wifiDetection.connectionType === '5g' ? (
-                    <>
-                      <p>📱 Anda menggunakan data seluler: <strong>{wifiDetection.connectionType.toUpperCase()}</strong></p>
-                      <p className="mt-2 text-xs">Matikan data seluler, hubungkan ke WiFi sekolah, dan refresh halaman.</p>
-                    </>
-                  ) : wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
-                    <>
-                      <p>📶 WiFi terdeteksi: <strong>{wifiDetection.ssid}</strong></p>
-                      <p>✅ WiFi yang diizinkan: <strong>{wifiValidation.allowedSSIDs?.join(', ') || 'Villa Lembang'}</strong></p>
-                      <p className="mt-2 text-xs">Hubungkan ke WiFi sekolah dan refresh halaman ini.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p>🌐 IP Anda: <strong>{wifiDetection.ipAddress}</strong></p>
-                      <p>✅ WiFi yang diizinkan: <strong>{wifiValidation.allowedSSIDs?.join(', ') || 'Villa Lembang'}</strong></p>
-                      <p className="mt-2 text-xs">
-                        Browser tidak dapat membaca nama WiFi. Pastikan terhubung ke WiFi sekolah dan refresh.
-                      </p>
-                    </>
-                  )}
+                  <p>🔐 IP Anda: <strong>{wifiDetection.ipAddress}</strong></p>
+                  <p className="mt-2 text-xs">
+                    {wifiValidation.validationError || 'Pastikan Anda terhubung ke jaringan sekolah (WiFi atau Data Seluler yang terdaftar).'}
+                  </p>
                 </div>
               </div>
             )}
 
             <button
               onClick={async () => {
-                // BLOCK if WiFi invalid
-                if (wifiValidation && !wifiValidation.isValid) {
-                  toast.error(
-                    <div>
-                      <div className="font-bold">❌ Tidak Dapat Absen!</div>
-                      <div className="text-sm mt-1">WiFi tidak sesuai. Gunakan WiFi sekolah.</div>
-                    </div>,
-                    { duration: 5000 }
-                  );
-                  
-                  // Log blocked attempt
-                  await fetch('/api/attendance/log-activity', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: session?.user?.id,
-                      activityType: 'attendance_blocked',
-                      description: 'Attendance blocked - Invalid WiFi',
-                      status: 'failure',
-                      metadata: {
-                        reason: 'INVALID_WIFI',
-                        detectedSSID: wifiDetection?.ssid,
-                        allowedSSIDs: wifiValidation.allowedSSIDs,
-                        aiDecision: wifiValidation.aiDecision
-                      }
-                    })
-                  });
-                  
-                  return;
-                }
-                
-                // SECURITY VALIDATION FIRST
+                // SECURITY VALIDATION FIRST (all validation in backend)
                 const isValid = await validateSecurity();
                 if (isValid) {
                   setStep('capture');
@@ -1805,8 +1752,7 @@ export default function AttendancePage() {
                 !backgroundAnalysis || // ⚠️ Wait for background analysis
                 isBlocked || // ⚠️ Blocked by security validation
                 !wifiSSID.trim() || 
-                !locationData || 
-                (wifiValidation && !wifiValidation.isValid)
+                !locationData
               }
               className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >

@@ -46,9 +46,10 @@ CREATE TABLE IF NOT EXISTS public.error_logs (
   applied_fix TEXT
 );
 
--- Add ai_analysis column if missing (for existing tables)
+-- Add missing columns if they don't exist (for existing tables)
 DO $$ 
 BEGIN
+  -- Add ai_analysis column
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_schema = 'public' 
@@ -57,6 +58,39 @@ BEGIN
   ) THEN
     ALTER TABLE public.error_logs ADD COLUMN ai_analysis JSONB;
     RAISE NOTICE 'Added ai_analysis column to error_logs';
+  END IF;
+
+  -- Add fix_status column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'error_logs' 
+    AND column_name = 'fix_status'
+  ) THEN
+    ALTER TABLE public.error_logs ADD COLUMN fix_status TEXT DEFAULT 'pending';
+    RAISE NOTICE 'Added fix_status column to error_logs';
+  END IF;
+
+  -- Add fix_applied_at column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'error_logs' 
+    AND column_name = 'fix_applied_at'
+  ) THEN
+    ALTER TABLE public.error_logs ADD COLUMN fix_applied_at TIMESTAMP WITH TIME ZONE;
+    RAISE NOTICE 'Added fix_applied_at column to error_logs';
+  END IF;
+
+  -- Add applied_fix column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'error_logs' 
+    AND column_name = 'applied_fix'
+  ) THEN
+    ALTER TABLE public.error_logs ADD COLUMN applied_fix TEXT;
+    RAISE NOTICE 'Added applied_fix column to error_logs';
   END IF;
 END $$;
 
@@ -218,21 +252,102 @@ COMMENT ON COLUMN public.attendance.is_enrollment_attendance
   IS 'Flag indicating if this attendance record also enrolled biometric data (first-time attendance)';
 
 -- ============================================
--- 4. USER ACTIVITY TABLE (Already exists, verify)
+-- 4. USER ACTIVITY TABLE (Create if not exists)
 -- ============================================
 
--- Verify user_activity table exists (should already be created)
+-- Create user_activity table if not exists
+CREATE TABLE IF NOT EXISTS public.user_activity (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- User identification
+  user_id TEXT NOT NULL,
+  user_name TEXT,
+  user_email TEXT,
+  user_role TEXT,
+  
+  -- Activity details
+  activity_type TEXT NOT NULL,
+  action TEXT NOT NULL,
+  description TEXT,
+  metadata JSONB,
+  
+  -- Request context
+  ip_address TEXT,
+  user_agent TEXT,
+  device_info JSONB,
+  location_data JSONB,
+  
+  -- Related entity
+  related_id TEXT,
+  related_type TEXT,
+  
+  -- Status
+  status TEXT DEFAULT 'success',
+  error_message TEXT
+);
+
+-- Create indexes for user_activity
+CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON public.user_activity(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_activity_user_id ON public.user_activity(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activity_activity_type ON public.user_activity(activity_type);
+CREATE INDEX IF NOT EXISTS idx_user_activity_status ON public.user_activity(status);
+
+-- Enable RLS
+ALTER TABLE public.user_activity ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Super admins can view all activity" ON public.user_activity;
+DROP POLICY IF EXISTS "Users can view own activity" ON public.user_activity;
+DROP POLICY IF EXISTS "Anyone can insert activity" ON public.user_activity;
+DROP POLICY IF EXISTS "Service role full access" ON public.user_activity;
+
+-- RLS Policies
+CREATE POLICY "Super admins can view all activity"
+  ON public.user_activity
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE users.id = auth.uid()
+      AND users.role = 'super_admin'
+    )
+  );
+
+CREATE POLICY "Users can view own activity"
+  ON public.user_activity
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid()::text);
+
+CREATE POLICY "Anyone can insert activity"
+  ON public.user_activity
+  FOR INSERT
+  TO authenticated, anon
+  WITH CHECK (true);
+
+CREATE POLICY "Service role full access"
+  ON public.user_activity
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE public.user_activity IS 'Logs all user activities for monitoring and analytics';
+
+-- Verify table was created
 DO $$ 
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1 FROM information_schema.tables 
     WHERE table_schema = 'public' 
     AND table_name = 'user_activity'
   ) THEN
-    RAISE EXCEPTION 'user_activity table does not exist! Run user_activity_monitoring.sql first.';
+    RAISE NOTICE 'user_activity table exists ✓';
+  ELSE
+    RAISE EXCEPTION 'Failed to create user_activity table';
   END IF;
-  
-  RAISE NOTICE 'user_activity table exists ✓';
 END $$;
 
 -- ============================================

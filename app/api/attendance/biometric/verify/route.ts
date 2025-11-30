@@ -63,7 +63,12 @@ export async function POST(request: NextRequest) {
     if (biometricError || !biometric) {
       console.error('[Biometric Verify] ❌ No biometric data found:', biometricError);
       return NextResponse.json(
-        { success: false, error: 'Enrollment required. Please complete enrollment first at /enroll' },
+        { 
+          success: false, 
+          error: 'Enrollment required. First attendance will auto-enroll your biometric data.',
+          needsEnrollment: true,
+          isFirstTime: true,
+        },
         { status: 400 }
       );
     }

@@ -97,14 +97,15 @@ export default function AttendancePage() {
         setEnrollmentStatus(data.status);
         
         if (!data.status.isComplete) {
-          // NOT ENROLLED → Redirect to /enroll
-          toast.error('⚠️ Enrollment required! Redirecting...');
-          setTimeout(() => {
-            redirect('/enroll');
-          }, 1500);
+          // NOT ENROLLED → First-time attendance (auto-enrollment)
+          console.log('[Enrollment Gate] 🎉 First-time attendance - will auto-enroll on submit');
+          toast('📸 Absensi pertama - Data biometrik akan disimpan otomatis', {
+            duration: 5000,
+          });
+          setCheckingEnrollment(false);
         } else {
-          // ✅ ENROLLED → Allow attendance
-          console.log('[Enrollment Gate] ✅ User enrolled, allowing attendance');
+          // ✅ ENROLLED → Verification mode
+          console.log('[Enrollment Gate] ✅ User enrolled, verification mode enabled');
           setCheckingEnrollment(false);
         }
       }

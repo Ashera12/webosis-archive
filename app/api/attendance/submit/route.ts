@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       device: `${deviceInfo.browser} on ${deviceInfo.os}`,
     });
 
-    // 1. Get active config & STRICT WiFi validation
+    // 1. Get active config & admin settings
     const { data: locationConfigs } = await supabaseAdmin
       .from('school_location_config')
       .select('*')
@@ -85,50 +85,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // STRICT WiFi validation - must match allowed WiFi list
-    const allowedWiFiList = locationConfigs[0].allowed_wifi_ssids || [];
-    const providedWiFi = body.wifiSSID?.trim() || '';
-    const isWiFiValid = allowedWiFiList.some((ssid: string) => 
-      ssid.toLowerCase() === providedWiFi.toLowerCase()
-    );
+    // Check if WiFi validation is required (from admin_settings)
+    const { data: adminSettings } = await supabaseAdmin
+      .from('admin_settings')
+      .select('wifi_required, location_required')
+      .limit(1)
+      .single();
     
-    if (!isWiFiValid) {
-      console.error('[Attendance Submit] ❌ WiFi validation failed:', {
-        provided: providedWiFi,
-        allowed: allowedWiFiList
-      });
-      
-      return NextResponse.json(
-        { 
-          error: 'WiFi tidak valid! Anda harus terhubung ke WiFi sekolah yang terdaftar.',
-          details: {
-            providedWiFi: providedWiFi,
-            allowedWiFi: allowedWiFiList,
-            hint: 'Pastikan terhubung ke: ' + allowedWiFiList.join(', ')
-          }
-        },
-        { status: 403 }
-      );
-    }
-    
-    console.log('[Attendance Submit] ✅ WiFi validated (STRICT MODE):', providedWiFi);
+    const wifiRequired = adminSettings?.wifi_required !== false; // Default: true
+    const locationRequired = adminSettings?.location_required !== false; // Default: true
 
-    // 2. Validasi lokasi - harus dalam radius sekolah
-    const isInSchoolRadius = locationConfigs.some((config) => {
-      const distance = calculateDistance(
-        body.latitude,
-        body.longitude,
-        parseFloat(config.latitude),
-        parseFloat(config.longitude)
-      );
-      return distance <= config.radius_meters;
+    console.log('[Attendance Submit] Settings:', {
+      wifiRequired,
+      locationRequired,
+      providedWiFi: body.wifiSSID,
+      providedLocation: `${body.latitude},${body.longitude}`,
     });
 
-    if (!isInSchoolRadius) {
-      return NextResponse.json(
-        { error: 'Anda berada di luar area sekolah. Absensi hanya dapat dilakukan di lokasi sekolah' },
-        { status: 403 }
+    // CONDITIONAL WiFi validation
+    if (wifiRequired) {
+      const allowedWiFiList = locationConfigs[0].allowed_wifi_ssids || [];
+      const providedWiFi = body.wifiSSID?.trim() || '';
+      const isWiFiValid = allowedWiFiList.length === 0 || allowedWiFiList.some((ssid: string) => 
+        ssid.toLowerCase() === providedWiFi.toLowerCase()
       );
+      
+      if (!isWiFiValid) {
+        console.error('[Attendance Submit] ❌ WiFi validation failed:', {
+          provided: providedWiFi,
+          allowed: allowedWiFiList
+        });
+        
+        return NextResponse.json(
+          { 
+            error: 'WiFi tidak valid! Anda harus terhubung ke WiFi sekolah yang terdaftar.',
+            details: {
+              providedWiFi: providedWiFi,
+              allowedWiFi: allowedWiFiList,
+              hint: allowedWiFiList.length > 0 
+                ? 'Pastikan terhubung ke: ' + allowedWiFiList.join(', ')
+                : 'Belum ada WiFi terdaftar - hubungi admin'
+            }
+          },
+          { status: 403 }
+        );
+      }
+      
+      console.log('[Attendance Submit] ✅ WiFi validated (STRICT MODE):', providedWiFi);
+    } else {
+      console.log('[Attendance Submit] ⏭️ WiFi validation BYPASSED (not required)');
+    }
+
+    // 2. CONDITIONAL Location validation
+    if (locationRequired) {
+      const isInSchoolRadius = locationConfigs.some((config) => {
+        const distance = calculateDistance(
+          body.latitude,
+          body.longitude,
+          parseFloat(config.latitude),
+          parseFloat(config.longitude)
+        );
+        return distance <= config.radius_meters;
+      });
+
+      if (!isInSchoolRadius) {
+        return NextResponse.json(
+          { error: 'Anda berada di luar area sekolah. Absensi hanya dapat dilakukan di lokasi sekolah' },
+          { status: 403 }
+        );
+      }
+      
+      console.log('[Attendance Submit] ✅ Location validated (within radius)');
+    } else {
+      console.log('[Attendance Submit] ⏭️ Location validation BYPASSED (not required)');
     }
 
     // 3. CHECK BIOMETRIC DATA - First time or verification?

@@ -249,12 +249,16 @@ WHERE require_enrollment IS NULL;
 -- ========================================
 -- STEP 5: Add enrollment security events
 -- ========================================
-INSERT INTO security_events (user_id, event_type, description, metadata)
+INSERT INTO security_events (user_id, event_type, severity, metadata)
 SELECT 
   id as user_id,
   'enrollment_check' as event_type,
-  'System checking enrollment status' as description,
-  jsonb_build_object('status', 'migration_applied') as metadata
+  'LOW' as severity,
+  jsonb_build_object(
+    'status', 'migration_applied',
+    'description', 'System checking enrollment status',
+    'timestamp', NOW()
+  ) as metadata
 FROM users
 WHERE NOT EXISTS (
   SELECT 1 FROM biometric_data WHERE biometric_data.user_id = users.id

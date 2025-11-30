@@ -204,11 +204,13 @@ If photo fails any critical layer, set recommendation to REJECT.`;
     console.log('[Anti-Spoofing Result]', antiSpoofing);
     
     // Log security event
+    const severity = antiSpoofing.recommendation === 'APPROVE' ? 'LOW' : 'MEDIUM';
     await supabaseAdmin.from('security_events').insert({
       user_id: session.user.id,
       event_type: 'enrollment_photo_verification',
-      description: `8-layer verification: ${antiSpoofing.recommendation}`,
+      severity,
       metadata: {
+        description: `8-layer verification: ${antiSpoofing.recommendation}`,
         overallScore: antiSpoofing.overallScore,
         passedLayers: antiSpoofing.passedLayers,
         liveness: antiSpoofing.liveness,

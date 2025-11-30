@@ -279,8 +279,9 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('security_events').insert({
         user_id: userId,
         event_type: 'gps_bypass_used',
-        description: 'GPS validation bypassed (testing mode)',
+        severity: 'LOW',
         metadata: {
+          description: 'GPS validation bypassed (testing mode)',
           actual_location: { lat: body.latitude, lng: body.longitude },
           school_location: { lat: activeConfig.latitude, lng: activeConfig.longitude },
           bypass_reason: 'Testing/Development'
@@ -616,8 +617,10 @@ async function logSecurityEvent(params: {
         user_id: params.user_id,
         event_type: params.event_type,
         severity: params.severity,
-        description: params.description,
-        metadata: params.metadata,
+        metadata: {
+          ...params.metadata,
+          description: params.description,
+        },
         created_at: new Date().toISOString()
       });
   } catch (error) {

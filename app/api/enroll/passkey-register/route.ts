@@ -103,8 +103,9 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('security_events').insert({
       user_id: userId,
       event_type: 'enrollment_passkey_registered',
-      description: 'Device binding completed via WebAuthn passkey',
+      severity: 'LOW',
       metadata: {
+        description: 'Device binding completed via WebAuthn passkey',
         credentialId: Buffer.from(credentialID).toString('base64').substring(0, 20) + '...',
         deviceType: 'platform',
       },

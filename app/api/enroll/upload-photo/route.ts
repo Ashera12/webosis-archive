@@ -95,8 +95,9 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('security_events').insert({
       user_id: userId,
       event_type: 'enrollment_photo_uploaded',
-      description: 'Face anchor photo uploaded successfully',
+      severity: 'LOW',
       metadata: {
+        description: 'Face anchor photo uploaded successfully',
         photoUrl,
         fileName,
       },

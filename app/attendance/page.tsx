@@ -185,22 +185,53 @@ export default function AttendancePage() {
       // Show warning if WiFi cannot be detected
       if (detectedSSID === 'Unknown') {
         console.warn('[WiFi] ⚠️ WiFi SSID cannot be detected - Browser security restriction');
-        toast(
-          <div>
-            <div className="font-bold">⚠️ WiFi Tidak Terdeteksi</div>
-            <div className="text-sm mt-1">Browser tidak dapat membaca nama WiFi</div>
-            <div className="text-xs mt-1">Pastikan Anda terhubung ke WiFi sekolah!</div>
-          </div>,
-          { 
-            duration: 5000,
-            icon: '⚠️',
-            style: {
-              background: '#FEF3C7',
-              color: '#92400E',
-              border: '2px solid #F59E0B'
+        
+        // Check user role for appropriate messaging
+        const userRole = (session?.user as any)?.role?.toLowerCase() || 'siswa';
+        
+        if (userRole === 'siswa') {
+          toast(
+            <div>
+              <div className="font-bold">ℹ️ Validasi Jaringan</div>
+              <div className="text-sm mt-1">Browser tidak dapat membaca nama WiFi</div>
+              <div className="text-xs mt-2">
+                <strong>Sistem akan memvalidasi IP address Anda:</strong>
+                <ul className="mt-1 ml-4 list-disc">
+                  <li>Terhubung WiFi sekolah ✅</li>
+                  <li>IP dalam range sekolah ✅</li>
+                  <li>Tidak pakai data seluler ❌</li>
+                </ul>
+              </div>
+            </div>,
+            { 
+              duration: 6000,
+              icon: 'ℹ️',
+              style: {
+                background: '#DBEAFE',
+                color: '#1E40AF',
+                border: '2px solid #3B82F6',
+                maxWidth: '450px'
+              }
             }
-          }
-        );
+          );
+        } else {
+          // Guru/Admin - informasi bypass
+          toast.success(
+            <div>
+              <div className="font-bold">✅ {userRole.toUpperCase()} - IP Bypass</div>
+              <div className="text-sm mt-1">Anda dapat absen dari lokasi manapun</div>
+              <div className="text-xs mt-1">Validasi IP tidak diterapkan untuk {userRole}</div>
+            </div>,
+            { 
+              duration: 4000,
+              style: {
+                background: '#D1FAE5',
+                color: '#065F46',
+                border: '2px solid #10B981'
+              }
+            }
+          );
+        }
       }
       
       // AI VALIDATES WiFi automatically
@@ -253,37 +284,88 @@ export default function AttendancePage() {
       
       // ❌ REJECT if WiFi is Unknown/DETECTION_FAILED
       if (detection.ssid === 'Unknown' || detection.ssid === 'DETECTION_FAILED' || !detection.ssid) {
+        // Get user role for messaging
+        const userRole = (session?.user as any)?.role?.toLowerCase() || 'siswa';
+        
         const validation = {
-          isValid: false,
+          isValid: userRole !== 'siswa', // Guru/Admin bypass
           detectedSSID: detection.ssid,
           allowedSSIDs,
           requireWiFi,
-          aiDecision: 'WIFI_NOT_DETECTED',
+          userRole,
+          bypassReason: userRole !== 'siswa' ? 'Role bypass (IP whitelisting by server)' : null,
+          aiDecision: userRole !== 'siswa' ? 'BYPASS_IP_VALIDATION' : 'WIFI_NOT_DETECTED',
           aiConfidence: 0.99,
-          aiAnalysis: `WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi. Pastikan Anda terhubung ke WiFi sekolah: ${allowedSSIDs.join(', ')}`,
-          reason: 'Browser limitation - cannot detect WiFi SSID',
+          aiAnalysis: userRole !== 'siswa' 
+            ? `✅ ${userRole.toUpperCase()} - Validasi IP di-bypass. Server akan melakukan IP whitelisting.` 
+            : `⚠️ WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi. Sistem akan memvalidasi IP address Anda (${detection.ipAddress || 'Unknown IP'}). Pastikan Anda terhubung ke jaringan sekolah.`,
+          reason: 'Browser limitation - WiFi SSID cannot be detected, using IP validation',
+          serverValidation: 'IP whitelisting akan dilakukan oleh server',
           timestamp: new Date().toISOString()
         };
         setWifiValidation(validation);
-        console.log('[WiFi AI] ❌ WiFi not detected:', validation);
         
-        toast.error(
-          <div>
-            <div className="font-bold">❌ WiFi Tidak Terdeteksi!</div>
-            <div className="text-sm mt-1">Browser tidak dapat membaca nama WiFi</div>
-            <div className="text-xs mt-1">Pastikan terhubung: {allowedSSIDs.join(', ')}</div>
-          </div>,
-          { duration: 6000 }
-        );
+        console.log('[WiFi AI] ℹ️ WiFi SSID not detected, IP validation will be used:', validation);
+        
+        // Different messages for different roles
+        if (userRole === 'siswa') {
+          toast(
+            <div>
+              <div className="font-bold">ℹ️ Validasi Jaringan (Siswa)</div>
+              <div className="text-sm mt-2">
+                <strong>Browser tidak dapat membaca WiFi SSID</strong>
+              </div>
+              <div className="text-xs mt-2 space-y-1">
+                <div>✅ Sistem akan memvalidasi IP address Anda</div>
+                <div>📍 IP terdeteksi: {detection.ipAddress || 'Detecting...'}</div>
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-300 rounded">
+                  <strong>Pastikan:</strong>
+                  <ul className="ml-4 list-disc mt-1">
+                    <li>Terhubung ke WiFi sekolah</li>
+                    <li>MATIKAN data seluler</li>
+                    <li>IP dalam range sekolah</li>
+                  </ul>
+                </div>
+              </div>
+            </div>,
+            { 
+              duration: 7000,
+              icon: 'ℹ️',
+              style: {
+                background: '#FEF3C7',
+                color: '#92400E',
+                border: '2px solid #F59E0B',
+                maxWidth: '500px'
+              }
+            }
+          );
+        } else {
+          toast.success(
+            <div>
+              <div className="font-bold">✅ {userRole.toUpperCase()} - Bypass Validasi</div>
+              <div className="text-sm mt-1">Anda dapat absen dari lokasi manapun</div>
+              <div className="text-xs mt-2">
+                📍 IP: {detection.ipAddress || 'Unknown'}<br/>
+                🔓 Validasi IP di-bypass untuk {userRole}
+              </div>
+            </div>,
+            { 
+              duration: 5000,
+              style: {
+                maxWidth: '450px'
+              }
+            }
+          );
+        }
         
         await fetch('/api/attendance/log-activity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: session?.user?.id,
-            activityType: 'ai_wifi_validation',
-            description: 'AI WiFi validation: WIFI_NOT_DETECTED',
-            status: 'failure',
+            activityType: 'network_validation',
+            description: `Network validation for ${userRole}: ${validation.aiDecision}`,
+            status: userRole !== 'siswa' ? 'success' : 'pending_server_validation',
             metadata: validation
           })
         });
@@ -536,21 +618,85 @@ export default function AttendancePage() {
             break;
             
           case 'BLOCK_ATTENDANCE':
-            // Show detailed error
-            const errorMsg = `🚫 ${data.error}`;
-            const detailsMsg = data.details ? `\n\n${JSON.stringify(data.details, null, 2)}` : '';
+            // Show detailed error based on violation type
+            const violations = data.violations || [];
+            const userRole = (session?.user as any)?.role?.toLowerCase() || 'siswa';
             
-            toast.error(errorMsg, {
-              duration: 8000,
-              style: {
-                maxWidth: '500px',
-                padding: '20px',
-              },
-            });
+            // IP Whitelist specific errors
+            if (violations.includes('IP_NOT_IN_WHITELIST')) {
+              toast.error(
+                <div>
+                  <div className="font-bold">🚫 Akses Ditolak - IP Tidak Sesuai</div>
+                  <div className="text-sm mt-2">
+                    <strong>Anda harus terhubung ke jaringan sekolah!</strong>
+                  </div>
+                  <div className="text-xs mt-2 space-y-1">
+                    <div>📱 <strong>IP Anda:</strong> {data.details?.yourIP || 'Unknown'}</div>
+                    <div>✅ <strong>IP yang diizinkan:</strong> {data.details?.allowedIPRanges?.join(', ') || 'Belum dikonfigurasi'}</div>
+                  </div>
+                  <div className="mt-3 p-2 bg-red-50 border border-red-300 rounded text-xs">
+                    <strong>Solusi:</strong>
+                    <ul className="ml-4 list-disc mt-1">
+                      <li>Matikan data seluler</li>
+                      <li>Hubungkan ke WiFi sekolah</li>
+                      <li>Refresh halaman (Ctrl+Shift+R)</li>
+                    </ul>
+                  </div>
+                  {data.details?.solution && (
+                    <div className="mt-2 text-xs opacity-80">
+                      💡 {data.details.solution}
+                    </div>
+                  )}
+                </div>,
+                {
+                  duration: 10000,
+                  style: {
+                    maxWidth: '550px',
+                    padding: '20px',
+                    background: '#FEE2E2',
+                    color: '#7F1D1D',
+                    border: '2px solid #DC2626'
+                  },
+                }
+              );
+            } else if (violations.includes('IP_NOT_DETECTED')) {
+              toast.error(
+                <div>
+                  <div className="font-bold">🚫 IP Address Tidak Terdeteksi</div>
+                  <div className="text-sm mt-2">Pastikan Anda terhubung ke internet</div>
+                  <div className="text-xs mt-2">
+                    Refresh halaman dan pastikan koneksi internet aktif
+                  </div>
+                </div>,
+                { duration: 6000 }
+              );
+            } else {
+              // Other validation errors (GPS, Fingerprint, etc.)
+              const errorMsg = `🚫 ${data.error}`;
+              
+              toast.error(
+                <div>
+                  <div className="font-bold">{errorMsg}</div>
+                  {data.details?.hint && (
+                    <div className="text-sm mt-2">{data.details.hint}</div>
+                  )}
+                  {data.details?.note && (
+                    <div className="text-xs mt-2 opacity-80">{data.details.note}</div>
+                  )}
+                </div>,
+                {
+                  duration: 8000,
+                  style: {
+                    maxWidth: '500px',
+                    padding: '20px',
+                  },
+                }
+              );
+            }
             
             // Log violations
-            if (data.violations && data.violations.length > 0) {
-              console.error('🚨 Security violations:', data.violations);
+            if (violations.length > 0) {
+              console.error('🚨 Security violations:', violations);
               console.error('📊 Security score:', data.securityScore);
             }
             

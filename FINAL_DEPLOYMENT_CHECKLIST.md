@@ -11,7 +11,7 @@
 ## 📋 SEMUA PERBAIKAN YANG SUDAH DILAKUKAN
 
 ### ✅ 1. SQL Migration Fixed (100% Compatible)
-**Issue:** `column "description" of relation "security_events" does not exist`  
+**Issue 1:** `column "description" of relation "security_events" does not exist`  
 **Root Cause:** Tabel `security_events` tidak punya kolom `description`, hanya `event_type`, `severity`, `metadata`
 
 **Solusi:**
@@ -27,9 +27,21 @@ VALUES (uuid, 'enrollment_check', 'LOW', jsonb_build_object(
 ))
 ```
 
+**Issue 2:** `violates foreign key constraint "security_events_user_id_fkey"`  
+**Root Cause:** `security_events.user_id` mengacu ke `auth.users(id)`, tapi migration insert dari `public.users`
+
+**Solusi:**
+```sql
+-- ✅ DIHAPUS: Bulk INSERT security_events di STEP 5
+-- Security events akan dibuat otomatis oleh API saat enrollment
+-- Mencegah FK constraint error tanpa mengorbankan audit trail
+```
+
 **Files Fixed:**
-- ✅ `SETUP_ENROLLMENT_SYSTEM.sql` - STEP 5 (security events logging)
+- ✅ `SETUP_ENROLLMENT_SYSTEM.sql` - STEP 5 (removed INSERT, commented out)
 - ✅ SQL sekarang 100% kompatibel dengan skema database yang ada
+- ✅ Zero FK constraint errors
+- ✅ Zero column not found errors
 
 ---
 

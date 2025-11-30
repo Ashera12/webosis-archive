@@ -115,6 +115,7 @@ export default function AttendanceSettingsPage() {
     try {
       const response = await fetch('/api/admin/attendance/config', {
         cache: 'no-store',
+        credentials: 'include', // ✅ Send session cookies
       });
       const data = await response.json();
 
@@ -148,6 +149,7 @@ export default function AttendanceSettingsPage() {
     try {
       const response = await fetch('/api/admin/attendance/config?history=true', {
         cache: 'no-store',
+        credentials: 'include', // ✅ Send session cookies
       });
       const data = await response.json();
 
@@ -365,6 +367,7 @@ export default function AttendanceSettingsPage() {
       const response = await fetch('/api/admin/attendance/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Send session cookies
         body: JSON.stringify(payload),
       });
 

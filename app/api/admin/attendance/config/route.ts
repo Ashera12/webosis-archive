@@ -9,10 +9,18 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[GET config] Checking authentication...');
     const session = await auth();
+    console.log('[GET config] Session:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      email: session?.user?.email
+    });
+    
     if (!session?.user?.email) {
+      console.error('[GET config] ❌ Unauthorized - No session');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized - Please login again' },
         { status: 401 }
       );
     }
@@ -83,10 +91,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[POST config] Checking authentication...');
     const session = await auth();
+    console.log('[POST config] Session:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      hasEmail: !!session?.user?.email,
+      email: session?.user?.email,
+      role: (session?.user as any)?.role
+    });
+    
     if (!session?.user?.email) {
+      console.error('[POST config] ❌ Unauthorized - No session or email');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized - Please login again' },
         { status: 401 }
       );
     }

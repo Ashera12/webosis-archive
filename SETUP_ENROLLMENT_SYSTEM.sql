@@ -378,12 +378,10 @@ SELECT
     ELSE FALSE
   END as is_enrolled,
   bd.created_at as photo_enrolled_at,
-  MAX(wc.created_at) as last_passkey_added,
-  MAX(ar.check_in_time) as last_attendance
+  MAX(wc.created_at) as last_passkey_added
 FROM users u
 LEFT JOIN biometric_data bd ON bd.user_id = u.id
 LEFT JOIN webauthn_credentials wc ON wc.user_id = u.id
-LEFT JOIN attendance_records ar ON ar.user_id = u.id
 GROUP BY u.id, u.name, u.email, u.role, bd.reference_photo_url, bd.enrollment_status, bd.created_at;
 
 -- Grant access to view

@@ -120,7 +120,18 @@ function isPrivateIP(ip: string): boolean {
 export async function getUserLocation(): Promise<{ latitude: number; longitude: number } | null> {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      console.error('Geolocation not supported');
+      console.log('[Geolocation] Not supported by browser');
+      resolve(null);
+      return;
+    }
+
+    // Check if running on HTTPS or localhost (required for geolocation)
+    const isSecureContext = window.isSecureContext || window.location.protocol === 'https:' || 
+                            window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1';
+    
+    if (!isSecureContext) {
+      console.log('[Geolocation] Skipped - HTTPS required (running on HTTP). Location validation will be bypassed.');
       resolve(null);
       return;
     }
@@ -133,7 +144,7 @@ export async function getUserLocation(): Promise<{ latitude: number; longitude: 
         });
       },
       (error) => {
-        console.error('Geolocation error:', error.message);
+        console.log('[Geolocation] Error:', error.message, '- Location validation will be bypassed');
         resolve(null);
       },
       {

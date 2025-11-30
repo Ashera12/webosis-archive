@@ -267,24 +267,39 @@ export async function POST(request: NextRequest) {
     // ===== 3. VALIDATE LOCATION =====
     console.log('[Security Validation] Checking location...');
     
-    // ✅ GPS BYPASS MODE (for testing/development)
+    // ✅ Check admin_settings for location requirement
+    const { data: adminSettings } = await supabaseAdmin
+      .from('admin_settings')
+      .select('location_required')
+      .single();
+    
+    const locationRequired = adminSettings?.location_required !== false;
+    
+    // Also allow GPS bypass from config (backward compatibility)
     const bypassGPS = activeConfig.bypass_gps_validation === true;
     
-    if (bypassGPS) {
-      console.log('[Security Validation] ⚠️ GPS BYPASS MODE ACTIVE - skipping location validation');
-      warnings.push('GPS_BYPASS_ACTIVE');
-      securityScore -= 10; // Small penalty for bypass mode
+    if (!locationRequired || bypassGPS || !body.latitude || !body.longitude) {
+      console.log('[Security Validation] ⚠️ LOCATION BYPASS - Validation skipped', {
+        locationRequired,
+        bypassGPS,
+        hasCoordinates: !!(body.latitude && body.longitude)
+      });
+      
+      warnings.push('LOCATION_BYPASS_ACTIVE');
+      securityScore -= 5; // Small penalty for bypass mode
       
       // Log bypass for audit
       await supabaseAdmin.from('security_events').insert({
         user_id: userId,
-        event_type: 'gps_bypass_used',
+        event_type: 'location_bypass_used',
         severity: 'LOW',
         metadata: {
-          description: 'GPS validation bypassed (testing mode)',
-          actual_location: { lat: body.latitude, lng: body.longitude },
-          school_location: { lat: activeConfig.latitude, lng: activeConfig.longitude },
-          bypass_reason: 'Testing/Development'
+          description: 'Location validation bypassed',
+          reason: !locationRequired ? 'Admin disabled location_required' : 
+                  bypassGPS ? 'Config GPS bypass enabled' : 
+                  'No GPS coordinates provided (HTTPS required)',
+          actual_location: body.latitude ? { lat: body.latitude, lng: body.longitude } : null,
+          school_location: { lat: activeConfig.latitude, lng: activeConfig.longitude }
         }
       });
       
@@ -537,7 +552,7 @@ export async function POST(request: NextRequest) {
     console.log('[Security Validation] Security Score:', securityScore);
 
     // Calculate distance for response (use 0 if bypassed)
-    const responseDistance = bypassGPS ? 0 : calculateDistance(
+    const responseDistance = (!locationRequired || bypassGPS || !body.latitude) ? 0 : calculateDistance(
       body.latitude,
       body.longitude,
       parseFloat(activeConfig.latitude),
@@ -558,7 +573,7 @@ export async function POST(request: NextRequest) {
         securityScore,
         warnings,
         biometricVerified: true,
-        gpsBypassActive: bypassGPS
+        locationBypassActive: !locationRequired || bypassGPS
       },
       action: 'PROCEED_PHOTO'
     });

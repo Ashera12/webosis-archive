@@ -210,6 +210,18 @@ BEGIN
     ADD COLUMN re_enrollment_approved_at TIMESTAMPTZ;
     RAISE NOTICE 'Added re_enrollment_approved_at column to biometric_data';
   END IF;
+
+  -- webauthn_credential_id column (for Windows Hello, Touch ID, Face ID)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'biometric_data' 
+    AND column_name = 'webauthn_credential_id'
+  ) THEN
+    ALTER TABLE public.biometric_data 
+    ADD COLUMN webauthn_credential_id TEXT;
+    RAISE NOTICE 'Added webauthn_credential_id column to biometric_data';
+  END IF;
 END $$;
 
 -- Create indexes for biometric_data enrollment
@@ -224,6 +236,67 @@ COMMENT ON COLUMN public.biometric_data.is_first_attendance_enrollment
   
 COMMENT ON COLUMN public.biometric_data.re_enrollment_allowed 
   IS 'Admin approval required for re-enrollment (e.g., device change)';
+
+-- ============================================
+-- 2B. WEBAUTHN CREDENTIALS TABLE (Windows Hello, Touch ID, Face ID)
+-- ============================================
+
+-- Create webauthn_credentials table if not exists
+CREATE TABLE IF NOT EXISTS public.webauthn_credentials (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- User reference
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  
+  -- Credential data
+  credential_id TEXT NOT NULL UNIQUE,
+  public_key TEXT NOT NULL,
+  counter INTEGER DEFAULT 0,
+  
+  -- Device info
+  device_name TEXT,
+  device_type TEXT, -- 'platform' or 'cross-platform'
+  authenticator_type TEXT, -- 'Windows Hello', 'Touch ID', 'Face ID', etc.
+  
+  -- Usage tracking
+  last_used_at TIMESTAMP WITH TIME ZONE,
+  use_count INTEGER DEFAULT 0,
+  
+  -- Status
+  is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Create indexes for webauthn_credentials
+CREATE INDEX IF NOT EXISTS idx_webauthn_user_id 
+  ON public.webauthn_credentials(user_id);
+  
+CREATE INDEX IF NOT EXISTS idx_webauthn_credential_id 
+  ON public.webauthn_credentials(credential_id);
+  
+CREATE INDEX IF NOT EXISTS idx_webauthn_active 
+  ON public.webauthn_credentials(is_active);
+
+-- RLS policies for webauthn_credentials
+ALTER TABLE public.webauthn_credentials ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own credentials
+CREATE POLICY IF NOT EXISTS "Users can view own credentials"
+  ON public.webauthn_credentials
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Service role can do everything
+CREATE POLICY IF NOT EXISTS "Service role full access to credentials"
+  ON public.webauthn_credentials
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE public.webauthn_credentials 
+  IS 'Stores WebAuthn credentials for biometric authentication (Windows Hello, Touch ID, Face ID, etc.)';
 
 -- ============================================
 -- 3. ATTENDANCE TABLE (Enrollment Flag)

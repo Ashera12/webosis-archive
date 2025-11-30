@@ -1602,27 +1602,23 @@ export default function AttendancePage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-blue-200 dark:border-blue-700">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Siap Absen</h2>
             
-            {/* AUTO WiFi Detection (Read-Only) - AI Analysis */}
+            {/* AUTO WiFi Detection (Read-Only) - INFO ONLY */}
             {wifiDetection && (
-              <div className={`border-2 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 ${
-                wifiValidation?.isValid 
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
-              }`}>
+              <div className="border-2 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700">
                 <div className="flex items-center gap-2 mb-2">
-                  <FaWifi className={wifiValidation?.isValid ? 'text-green-600' : 'text-red-600'} />
-                  <p className="text-xs sm:text-sm font-bold">
-                    {wifiValidation?.isValid ? '✅ WiFi Terdeteksi - Sesuai' : '❌ Koneksi Tidak Sesuai'}
+                  <FaWifi className="text-blue-600" />
+                  <p className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100">
+                    ℹ️ Informasi Koneksi
                   </p>
                 </div>
                 <div className="space-y-1 text-xs">
                   {/* Show connection type */}
                   {wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
-                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">
                       📶 WiFi: {wifiDetection.ssid}
                     </div>
                   ) : (
-                    <div className={`font-semibold ${wifiValidation?.isValid ? 'text-green-900 dark:text-green-100' : 'text-gray-700 dark:text-gray-300'}`}>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">
                       🌐 Internet Terhubung
                     </div>
                   )}
@@ -1634,25 +1630,23 @@ export default function AttendancePage() {
                   )}
                   
                   {wifiDetection.ipAddress && wifiDetection.ipAddress !== 'DETECTION_FAILED' && (
-                    <div className={wifiValidation?.isValid ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}>
+                    <div className="text-blue-700 dark:text-blue-300">
                       🌐 IP: {wifiDetection.ipAddress}
                     </div>
                   )}
                   {wifiDetection.networkStrength && (
-                    <div className={wifiValidation?.isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                    <div className="text-blue-600 dark:text-blue-400">
                       📶 Kekuatan: {wifiDetection.networkStrength}
                     </div>
                   )}
-                  {wifiValidation && (
-                    <div className={`mt-2 p-2 rounded ${wifiValidation.isValid ? 'bg-green-100 dark:bg-green-800' : 'bg-blue-100 dark:bg-blue-800'}`}>
-                      <div className={`font-bold ${wifiValidation.isValid ? 'text-green-900 dark:text-green-100' : 'text-blue-900 dark:text-blue-100'}`}>
-                        🔐 IP Validation:
-                      </div>
-                      <div className={`mt-1 text-sm ${wifiValidation.isValid ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
-                        {wifiValidation.isValid ? '✅ IP Anda dalam whitelist sekolah' : 'ℹ️ IP validation akan diverifikasi saat absensi'}
-                      </div>
+                  <div className="mt-2 p-2 rounded bg-blue-100 dark:bg-blue-800">
+                    <div className="font-bold text-blue-900 dark:text-blue-100">
+                      🔐 Keamanan:
                     </div>
-                  )}
+                    <div className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                      ✅ IP & GPS akan divalidasi saat absensi (di backend)
+                    </div>
+                  </div>
                 </div>
                 <p className="text-xs mt-2 opacity-70">
                   🔒 Terdeteksi otomatis oleh AI - Tidak dapat diubah
@@ -1717,28 +1711,6 @@ export default function AttendancePage() {
                 )}
               </div>
             )}
-
-            {/* WARNING if WiFi invalid */}
-            {wifiValidation && !wifiValidation.isValid && (
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4 mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-lg">✗</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-red-900 dark:text-red-100">⚠️ Tidak Dapat Absen</p>
-                    <p className="text-xs text-red-700 dark:text-red-300">{wifiValidation.validationError || 'Koneksi tidak sesuai'}</p>
-                  </div>
-                </div>
-                <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
-                  <p>🔐 IP Anda: <strong>{wifiDetection.ipAddress}</strong></p>
-                  <p className="mt-2 text-xs">
-                    {wifiValidation.validationError || 'Pastikan Anda terhubung ke jaringan sekolah (WiFi atau Data Seluler yang terdaftar).'}
-                  </p>
-                </div>
-              </div>
-            )}
-
             <button
               onClick={async () => {
                 // SECURITY VALIDATION FIRST (all validation in backend)

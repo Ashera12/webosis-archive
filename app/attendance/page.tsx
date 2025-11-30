@@ -33,6 +33,10 @@ interface BiometricSetupData {
 export default function AttendancePage() {
   const { data: session, status } = useSession();
   
+  // 🔒 ENROLLMENT GATE: Check if user completed mandatory enrollment
+  const [enrollmentStatus, setEnrollmentStatus] = useState<any>(null);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+  
   // 🔒 USE BACKGROUND SECURITY ANALYSIS (runs on login)
   const { result: backgroundAnalysis, isReady, isBlocked, blockReasons } = useSecurityAnalysis();
   
@@ -76,7 +80,40 @@ export default function AttendancePage() {
     if (status === 'unauthenticated') {
       redirect('/login?callbackUrl=/attendance');
     }
-  }, [status]);
+    
+    // 🔒 ENROLLMENT GATE: Check enrollment status
+    if (status === 'authenticated' && session?.user) {
+      checkEnrollmentStatus();
+    }
+  }, [status, session]);
+  
+  const checkEnrollmentStatus = async () => {
+    try {
+      setCheckingEnrollment(true);
+      const response = await fetch('/api/enroll/status');
+      const data = await response.json();
+      
+      if (data.success) {
+        setEnrollmentStatus(data.status);
+        
+        if (!data.status.isComplete) {
+          // NOT ENROLLED → Redirect to /enroll
+          toast.error('⚠️ Enrollment required! Redirecting...');
+          setTimeout(() => {
+            redirect('/enroll');
+          }, 1500);
+        } else {
+          // ✅ ENROLLED → Allow attendance
+          console.log('[Enrollment Gate] ✅ User enrolled, allowing attendance');
+          setCheckingEnrollment(false);
+        }
+      }
+    } catch (error) {
+      console.error('[Enrollment Check Failed]', error);
+      // On error, assume enrolled to avoid blocking (failsafe)
+      setCheckingEnrollment(false);
+    }
+  };
 
   // 🔒 SYNC BACKGROUND ANALYSIS (ran on login) with page state
   useEffect(() => {
@@ -1488,12 +1525,21 @@ export default function AttendancePage() {
     }
   };
 
-  if (status === 'loading') {
+  if (status === 'loading' || checkingEnrollment) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        <div className="text-center space-y-4">
+          <div className="inline-block p-6 bg-white dark:bg-gray-800 rounded-full shadow-xl">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+          </div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white">
+            {checkingEnrollment ? '🔒 Checking enrollment...' : 'Loading...'}
+          </div>
+          {checkingEnrollment && (
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Verifying biometric enrollment status
+            </div>
+          )}
         </div>
       </div>
     );

@@ -180,6 +180,77 @@ export function isIPInSubnet(ip: string, subnet: string, mask: string): boolean 
 }
 
 /**
+ * Check if IP matches CIDR notation or simple prefix
+ * Supports both formats:
+ * - CIDR: "192.168.1.0/24" (192.168.1.0 - 192.168.1.255)
+ * - Prefix: "192.168." (matches 192.168.*.*)
+ * 
+ * @param ip - IP address to check (e.g., "192.168.100.50")
+ * @param range - CIDR or prefix (e.g., "192.168.100.0/24" or "192.168.")
+ * @returns true if IP is in range
+ */
+export function isIPInRange(ip: string, range: string): boolean {
+  try {
+    // Handle simple prefix matching (e.g., "192.168.", "10.0.")
+    if (!range.includes('/')) {
+      return ip.startsWith(range);
+    }
+    
+    // Handle CIDR notation (e.g., "192.168.1.0/24")
+    const [subnet, prefixLength] = range.split('/');
+    const prefix = parseInt(prefixLength, 10);
+    
+    if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+      console.warn(`[Network Utils] Invalid CIDR prefix: ${range}`);
+      return false;
+    }
+    
+    const ipParts = ip.split('.').map(Number);
+    const subnetParts = subnet.split('.').map(Number);
+    
+    if (ipParts.length !== 4 || subnetParts.length !== 4) {
+      return false;
+    }
+    
+    // Validate IP parts are in range 0-255
+    if (ipParts.some(part => part < 0 || part > 255) || 
+        subnetParts.some(part => part < 0 || part > 255)) {
+      return false;
+    }
+    
+    // Convert to 32-bit integers
+    const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
+    const subnetInt = (subnetParts[0] << 24) | (subnetParts[1] << 16) | (subnetParts[2] << 8) | subnetParts[3];
+    
+    // Create mask (e.g., /24 = 11111111.11111111.11111111.00000000)
+    const mask = prefix === 0 ? 0 : (-1 << (32 - prefix));
+    
+    // Compare network portions
+    return (ipInt & mask) === (subnetInt & mask);
+    
+  } catch (error) {
+    console.error('[Network Utils] IP range validation error:', error);
+    return false;
+  }
+}
+
+/**
+ * Validate IP against multiple allowed ranges
+ * Supports both CIDR and simple prefix formats
+ * 
+ * @param ip - IP address to check
+ * @param allowedRanges - Array of CIDR or prefix strings
+ * @returns true if IP matches any range
+ */
+export function isIPInAllowedRanges(ip: string, allowedRanges: string[]): boolean {
+  if (!ip || !allowedRanges || allowedRanges.length === 0) {
+    return false;
+  }
+  
+  return allowedRanges.some(range => isIPInRange(ip, range));
+}
+
+/**
  * Calculate network similarity score (0-100)
  * Higher score = more similar network characteristics
  */

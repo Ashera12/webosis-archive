@@ -312,16 +312,30 @@ class BackgroundSecurityAnalyzer {
       console.log('[WiFi Validation] SSID not available, using IP range validation...');
       console.log('[WiFi Validation] IP:', ipAddress, 'Allowed ranges:', allowedIPRanges);
 
-      const isIPValid = allowedIPRanges.some((range) => ipAddress.startsWith(range));
+      // Import CIDR-aware validation
+      const { isIPInAllowedRanges } = await import('@/lib/networkUtils');
+      const isIPValid = isIPInAllowedRanges(ipAddress, allowedIPRanges);
 
       if (isIPValid) {
         console.log('[WiFi Validation] ✅ IP valid - user is on school network');
+        console.log('[WiFi Validation] ✅ IP range match:', {
+          ip: ipAddress,
+          matchedRanges: allowedIPRanges.filter(range => {
+            const { isIPInRange } = require('@/lib/networkUtils');
+            return isIPInRange(ipAddress, range);
+          })
+        });
         return { 
           isValid: true,
           error: undefined
         };
       } else {
         console.log('[WiFi Validation] ❌ IP tidak sesuai dengan range sekolah');
+        console.log('[WiFi Validation] ❌ IP check failed:', {
+          ip: ipAddress,
+          allowedRanges: allowedIPRanges,
+          reason: 'IP tidak dalam range yang diizinkan'
+        });
         return {
           isValid: false,
           error: `❌ WiFi tidak sesuai. IP Anda: ${ipAddress}. Sambungkan ke WiFi sekolah: ${allowedSSIDs.join(', ')}`,

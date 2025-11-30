@@ -247,23 +247,28 @@ SET
 WHERE require_enrollment IS NULL;
 
 -- ========================================
--- STEP 5: Add enrollment security events
+-- STEP 5: Add enrollment security events (SKIPPED to avoid FK errors)
 -- ========================================
+-- Note: Security events will be logged automatically by API endpoints
+-- when users actually perform enrollment actions. This prevents
+-- foreign key constraint errors during migration.
+
+-- Optional: Log migration event only if you want to test
+-- (Uncomment only if you're sure user_id exists in auth.users)
+/*
 INSERT INTO security_events (user_id, event_type, severity, metadata)
 SELECT 
-  id as user_id,
-  'enrollment_check' as event_type,
+  auth.uid() as user_id,
+  'enrollment_migration' as event_type,
   'LOW' as severity,
   jsonb_build_object(
     'status', 'migration_applied',
-    'description', 'System checking enrollment status',
+    'description', 'Enrollment system migration completed',
     'timestamp', NOW()
   ) as metadata
-FROM users
-WHERE NOT EXISTS (
-  SELECT 1 FROM biometric_data WHERE biometric_data.user_id = users.id
-)
-LIMIT 10; -- Limit to avoid spam
+WHERE auth.uid() IS NOT NULL
+LIMIT 1;
+*/
 
 -- ========================================
 -- STEP 6: Verification query - Check enrollment status

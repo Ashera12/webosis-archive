@@ -11,8 +11,9 @@ const supabase = createClient(
 
 /**
  * Generate authentication challenge for WebAuthn
+ * GET endpoint for easier frontend integration
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -22,16 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { userId } = body;
-
-    // Verify user
-    if (userId !== session.user.id) {
-      return NextResponse.json(
-        { success: false, error: 'Cannot authenticate for other users' },
-        { status: 403 }
-      );
-    }
+    const userId = session.user.id; // From session, not body
 
     // Get user's registered credentials
     const { data: credentials, error: credError } = await supabase

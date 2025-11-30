@@ -458,10 +458,8 @@ class BackgroundSecurityAnalyzer {
       return 'NEEDS_SETUP';
     }
 
-    // If WiFi invalid, blocked
-    if (!result.wifi.isValid) {
-      return 'BLOCKED';
-    }
+    // ✅ REMOVED WiFi blocking - backend validates IP
+    // Frontend doesn't block, all validation happens server-side
 
     // All good
     return 'READY';

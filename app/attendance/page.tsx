@@ -282,23 +282,21 @@ export default function AttendancePage() {
         detectedSSID: detection.ssid
       });
       
-      // ❌ REJECT if WiFi is Unknown/DETECTION_FAILED
+      // ℹ️ WiFi SSID not detectable - backend will validate IP
       if (detection.ssid === 'Unknown' || detection.ssid === 'DETECTION_FAILED' || !detection.ssid) {
         // Get user role for messaging
         const userRole = (session?.user as any)?.role?.toLowerCase() || 'siswa';
         
         const validation = {
-          isValid: userRole !== 'siswa', // Guru/Admin bypass
+          isValid: true, // ✅ ALWAYS TRUE - backend validates IP
           detectedSSID: detection.ssid,
           allowedSSIDs,
           requireWiFi,
           userRole,
-          bypassReason: userRole !== 'siswa' ? 'Role bypass (IP whitelisting by server)' : null,
-          aiDecision: userRole !== 'siswa' ? 'BYPASS_IP_VALIDATION' : 'WIFI_NOT_DETECTED',
-          aiConfidence: 0.99,
-          aiAnalysis: userRole !== 'siswa' 
-            ? `✅ ${userRole.toUpperCase()} - Validasi IP di-bypass. Server akan melakukan IP whitelisting.` 
-            : `⚠️ WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi. Sistem akan memvalidasi IP address Anda (${detection.ipAddress || 'Unknown IP'}). Pastikan Anda terhubung ke jaringan sekolah.`,
+          bypassReason: 'Frontend allows all - backend validates IP',
+          aiDecision: 'ALLOW_BACKEND_VALIDATION',
+          aiConfidence: 1.0,
+          aiAnalysis: `✅ Frontend allows - Backend akan memvalidasi IP address (${detection.ipAddress || 'Unknown IP'})`,
           reason: 'Browser limitation - WiFi SSID cannot be detected, using IP validation',
           serverValidation: 'IP whitelisting akan dilakukan oleh server',
           timestamp: new Date().toISOString()

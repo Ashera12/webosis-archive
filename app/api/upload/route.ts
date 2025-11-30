@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { generateSignedUrl } from '@/lib/signedUrls';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -194,22 +195,47 @@ export async function POST(request: NextRequest) {
 
     console.log('[/api/upload] ✅ Upload success:', data);
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    // Generate signed URL for the uploaded file
+    const signedUrlResult = await generateSignedUrl(data.path, { bucket });
+    
+    if (!signedUrlResult) {
+      console.warn('[/api/upload] Failed to generate signed URL, falling back to public URL');
+      // Fallback to public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
 
-    console.log('[/api/upload] ✅ Public URL generated:', publicUrl);
+      return NextResponse.json({
+        success: true,
+        url: publicUrl,
+        publicUrl: publicUrl,
+        path: data.path,
+        data: {
+          path: data.path,
+          publicUrl,
+          url: publicUrl,
+        },
+      });
+    }
+
+    console.log('[/api/upload] ✅ Signed URL generated:', {
+      bucket: signedUrlResult.bucket,
+      expiresAt: signedUrlResult.expiresAt
+    });
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      publicUrl: publicUrl,
+      url: signedUrlResult.url,      // Client gets time-limited signed URL
+      signedUrl: signedUrlResult.url,
+      expiresAt: signedUrlResult.expiresAt,
+      bucket: signedUrlResult.bucket,
       path: data.path,
       data: {
         path: data.path,
-        publicUrl,
-        url: publicUrl,
+        signedUrl: signedUrlResult.url,
+        url: signedUrlResult.url,
+        expiresAt: signedUrlResult.expiresAt,
+        bucket: signedUrlResult.bucket
       },
     });
   } catch (error: any) {

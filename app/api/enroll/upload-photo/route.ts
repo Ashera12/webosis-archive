@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { uploadFileWithSignedUrl } from '@/lib/signedUrls';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,7 +11,7 @@ const supabaseAdmin = createClient(
 
 /**
  * POST /api/enroll/upload-photo
- * Upload verified face anchor photo to storage
+ * Upload verified face anchor photo to storage with signed URL
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,31 +37,23 @@ export async function POST(request: NextRequest) {
     
     console.log('[Upload Face Anchor] User:', userId);
     
-    // Upload to Supabase Storage
-    const fileExt = 'jpg';
-    const fileName = `${userId}_anchor_${Date.now()}.${fileExt}`;
-    const filePath = `reference-photos/${fileName}`;
-    
+    // Convert to buffer
     const arrayBuffer = await photo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from('attendance-photos')
-      .upload(filePath, buffer, {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
+    // Upload with signed URL generation
+    const result = await uploadFileWithSignedUrl(buffer, userId, {
+      type: 'reference',
+      bucket: 'biometric-data',
+      contentType: photo.type || 'image/jpeg',
+      fileName: `${userId}_anchor_${Date.now()}.jpg`
+    });
     
-    if (uploadError) {
-      throw new Error(`Upload failed: ${uploadError.message}`);
+    if (!result) {
+      throw new Error('Upload failed');
     }
     
-    // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('attendance-photos')
-      .getPublicUrl(filePath);
-    
-    const photoUrl = urlData.publicUrl;
+    const photoUrl = result.url; // Store public URL in database
     
     // Check if biometric_data exists
     const { data: existingBiometric } = await supabaseAdmin
@@ -89,7 +82,7 @@ export async function POST(request: NextRequest) {
         });
     }
     
-    console.log('[Face Anchor Saved]', photoUrl);
+    console.log('[Face Anchor Saved] ✅ Signed URL:', result.signedUrl);
     
     // Log security event
     await supabaseAdmin.from('security_events').insert({
@@ -99,13 +92,17 @@ export async function POST(request: NextRequest) {
       metadata: {
         description: 'Face anchor photo uploaded successfully',
         photoUrl,
-        fileName,
+        bucket: result.bucket,
+        expiresAt: result.expiresAt
       },
     });
     
     return NextResponse.json({
       success: true,
-      photoUrl,
+      photoUrl: result.signedUrl,  // Client gets signed URL
+      publicUrl: result.url,        // For reference
+      expiresAt: result.expiresAt,
+      bucket: result.bucket,
       message: 'Face anchor saved successfully',
     });
     

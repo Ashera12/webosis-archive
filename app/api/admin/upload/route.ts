@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { generateSignedUrl } from '@/lib/signedUrls';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -108,20 +109,46 @@ export async function POST(request: NextRequest) {
 
     console.log('[/api/admin/upload] Upload success:', data);
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    // Generate signed URL for the uploaded file
+    const signedUrlResult = await generateSignedUrl(data.path, { bucket });
+    
+    if (!signedUrlResult) {
+      console.warn('[/api/admin/upload] Failed to generate signed URL, falling back to public URL');
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return NextResponse.json({
+        success: true,
+        url: publicUrl,
+        publicUrl: publicUrl,
+        path: data.path,
+        data: {
+          path: data.path,
+          publicUrl,
+          url: publicUrl,
+        },
+      });
+    }
+
+    console.log('[/api/admin/upload] ✅ Signed URL generated:', {
+      bucket: signedUrlResult.bucket,
+      expiresAt: signedUrlResult.expiresAt
+    });
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      publicUrl: publicUrl,
+      url: signedUrlResult.url,      // Client gets signed URL
+      signedUrl: signedUrlResult.url,
+      expiresAt: signedUrlResult.expiresAt,
+      bucket: signedUrlResult.bucket,
       path: data.path,
       data: {
         path: data.path,
-        publicUrl,
-        url: publicUrl,
+        signedUrl: signedUrlResult.url,
+        url: signedUrlResult.url,
+        expiresAt: signedUrlResult.expiresAt,
+        bucket: signedUrlResult.bucket
       },
     });
   } catch (error: any) {
@@ -179,16 +206,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Path required' }, { status: 400 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Generate signed URL instead of public URL
+    const signedUrlResult = await generateSignedUrl(path, { bucket });
+    
+    if (!signedUrlResult) {
+      // Fallback to public URL if signed URL generation fails
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(path);
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(path);
+      return NextResponse.json({
+        success: true,
+        url: publicUrl,
+        publicUrl,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      publicUrl,
+      url: signedUrlResult.url,
+      signedUrl: signedUrlResult.url,
+      expiresAt: signedUrlResult.expiresAt,
+      bucket: signedUrlResult.bucket
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

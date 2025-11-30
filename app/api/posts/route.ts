@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { convertToSignedUrl } from '@/lib/signedUrls';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +42,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: message || 'Failed to fetch posts' }, { status: 500 });
     }
 
-    return NextResponse.json({ posts: data || [] });
+    // Convert media URLs to signed URLs
+    const postsWithSignedUrls = await Promise.all(
+      (data || []).map(async (post: any) => {
+        const updatedPost = { ...post };
+        
+        // Convert featured_image if present
+        if (post.featured_image) {
+          const signedUrl = await convertToSignedUrl(post.featured_image);
+          if (signedUrl) {
+            updatedPost.featured_image = signedUrl.url;
+            updatedPost.featured_image_expires_at = signedUrl.expiresAt;
+          }
+        }
+        
+        // Convert author photo_url if present
+        if (post.author?.photo_url) {
+          const signedUrl = await convertToSignedUrl(post.author.photo_url);
+          if (signedUrl) {
+            updatedPost.author = {
+              ...post.author,
+              photo_url: signedUrl.url,
+              photo_url_expires_at: signedUrl.expiresAt
+            };
+          }
+        }
+        
+        return updatedPost;
+      })
+    );
+
+    return NextResponse.json({ posts: postsWithSignedUrls });
   } catch (error) {
     console.error('Error in posts API:', error);
     return NextResponse.json(

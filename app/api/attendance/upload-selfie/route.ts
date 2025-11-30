@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { uploadFileWithSignedUrl } from '@/lib/signedUrls';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,32 +41,33 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to Supabase Storage
-    const fileName = `${userId}/${Date.now()}.jpg`;
-    const { data, error } = await supabase.storage
-      .from('attendance')
-      .upload(`selfies/${fileName}`, buffer, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      });
+    // Upload with automatic signed URL generation
+    const result = await uploadFileWithSignedUrl(buffer, userId, {
+      type: 'selfie',
+      bucket: 'user-photos',
+      contentType: file.type || 'image/jpeg',
+      fileName: `selfie_${Date.now()}.jpg`
+    });
 
-    if (error) {
-      console.error('Upload error:', error);
+    if (!result) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: 'Upload failed' },
         { status: 500 }
       );
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('attendance')
-      .getPublicUrl(`selfies/${fileName}`);
+    console.log('[Upload Selfie] ✅ Uploaded with signed URL:', {
+      path: result.path,
+      expiresAt: result.expiresAt
+    });
 
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
-      path: data.path,
+      url: result.signedUrl,        // Client gets time-limited signed URL
+      publicUrl: result.url,          // For storage reference (optional)
+      path: result.path,
+      expiresAt: result.expiresAt,
+      bucket: result.bucket
     });
   } catch (error: any) {
     console.error('Upload selfie error:', error);

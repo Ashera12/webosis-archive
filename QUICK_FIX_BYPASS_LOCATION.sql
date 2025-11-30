@@ -1,60 +1,82 @@
 -- ============================================
--- QUICK FIX: Bypass Location & WiFi Validation
+-- ADMIN SETTINGS: Security Validation Control
 -- ============================================
--- Purpose: Allow attendance testing without HTTPS/GPS
--- Run this in Supabase SQL Editor IMMEDIATELY
+-- KEAMANAN PENTING: 
+-- 1. Default = STRICT (lokasi & WiFi WAJIB)
+-- 2. Admin bisa bypass HANYA untuk testing/development
+-- 3. Siswa TIDAK BISA manipulasi (validasi server-side)
 -- ============================================
 
--- 1. Check if admin_settings exists
-SELECT * FROM admin_settings LIMIT 1;
+-- ===== OPTION A: PRODUCTION MODE (RECOMMENDED) =====
+-- Validasi lokasi & WiFi AKTIF (siswa HARUS di sekolah)
+-- Gunakan ini untuk deployment production!
 
--- 2. If exists, UPDATE to disable validations
-UPDATE admin_settings 
+INSERT INTO admin_settings (key, value, is_secret, updated_at)
+VALUES 
+  ('location_required', 'true', false, NOW()),
+  ('wifi_required', 'true', false, NOW())
+ON CONFLICT (key) DO UPDATE 
 SET 
-  location_required = false,
-  wifi_required = false,
-  updated_at = NOW()
-WHERE id = 1;
-
--- 3. If doesn't exist, INSERT new row
-INSERT INTO admin_settings (
-  id,
-  location_required, 
-  wifi_required,
-  created_at,
-  updated_at
-) 
-VALUES (
-  1,
-  false, 
-  false,
-  NOW(),
-  NOW()
-)
-ON CONFLICT (id) DO UPDATE 
-SET 
-  location_required = false,
-  wifi_required = false,
+  value = EXCLUDED.value,
   updated_at = NOW();
 
--- 4. Verify settings
+-- ===== OPTION B: TESTING MODE (TEMPORARY ONLY) =====
+-- Bypass validasi untuk testing tanpa GPS/WiFi
+-- JANGAN gunakan di production!
+
+-- INSERT INTO admin_settings (key, value, is_secret, updated_at)
+-- VALUES 
+--   ('location_required', 'false', false, NOW()),
+--   ('wifi_required', 'false', false, NOW())
+-- ON CONFLICT (key) DO UPDATE 
+-- SET 
+--   value = EXCLUDED.value,
+--   updated_at = NOW();
+
+-- ===== VERIFY SETTINGS =====
 SELECT 
-  id,
-  location_required,
-  wifi_required,
+  key,
+  value,
+  CASE value
+    WHEN 'true' THEN '✅ STRICT - Validation ACTIVE (Secure)'
+    WHEN 'false' THEN '⚠️ BYPASS - Validation DISABLED (Testing Only)'
+    ELSE '❓ Unknown'
+  END as status,
   updated_at
-FROM admin_settings;
+FROM admin_settings
+WHERE key IN ('location_required', 'wifi_required')
+ORDER BY key;
 
 -- ============================================
--- EXPECTED RESULT:
--- ✅ location_required = false
--- ✅ wifi_required = false
+-- CARA SWITCH ANTARA MODE:
+-- ============================================
+-- 
+-- 🔒 PRODUCTION MODE (Siswa harus di sekolah):
+-- UPDATE admin_settings SET value = 'true' WHERE key IN ('location_required', 'wifi_required');
+--
+-- 🧪 TESTING MODE (Bypass untuk demo):
+-- UPDATE admin_settings SET value = 'false' WHERE key IN ('location_required', 'wifi_required');
+--
 -- ============================================
 
--- After running this:
--- 1. Geolocation error will be ignored (HTTP allowed)
--- 2. Location validation will BYPASS automatically
--- 3. WiFi validation will BYPASS automatically
--- 4. Face analysis WILL RUN (security validation passes)
--- 5. Biometric verification WILL RUN (no longer blocked)
+-- ============================================
+-- KEAMANAN MULTI-LAYER:
+-- ============================================
+-- Layer 1: Admin settings (server-side only)
+--   - Siswa tidak bisa akses/ubah tabel ini
+--   - RLS policy block semua akses non-admin
+--
+-- Layer 2: Server-side validation
+--   - API route cek settings dari database
+--   - Tidak ada bypass dari client-side
+--
+-- Layer 3: Biometric + Face verification
+--   - AI face analysis (liveness detection)
+--   - Fingerprint matching
+--   - WebAuthn (Windows Hello/Touch ID)
+--
+-- Layer 4: Audit trail
+--   - Semua bypass logged ke security_events
+--   - Admin bisa monitor siapa yang bypass
+--
 -- ============================================

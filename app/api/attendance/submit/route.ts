@@ -85,19 +85,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if WiFi validation is required (from admin_settings)
-    const { data: adminSettings } = await supabaseAdmin
+    // 🔒 SECURITY: Check admin settings (key-value store)
+    const { data: wifiSetting } = await supabaseAdmin
       .from('admin_settings')
-      .select('wifi_required, location_required')
-      .limit(1)
+      .select('value')
+      .eq('key', 'wifi_required')
       .single();
     
-    const wifiRequired = adminSettings?.wifi_required !== false; // Default: true
-    const locationRequired = adminSettings?.location_required !== false; // Default: true
+    const { data: locationSetting } = await supabaseAdmin
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'location_required')
+      .single();
+    
+    // Default to TRUE (strict mode) for security
+    const wifiRequired = wifiSetting?.value !== 'false'; 
+    const locationRequired = locationSetting?.value !== 'false';
 
-    console.log('[Attendance Submit] Settings:', {
-      wifiRequired,
-      locationRequired,
+    console.log('[Attendance Submit] 🔒 Security Settings:', {
+      wifiRequired: wifiRequired ? '✅ STRICT' : '⚠️ BYPASS',
+      locationRequired: locationRequired ? '✅ STRICT' : '⚠️ BYPASS',
       providedWiFi: body.wifiSSID,
       providedLocation: `${body.latitude},${body.longitude}`,
     });

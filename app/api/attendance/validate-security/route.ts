@@ -267,13 +267,15 @@ export async function POST(request: NextRequest) {
     // ===== 3. VALIDATE LOCATION =====
     console.log('[Security Validation] Checking location...');
     
-    // ✅ Check admin_settings for location requirement
-    const { data: adminSettings } = await supabaseAdmin
+    // ✅ Check admin_settings for location requirement (key-value store)
+    const { data: locationSetting } = await supabaseAdmin
       .from('admin_settings')
-      .select('location_required')
+      .select('value')
+      .eq('key', 'location_required')
       .single();
     
-    const locationRequired = adminSettings?.location_required !== false;
+    // Default to TRUE (strict mode) if setting doesn't exist
+    const locationRequired = locationSetting?.value !== 'false';
     
     // Also allow GPS bypass from config (backward compatibility)
     const bypassGPS = activeConfig.bypass_gps_validation === true;
@@ -282,13 +284,16 @@ export async function POST(request: NextRequest) {
       console.log('[Security Validation] ⚠️ LOCATION BYPASS - Validation skipped', {
         locationRequired,
         bypassGPS,
-        hasCoordinates: !!(body.latitude && body.longitude)
+        hasCoordinates: !!(body.latitude && body.longitude),
+        reason: !locationRequired ? 'Admin set location_required=false' : 
+                bypassGPS ? 'Config bypass enabled' : 
+                'No GPS coordinates (HTTPS required)'
       });
       
       warnings.push('LOCATION_BYPASS_ACTIVE');
       securityScore -= 5; // Small penalty for bypass mode
       
-      // Log bypass for audit
+      // 🔒 SECURITY: Log all bypass events for audit trail
       await supabaseAdmin.from('security_events').insert({
         user_id: userId,
         event_type: 'location_bypass_used',

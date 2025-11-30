@@ -59,6 +59,13 @@ export default function AttendancePage() {
   const [securityValidation, setSecurityValidation] = useState<any>(null);
   const [validating, setValidating] = useState(false);
   
+  // ✅ NEW: First-time reference photo + attendance metadata
+  const [isFirstTimeAttendance, setIsFirstTimeAttendance] = useState(false);
+  const [attendanceNote, setAttendanceNote] = useState(''); // Optional: alasan terlambat, dll
+  const [attendanceName, setAttendanceName] = useState(''); // Filled from profile
+  const [aiVerifying, setAiVerifying] = useState(false); // Loading indicator for AI
+  const [aiProgress, setAiProgress] = useState(''); // AI progress message
+  
   // Enhanced: Multi-method authentication support
   const [authMethod, setAuthMethod] = useState<'webauthn' | 'pin' | 'ai-face'>('webauthn');
   const [deviceCapabilities, setDeviceCapabilities] = useState<any>(null);
@@ -1145,66 +1152,51 @@ export default function AttendancePage() {
     console.log('🚀 Starting attendance submission...');
 
     try {
-      // ===== WEBAUTHN BIOMETRIC VERIFICATION =====
-      console.log('[WebAuthn] 🔐 Starting biometric verification...');
+      // ===== WEBAUTHN BIOMETRIC VERIFICATION (OPTIONAL) =====
+      console.log('[WebAuthn] 🔐 Checking if biometric is registered...');
       
       const biometricName = getAuthenticatorName();
       const biometricIcon = getAuthenticatorIcon();
       
-      const biometricToast = toast.loading(
-        <div>
-          <div className="font-bold">🔐 Biometric Verification Required</div>
-          <div className="text-sm mt-1">{biometricIcon} Please authenticate with {biometricName}</div>
-        </div>
-      );
+      let webauthnVerified = false;
       
       try {
+        const biometricToast = toast.loading(
+          <div>
+            <div className="font-bold">🔐 Biometric Verification</div>
+            <div className="text-sm mt-1">{biometricIcon} Checking {biometricName}...</div>
+          </div>
+        );
+        
         const webauthnResult = await authenticateCredential(session!.user.id!);
         
         toast.dismiss(biometricToast);
         
-        if (!webauthnResult.success) {
-          console.error('[WebAuthn] ❌ Authentication failed:', webauthnResult.error);
+        if (webauthnResult.success) {
+          console.log('[WebAuthn] ✅ Biometric verified!');
+          webauthnVerified = true;
           
-          toast.error(
+          toast.success(
             <div>
-              <div className="font-bold">❌ Biometric Verification Failed</div>
-              <div className="text-sm mt-1">{webauthnResult.error}</div>
+              <div className="font-bold">✅ Biometric Verified!</div>
+              <div className="text-sm mt-1">{biometricIcon} {biometricName} authentication successful</div>
             </div>,
-            { duration: 5000 }
+            { duration: 2000 }
           );
-          
-          setLoading(false);
-          setStep('ready');
-          return;
+        } else {
+          console.log('[WebAuthn] ⚠️ Skipping - not registered or failed');
+          webauthnVerified = false;
         }
         
-        console.log('[WebAuthn] ✅ Biometric verified!');
-        
-        toast.success(
-          <div>
-            <div className="font-bold">✅ Biometric Verified!</div>
-            <div className="text-sm mt-1">{biometricIcon} {biometricName} authentication successful</div>
-          </div>,
-          { duration: 3000 }
-        );
-        
       } catch (webauthnError: any) {
-        toast.dismiss(biometricToast);
-        console.error('[WebAuthn] ❌ Verification error:', webauthnError);
+        console.log('[WebAuthn] ⚠️ Skipping biometric (optional):', webauthnError.message);
+        webauthnVerified = false;
         
-        toast.error(
-          <div>
-            <div className="font-bold">❌ Biometric Error</div>
-            <div className="text-sm mt-1">{webauthnError.message || 'Authentication failed'}</div>
-          </div>,
-          { duration: 5000 }
-        );
-        
-        setLoading(false);
-        setStep('ready');
-        return;
+        // ✅ DON'T BLOCK - biometric is optional!
+        // Continue to face verification
       }
+      
+      console.log('[WebAuthn] Final status:', webauthnVerified ? 'VERIFIED' : 'SKIPPED');
       
       // Upload foto attendance
       const uploadToast = toast.loading('📤 Mengupload foto...');
@@ -1217,95 +1209,146 @@ export default function AttendancePage() {
       
       console.log('📤 Photo uploaded:', photoUrl);
       
-      // ===== AI FACE VERIFICATION =====
-      const aiToast = toast.loading('🤖 Verifikasi wajah dengan AI...');
+      // ===== AI FACE VERIFICATION WITH LOADING INDICATOR =====
+      setAiVerifying(true);
+      setAiProgress('🔍 Memeriksa foto reference...');
+      
+      const aiToast = toast.loading(
+        <div>
+          <div className="font-bold">🤖 Verifikasi Wajah AI</div>
+          <div className="text-sm mt-2 space-y-1">
+            <div className="animate-pulse">⏳ Menganalisis wajah...</div>
+            <div className="text-xs opacity-70">Mohon tunggu sebentar</div>
+          </div>
+        </div>
+      );
       
       try {
         console.log('🤖 Starting AI face verification...');
         
         // Get reference photo dari biometric
-        const { data: biometric } = await fetch('/api/attendance/biometric/setup').then(r => r.json());
+        setAiProgress('📸 Mengambil foto reference...');
+        const biometricResponse = await fetch('/api/attendance/biometric/setup');
+        const { data: biometric } = await biometricResponse.json();
         
+        // ✅ FIRST TIME ATTENDANCE: Save reference photo
         if (!biometric || !biometric.referencePhotoUrl) {
-          throw new Error('Reference photo not found');
-        }
-        
-        // Convert photoBlob to base64 for AI analysis
-        const photoBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64 = reader.result as string;
-            resolve(base64.split(',')[1]); // Remove data:image/jpeg;base64, prefix
-          };
-          reader.readAsDataURL(photoBlob);
-        });
-        
-        console.log('[AI Verify] 🤖 Using Gemini Vision for ultra-accurate verification...');
-        console.log('[AI Verify] Reference photo:', biometric.referencePhotoUrl.substring(0, 50) + '...');
-        console.log('[AI Verify] Live selfie:', (photoBase64.length / 1024).toFixed(2), 'KB base64');
-        
-        const aiResponse = await fetch('/api/ai/verify-face', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            liveSelfieBase64: photoBase64,
-            referencePhotoUrl: biometric.referencePhotoUrl,
-            userId: session!.user.id
-          }),
-        });
-
-        const aiData = await aiResponse.json();
-        
-        toast.dismiss(aiToast);
-        
-        console.log('[AI Verify] 🤖 Gemini result:', aiData);
-
-        if (!aiData.success || !aiData.verified) {
-          console.error('[AI Verify] ❌ Face verification failed:', aiData.reasons || aiData.error);
+          console.log('[First Time] 📸 No reference photo found - saving current photo as reference');
+          setAiProgress('💾 Menyimpan foto reference pertama kali...');
           
-          // Show detailed error with reasoning
-          const errorMsg = aiData.data?.reasoning 
-            ? `🤖 Verifikasi AI Gagal:\n\n${aiData.data.reasoning}\n\n${aiData.reasons?.join('\n') || ''}`
-            : aiData.reasons 
-              ? `🤖 Verifikasi AI gagal:\n${aiData.reasons.join('\n')}`
-              : aiData.error || 'Verifikasi wajah gagal';
+          toast.dismiss(aiToast);
           
-          toast.error(
-            <div className="max-w-md">
-              <div className="font-bold text-lg mb-2">❌ Verifikasi Wajah Gagal</div>
-              <div className="text-sm space-y-2">
-                {aiData.data?.details?.warnings?.map((warn: string, i: number) => (
-                  <div key={i}>⚠️ {warn}</div>
-                ))}
-                {aiData.reasons?.map((reason: string, i: number) => (
-                  <div key={i}>• {reason}</div>
-                ))}
-              </div>
-              {aiData.data?.details?.livenessIndicators && (
-                <div className="mt-3 text-xs opacity-75">
-                  <div className="font-semibold mb-1">Liveness Check:</div>
-                  {aiData.data.details.livenessIndicators.screenDetected && <div>📱 Screen detected</div>}
-                  {aiData.data.details.livenessIndicators.printDetected && <div>📄 Print detected</div>}
-                  {aiData.data.details.livenessIndicators.maskDetected && <div>😷 Mask detected</div>}
-                  {aiData.data.details.livenessIndicators.deepfakeDetected && <div>🎭 Deepfake detected</div>}
+          const saveReferenceToast = toast.loading('💾 Menyimpan foto reference...');
+          
+          // Save current photo as reference
+          const saveResponse = await fetch('/api/attendance/biometric/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              referencePhotoUrl: photoUrl,
+              userId: session!.user.id,
+            }),
+          });
+          
+          const saveData = await saveResponse.json();
+          
+          toast.dismiss(saveReferenceToast);
+          
+          if (!saveData.success) {
+            throw new Error('Gagal menyimpan foto reference');
+          }
+          
+          toast.success('✅ Foto reference tersimpan! Absensi selanjutnya akan diverifikasi dengan AI.');
+          
+          setIsFirstTimeAttendance(true);
+          setAiVerifying(false);
+          
+          // Continue to submit attendance (skip AI verification for first time)
+          console.log('[First Time] ⏭️ Skipping AI verification - first time registration');
+          
+        } else {
+          // ===== NORMAL AI VERIFICATION =====
+          setAiProgress('🤖 Menganalisis wajah dengan AI...');
+          
+          // Convert photoBlob to base64 for AI analysis
+          const photoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              resolve(base64.split(',')[1]); // Remove data:image/jpeg;base64, prefix
+            };
+            reader.readAsDataURL(photoBlob);
+          });
+          
+          console.log('[AI Verify] 🤖 Using Gemini Vision for ultra-accurate verification...');
+          console.log('[AI Verify] Reference photo:', biometric.referencePhotoUrl.substring(0, 50) + '...');
+          console.log('[AI Verify] Live selfie:', (photoBase64.length / 1024).toFixed(2), 'KB base64');
+          
+          setAiProgress('🔬 Membandingkan dengan foto reference...');
+          
+          const aiResponse = await fetch('/api/ai/verify-face', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              liveSelfieBase64: photoBase64,
+              referencePhotoUrl: biometric.referencePhotoUrl,
+              userId: session!.user.id
+            }),
+          });
+
+          const aiData = await aiResponse.json();
+          
+          toast.dismiss(aiToast);
+          setAiVerifying(false);
+          
+          console.log('[AI Verify] 🤖 Gemini result:', aiData);
+
+          if (!aiData.success || !aiData.verified) {
+            console.error('[AI Verify] ❌ Face verification failed:', aiData.reasons || aiData.error);
+            
+            // Show detailed error with reasoning
+            const errorMsg = aiData.data?.reasoning 
+              ? `🤖 Verifikasi AI Gagal:\n\n${aiData.data.reasoning}\n\n${aiData.reasons?.join('\n') || ''}`
+              : aiData.reasons 
+                ? `🤖 Verifikasi AI gagal:\n${aiData.reasons.join('\n')}`
+                : aiData.error || 'Verifikasi wajah gagal';
+            
+            toast.error(
+              <div className="max-w-md">
+                <div className="font-bold text-lg mb-2">❌ Verifikasi Wajah Gagal</div>
+                <div className="text-sm space-y-2">
+                  {aiData.data?.details?.warnings?.map((warn: string, i: number) => (
+                    <div key={i}>⚠️ {warn}</div>
+                  ))}
+                  {aiData.reasons?.map((reason: string, i: number) => (
+                    <div key={i}>• {reason}</div>
+                  ))}
                 </div>
-              )}
-              <div className="mt-3 text-xs">
-                Confidence: {(aiData.data?.confidence * 100 || 0).toFixed(1)}%
-              </div>
-            </div>,
-            { 
-              duration: 12000,
-              style: {
-                maxWidth: '600px',
-                padding: '20px'
+                {aiData.data?.details?.livenessIndicators && (
+                  <div className="mt-3 text-xs opacity-75">
+                    <div className="font-semibold mb-1">Liveness Check:</div>
+                    {aiData.data.details.livenessIndicators.screenDetected && <div>📱 Screen detected</div>}
+                    {aiData.data.details.livenessIndicators.printDetected && <div>📄 Print detected</div>}
+                    {aiData.data.details.livenessIndicators.maskDetected && <div>😷 Mask detected</div>}
+                    {aiData.data.details.livenessIndicators.deepfakeDetected && <div>🎭 Deepfake detected</div>}
+                  </div>
+                )}
+                <div className="mt-3 text-xs">
+                  Confidence: {(aiData.data?.confidence * 100 || 0).toFixed(1)}%
+                </div>
+              </div>,
+              { 
+                duration: 12000,
+                style: {
+                  maxWidth: '600px',
+                  padding: '20px'
+                }
               }
-            }
-          );
-          
-          setLoading(false);
-          setStep('capture');
-          return;
+            );
+            
+            setLoading(false);
+            setStep('capture');
+            return;
         }
         
         console.log('[AI Verify] ✅ Gemini verification PASSED!');
@@ -1329,8 +1372,11 @@ export default function AttendancePage() {
         // Store AI verification result
         setAiVerification(aiData.data);
         
+        } // ✅ Close else block for AI verification
+        
       } catch (aiError: any) {
         toast.dismiss(aiToast);
+        setAiVerifying(false);
         console.error('[AI Verify] ⚠️ AI verification error (non-fatal):', aiError);
         
         // AI verification gagal, tapi bisa lanjut (optional verification)
@@ -1345,6 +1391,9 @@ export default function AttendancePage() {
       
       // Get network connection info for enhanced security
       const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      
+      // ✅ Get current user profile for name
+      const userName = session?.user?.name || attendanceName || 'Unknown';
       
       const payload = {
         latitude: locationData.latitude,
@@ -1366,6 +1415,14 @@ export default function AttendancePage() {
           downlink: connection?.downlink,
           effectiveType: connection?.effectiveType,
         },
+        // ✅ NEW: Attendance metadata
+        metadata: {
+          userName: userName,
+          note: attendanceNote.trim() || null, // Alasan/keterangan
+          isFirstTime: isFirstTimeAttendance,
+          timestamp: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
         // Include AI verification result for dashboard sync
         aiVerification: aiVerification ? {
           verified: true,
@@ -1373,6 +1430,13 @@ export default function AttendancePage() {
           confidence: aiVerification.confidence,
           isLive: aiVerification.isLive,
           provider: aiVerification.aiProvider || 'gemini-vision',
+        } : isFirstTimeAttendance ? {
+          verified: true,
+          matchScore: 1.0,
+          confidence: 1.0,
+          isLive: true,
+          provider: 'first-time-registration',
+          note: 'First time attendance - reference photo saved',
         } : undefined,
       };
       
@@ -1768,19 +1832,53 @@ export default function AttendancePage() {
             ) : (
               <div className="space-y-3 sm:space-y-4">
                 <img src={photoPreview} alt="Selfie" className="w-full rounded-xl shadow-lg" />
+                
+                {/* ✅ AI VERIFICATION LOADING INDICATOR */}
+                {aiVerifying && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <div>
+                        <div className="font-bold text-blue-900 dark:text-blue-100">🤖 Verifikasi AI</div>
+                        <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">{aiProgress}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* ✅ OPTIONAL: Alasan/Keterangan */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    📝 Keterangan (Opsional)
+                  </label>
+                  <textarea
+                    value={attendanceNote}
+                    onChange={(e) => setAttendanceNote(e.target.value)}
+                    placeholder="Contoh: Terlambat karena macet, Ijin keluar kelas, dll"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm resize-none"
+                    rows={2}
+                    disabled={loading || aiVerifying}
+                  />
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    💡 Opsional: Tambahkan alasan terlambat, ijin, atau keterangan lainnya
+                  </div>
+                </div>
+                
                 <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setPhotoBlob(null);
                       setPhotoPreview('');
+                      setAttendanceNote('');
                     }}
-                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95"
+                    disabled={loading || aiVerifying}
+                    className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm sm:text-base font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95 disabled:opacity-50"
                   >
                     Ambil Ulang
                   </button>
                   <button
                     onClick={handleSubmitAttendance}
-                    disabled={loading}
+                    disabled={loading || aiVerifying}
                     className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <FaCheckCircle />

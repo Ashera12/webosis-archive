@@ -275,9 +275,9 @@ export async function authenticateCredential(
 
     // Get challenge from server
     const challengeResponse = await fetch('/api/attendance/biometric/webauthn/auth-challenge', {
-      method: 'POST',
+      method: 'GET', // ✅ Changed from POST to GET
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
+      credentials: 'include', // Include session cookie
     });
 
     if (!challengeResponse.ok) {

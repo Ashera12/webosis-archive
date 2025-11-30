@@ -2,7 +2,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { FaCamera, FaFingerprint, FaCheckCircle, FaTimesCircle, FaShieldAlt } from 'react-icons/fa';
@@ -51,7 +51,7 @@ export default function EnrollmentPage() {
   // Live camera preview
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const videoRef = useState<HTMLVideoElement | null>(null)[0];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   
   // Passkey registration
   const [passkeyRegistered, setPasskeyRegistered] = useState(false);
@@ -122,17 +122,17 @@ export default function EnrollmentPage() {
   };
 
   const capturePhotoFromPreview = () => {
-    if (!videoRef || !cameraStream) {
+    if (!videoRef.current || !cameraStream) {
       toast.error('Kamera belum siap');
       return;
     }
 
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.videoWidth;
-      canvas.height = videoRef.videoHeight;
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
-      ctx?.drawImage(videoRef, 0, 0);
+      ctx?.drawImage(videoRef.current, 0, 0);
       
       canvas.toBlob((blob) => {
         if (blob) {
@@ -427,8 +427,8 @@ export default function EnrollmentPage() {
                     ref={(el) => {
                       if (el && cameraStream) {
                         el.srcObject = cameraStream;
-                        el.play();
-                        (videoRef as any) = el;
+                        el.play().catch(err => console.log('Video play error:', err));
+                        videoRef.current = el;
                       }
                     }}
                     autoPlay

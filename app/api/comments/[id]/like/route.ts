@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { logActivity, getIpAddress, parseUserAgent } from '@/lib/activity-logger';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -50,6 +51,30 @@ export async function POST(
       .eq('comment_id', commentId);
 
     likes = count || 0;
+
+    // Log like/unlike activity (only for authenticated users)
+    if (userId !== 'anonymous') {
+      await logActivity({
+        userId,
+        userName: session?.user?.name,
+        userEmail: session?.user?.email,
+        userRole: (session?.user as any)?.role,
+        activityType: liked ? 'post_like' : 'post_unlike',
+        action: liked ? 'Comment liked' : 'Comment unliked',
+        description: `User ${liked ? 'liked' : 'unliked'} comment ${commentId}`,
+        metadata: {
+          comment_id: commentId,
+          action: liked ? 'like' : 'unlike',
+          total_likes: likes,
+        },
+        ipAddress: getIpAddress(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        deviceInfo: parseUserAgent(request.headers.get('user-agent') || ''),
+        relatedId: commentId,
+        relatedType: 'comment_like',
+        status: 'success',
+      });
+    }
 
     return NextResponse.json({ liked, likes });
   } catch (error) {

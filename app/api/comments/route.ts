@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { logActivity, getIpAddress, parseUserAgent } from '@/lib/activity-logger';
 
 // Validate environment variables
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -208,6 +209,31 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Comments API] Comment created successfully:', comment?.id);
+
+    // Log comment creation activity
+    if (!isAnonymous && session?.user?.id) {
+      await logActivity({
+        userId: session.user.id,
+        userName: session.user.name,
+        userEmail: session.user.email,
+        userRole: (session.user as any).role,
+        activityType: 'post_comment',
+        action: 'Comment created',
+        description: `User commented on ${contentType}: ${contentId}`,
+        metadata: {
+          comment_id: comment?.id,
+          content_id: contentId,
+          content_type: contentType,
+          content_preview: content.substring(0, 50),
+        },
+        ipAddress: getIpAddress(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        deviceInfo: parseUserAgent(request.headers.get('user-agent') || ''),
+        relatedId: comment?.id?.toString(),
+        relatedType: 'comment',
+        status: 'success',
+      });
+    }
 
     // Add default likes count
     const commentWithLikes = {

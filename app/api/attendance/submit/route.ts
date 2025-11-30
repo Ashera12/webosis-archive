@@ -131,47 +131,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. COMPREHENSIVE BIOMETRIC VERIFICATION - Ambil SEMUA data dari database
-    console.log('[Attendance Submit] 🔍 Fetching complete biometric data from database...');
+    // 3. CHECK BIOMETRIC DATA - First time or verification?
+    console.log('[Attendance Submit] 🔍 Checking biometric enrollment status...');
     
     const { data: biometric, error: biometricError } = await supabaseAdmin
-      .from('user_biometric')
-      .select(`
-        *,
-        user_id,
-        reference_photo_url,
-        fingerprint_template,
-        webauthn_credential_id,
-        created_at,
-        updated_at
-      `)
+      .from('biometric_data')
+      .select('*')
       .eq('user_id', userId)
       .single();
 
-    if (biometricError || !biometric) {
-      console.error('[Attendance Submit] ❌ No biometric data:', biometricError);
-      return NextResponse.json(
-        { error: 'Biometric belum terdaftar', requireSetup: true },
-        { status: 400 }
-      );
+    const isFirstTimeAttendance = !biometric || biometricError?.code === 'PGRST116';
+    
+    if (isFirstTimeAttendance) {
+      console.log('[Attendance Submit] 🎉 FIRST TIME ATTENDANCE - Starting enrollment...');
+      
+      // ==========================================
+      // FIRST TIME: ENROLLMENT MODE
+      // Save biometric data for future verification
+      // ==========================================
+      
+      const { error: enrollError } = await supabaseAdmin
+        .from('biometric_data')
+        .insert({
+          user_id: userId,
+          reference_photo_url: body.photoSelfieUrl,
+          fingerprint_template: body.fingerprintHash,
+          is_first_attendance_enrollment: true,
+          enrollment_status: 'complete',
+          created_at: new Date().toISOString(),
+        });
+
+      if (enrollError) {
+        console.error('[Attendance Submit] ❌ Enrollment save failed:', enrollError);
+        return NextResponse.json(
+          { error: 'Gagal menyimpan data enrollment' },
+          { status: 500 }
+        );
+      }
+
+      console.log('[Attendance Submit] ✅ Enrollment data saved successfully');
+      
+      // Continue to save attendance below with enrollment flag
+      
+    } else {
+      console.log('[Attendance Submit] ✅ Returning user - verification mode');
+      // Verification logic continues below
     }
 
-    console.log('[Attendance Submit] ✅ Biometric data loaded from database');
-    console.log('[Attendance Submit] Complete data:', {
-      hasPhoto: !!biometric.reference_photo_url,
-      hasFingerprint: !!biometric.fingerprint_template,
-      hasWebAuthn: !!biometric.webauthn_credential_id,
-      setupDate: biometric.created_at,
-      photoUrl: biometric.reference_photo_url?.substring(0, 80),
-    });
-
-    // 4. VERIFY FINGERPRINT (Device fingerprint from database)
-    console.log('[Attendance Submit] 🔐 Verifying fingerprint...');
-    console.log('[Attendance Submit] Stored fingerprint:', biometric.fingerprint_template?.substring(0, 20) + '...');
-    console.log('[Attendance Submit] Provided fingerprint:', body.fingerprintHash?.substring(0, 20) + '...');
-    
-    if (body.fingerprintHash !== biometric.fingerprint_template) {
-      console.error('[Attendance Submit] ❌ Fingerprint mismatch!');
+    // 4. VERIFY BIOMETRIC (Only for returning users)
+    if (!isFirstTimeAttendance) {
+      console.log('[Attendance Submit] 🔐 Verifying biometric data...');
+      console.log('[Attendance Submit] Stored fingerprint:', biometric.fingerprint_template?.substring(0, 20) + '...');
+      console.log('[Attendance Submit] Provided fingerprint:', body.fingerprintHash?.substring(0, 20) + '...');
+      
+      const fingerprintMatch = body.fingerprintHash === biometric.fingerprint_template;
+      
+      if (!fingerprintMatch) {
+        console.error('[Attendance Submit] ❌ Fingerprint mismatch!');
       
       // Log security violation
       await logActivity({
@@ -284,6 +300,7 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('[Attendance Submit] ⏭️ Skipping AI verification (no photo provided or no reference photo in database)');
     }
+    } // End of verification block for returning users
 
     // 5. Cek apakah sudah absen hari ini
     const today = new Date();
@@ -365,6 +382,7 @@ export async function POST(request: NextRequest) {
         fingerprint_hash: body.fingerprintHash,
         wifi_ssid: body.wifiSSID,
         wifi_bssid: body.wifiBSSID,
+        is_enrollment_attendance: isFirstTimeAttendance, // NEW: Flag for first-time enrollment
         device_info: {
           ...body.deviceInfo,
           // Enhanced security tracking

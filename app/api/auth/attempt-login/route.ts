@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logActivity, getIpAddress, parseUserAgent } from '@/lib/activity-logger';
 
 // POST /api/auth/attempt-login { email, password }
 // Validates credentials and returns detailed error message without creating session
@@ -47,6 +48,22 @@ export async function POST(req: NextRequest) {
     const valid = await bcrypt.compare(password, user.password_hash);
     
     if (!valid) {
+      // Log failed login attempt
+      await logActivity({
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        activityType: 'login',
+        action: 'Login attempt failed - Invalid password',
+        description: `Failed login attempt for ${email}`,
+        metadata: { email, reason: 'invalid_password' },
+        ipAddress: getIpAddress(req),
+        userAgent: req.headers.get('user-agent') || undefined,
+        deviceInfo: parseUserAgent(req.headers.get('user-agent') || ''),
+        status: 'failure',
+      });
+      
       return NextResponse.json({
         success: false,
         error: 'Password salah. Silakan periksa kembali password Anda.',
@@ -83,6 +100,22 @@ export async function POST(req: NextRequest) {
       user_id: user.id, 
       email: user.email, 
       approved: user.approved 
+    });
+    
+    // Log successful login validation
+    await logActivity({
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      activityType: 'login',
+      action: 'Login credentials validated',
+      description: `User ${email} successfully validated credentials`,
+      metadata: { email, method: 'credentials' },
+      ipAddress: getIpAddress(req),
+      userAgent: req.headers.get('user-agent') || undefined,
+      deviceInfo: parseUserAgent(req.headers.get('user-agent') || ''),
+      status: 'success',
     });
     
     // All checks passed

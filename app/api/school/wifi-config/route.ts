@@ -53,9 +53,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       allowedSSIDs,
       config: {
-        schoolName: config.school_name,
+        locationName: config.location_name,
+        latitude: config.latitude,
+        longitude: config.longitude,
         radiusMeters: config.radius_meters,
-        requireWiFi: config.require_wifi || false
+        requireWiFi: config.require_wifi || false,
+        isActive: config.is_active
       }
     });
 

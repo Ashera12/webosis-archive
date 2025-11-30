@@ -88,6 +88,7 @@ export default function AttendanceSettingsPage() {
   const [configHistory, setConfigHistory] = useState<SchoolConfig[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showWiFiForm, setShowWiFiForm] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false); // Hide deprecated sections
   const [editingWiFiIndex, setEditingWiFiIndex] = useState<number | null>(null);
   const [newWiFi, setNewWiFi] = useState<WiFiNetwork>({
     ssid: '',
@@ -956,7 +957,7 @@ export default function AttendanceSettingsPage() {
             <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
               ⚡ Quick Presets (klik untuk apply):
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -979,7 +980,7 @@ export default function AttendanceSettingsPage() {
                     ...config,
                     allowed_ip_ranges: [
                       '192.168.0.0/16',
-                      '182.10.0.0/16',    // Example ISP range
+                      '182.10.0.0/16',    // ISP Public IP
                       '100.64.0.0/10'     // CGNAT
                     ]
                   });
@@ -988,7 +989,24 @@ export default function AttendanceSettingsPage() {
               >
                 📱 WiFi + Data Seluler
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfig({
+                    ...config,
+                    allowed_ip_ranges: [
+                      '0.0.0.0/0'  // ALLOW ALL (TESTING ONLY!)
+                    ]
+                  });
+                }}
+                className="px-3 py-2 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-700 dark:text-yellow-300 transition-colors"
+              >
+                ⚠️ Testing Mode (Allow All)
+              </button>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              💡 Klik preset untuk auto-fill IP ranges. Preset "Testing Mode" hanya untuk development!
+            </p>
           </div>
 
           {/* Security Level */}
@@ -1067,7 +1085,8 @@ export default function AttendanceSettingsPage() {
           )}
         </div>
 
-        {/* WiFi Config (DEPRECATED - Use IP Whitelisting Instead) */}
+        {/* WiFi Config (DEPRECATED - Use IP Whitelisting Instead) - HIDDEN BY DEFAULT */}
+        {showAdvancedSettings && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700 opacity-60">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1272,8 +1291,10 @@ export default function AttendanceSettingsPage() {
             </ul>
           </div>
         </div>
+        )}
 
-        {/* 🔐 NETWORK MONITORING & IP VALIDATION */}
+        {/* 🔐 NETWORK MONITORING & IP VALIDATION - HIDDEN BY DEFAULT */}
+        {showAdvancedSettings && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-purple-300 dark:border-purple-600">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1662,6 +1683,18 @@ export default function AttendanceSettingsPage() {
               </div>
             </div>
           </div>
+        </div>
+        )}
+
+        {/* Toggle Advanced Settings */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 text-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            {showAdvancedSettings ? '▲ Sembunyikan' : '▼ Tampilkan'} Advanced Settings (WiFi SSID, Network Monitoring - DEPRECATED)
+          </button>
         </div>
 
         {/* Save Button */}

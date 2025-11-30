@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode, FaHistory, FaUndo, FaToggleOn, FaToggleOff, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaWifi, FaSave, FaPlus, FaTimes, FaCheckCircle, FaQrcode, FaHistory, FaUndo, FaToggleOn, FaToggleOff, FaTrash, FaEdit, FaNetworkWired } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -16,9 +16,12 @@ interface WiFiNetwork {
 }
 
 interface NetworkConfig {
-  // IP Validation
-  allowed_ip_ranges?: string[]; // ["192.168.1.0/24", "10.0.0.0/24"]
-  required_subnet?: string; // "192.168.1" or "10.0.0"
+  // 🔐 ENTERPRISE IP WHITELISTING (Google/Microsoft/Cisco Standard)
+  allowed_ip_ranges?: string[]; // CIDR notation: ["192.168.0.0/16", "182.10.0.0/16"]
+  require_wifi?: boolean; // false = IP validation only (recommended)
+  
+  // Legacy fields (deprecated, kept for backward compatibility)
+  required_subnet?: string; 
   enable_ip_validation?: boolean;
   enable_webrtc_detection?: boolean;
   enable_private_ip_check?: boolean;
@@ -29,11 +32,11 @@ interface NetworkConfig {
   allowed_connection_types?: string[]; // ["wifi", "ethernet", "cellular"]
   min_network_quality?: 'excellent' | 'good' | 'fair' | 'poor';
   
-  // MAC Address
+  // MAC Address (optional, rarely used)
   enable_mac_address_validation?: boolean;
-  allowed_mac_addresses?: string[]; // MAC address whitelist
+  allowed_mac_addresses?: string[]; 
   
-  // Security Features
+  // Security Features (advanced)
   block_vpn?: boolean;
   block_proxy?: boolean;
   enable_network_quality_check?: boolean;
@@ -62,19 +65,23 @@ export default function AttendanceSettingsPage() {
     allowed_wifi_ssids: [],
     wifi_networks: [],
     is_active: true,
-    // Network Monitoring defaults
+    
+    // 🔐 ENTERPRISE IP WHITELISTING (Default Config)
+    allowed_ip_ranges: [], // Admin must configure this!
+    require_wifi: false, // Use IP validation (recommended)
+    
+    // Network Monitoring defaults (deprecated)
     enable_ip_validation: false,
     enable_webrtc_detection: true,
     enable_private_ip_check: true,
     enable_subnet_matching: false,
-    network_security_level: 'medium',
+    network_security_level: 'high', // Changed to 'high' for strict security
     allowed_connection_types: ['wifi'],
     min_network_quality: 'fair',
     enable_mac_address_validation: false,
     block_vpn: false,
     block_proxy: false,
     enable_network_quality_check: true,
-    allowed_ip_ranges: [],
     required_subnet: '',
     allowed_mac_addresses: [],
   });
@@ -323,10 +330,44 @@ export default function AttendanceSettingsPage() {
       return;
     }
 
-    if (config.allowed_wifi_ssids.length === 0 && (!config.wifi_networks || config.wifi_networks.length === 0)) {
-      console.error('❌ Validation failed: no WiFi SSIDs');
-      toast.error('Minimal 1 WiFi harus ditambahkan');
+    // 🔐 CRITICAL: Validate IP Whitelisting
+    if (!config.allowed_ip_ranges || config.allowed_ip_ranges.length === 0) {
+      console.error('❌ Validation failed: no IP ranges configured');
+      toast.error(
+        <div>
+          <div className="font-bold">❌ IP Whitelisting belum dikonfigurasi!</div>
+          <div className="text-sm mt-1">Tambahkan minimal 1 IP range (CIDR notation) untuk keamanan</div>
+        </div>,
+        { duration: 6000 }
+      );
       return;
+    }
+
+    // Validate CIDR format for each IP range
+    const invalidRanges: string[] = [];
+    config.allowed_ip_ranges.forEach(range => {
+      const cidrPattern = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+      if (!cidrPattern.test(range.trim())) {
+        invalidRanges.push(range);
+      }
+    });
+
+    if (invalidRanges.length > 0) {
+      console.error('❌ Validation failed: invalid CIDR format', invalidRanges);
+      toast.error(
+        <div>
+          <div className="font-bold">❌ Format IP Range tidak valid!</div>
+          <div className="text-sm mt-1">Format harus: 192.168.0.0/16</div>
+          <div className="text-xs mt-1 text-red-200">Invalid: {invalidRanges.join(', ')}</div>
+        </div>,
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    if (config.allowed_wifi_ssids.length === 0 && (!config.wifi_networks || config.wifi_networks.length === 0)) {
+      console.warn('⚠️ Warning: no WiFi SSIDs (but not blocking - IP validation is primary)');
+      // Don't block - IP validation is the primary security mechanism
     }
 
     console.log('✅ All validations passed');
@@ -342,14 +383,16 @@ export default function AttendanceSettingsPage() {
         radius_meters: Number(config.radius_meters),
         allowed_wifi_ssids: config.allowed_wifi_ssids,
         is_active: true,
-        // Network Monitoring Fields
+        // 🔐 ENTERPRISE IP WHITELISTING (Primary Security)
         allowed_ip_ranges: config.allowed_ip_ranges || [],
+        require_wifi: config.require_wifi !== undefined ? config.require_wifi : false, // false = IP validation only
+        network_security_level: config.network_security_level || 'high',
+        // Legacy Network Monitoring Fields (backward compatibility)
         required_subnet: config.required_subnet || null,
         enable_ip_validation: config.enable_ip_validation || false,
         enable_webrtc_detection: config.enable_webrtc_detection !== false, // default true
         enable_private_ip_check: config.enable_private_ip_check !== false, // default true
         enable_subnet_matching: config.enable_subnet_matching || false,
-        network_security_level: config.network_security_level || 'medium',
         allowed_connection_types: config.allowed_connection_types || ['wifi'],
         min_network_quality: config.min_network_quality || 'fair',
         enable_mac_address_validation: config.enable_mac_address_validation || false,
@@ -389,12 +432,15 @@ export default function AttendanceSettingsPage() {
         const isUpdate = config.id ? true : false;
         const successMessage = data.message || (isUpdate ? 'Konfigurasi berhasil diperbarui!' : 'Konfigurasi berhasil disimpan!');
         
-        // Enhanced success notification
+        // Enhanced success notification with IP whitelisting info
         toast.success(
           <div>
             <div className="font-bold">✅ {successMessage}</div>
             <div className="text-sm mt-1">
-              📍 {payload.location_name} • {payload.radius_meters}m • {payload.allowed_wifi_ssids.length} WiFi
+              📍 {payload.location_name} • {payload.radius_meters}m
+            </div>
+            <div className="text-xs mt-1 text-green-700">
+              🔐 IP Ranges: {payload.allowed_ip_ranges.length} configured • Security: {payload.network_security_level?.toUpperCase()}
             </div>
           </div>,
           { duration: 5000 }
@@ -838,16 +884,208 @@ export default function AttendanceSettingsPage() {
           </div>
         </div>
 
-        {/* WiFi Config */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700">
+        {/* 🔐 ENTERPRISE IP WHITELISTING (CRITICAL SECURITY) */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-red-200 dark:border-red-700">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <FaWifi className="text-blue-600" />
-              WiFi yang Diizinkan
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <FaNetworkWired className="text-red-600" />
+                🔐 Enterprise IP Whitelisting
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                ⚠️ <strong>SEMUA USER (Siswa, Guru, Admin)</strong> hanya bisa absensi dari IP internal sekolah
+              </p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                config.network_security_level === 'high' 
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+              }`}>
+                Security: {config.network_security_level?.toUpperCase() || 'MEDIUM'}
+              </span>
+            </div>
+          </div>
+
+          {/* Current IP Detection */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-4">
+            <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-2">
+              🌐 IP Address Anda Saat Ini:
+            </p>
+            <code className="block px-3 py-2 bg-white dark:bg-gray-800 rounded-lg text-blue-600 dark:text-blue-300 font-mono text-sm">
+              {typeof window !== 'undefined' ? 'Detecting...' : 'Server Side'}
+            </code>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              💡 Pastikan IP ini termasuk dalam allowed ranges di bawah
+            </p>
+          </div>
+
+          {/* IP Ranges Input */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+              📋 Allowed IP Ranges (CIDR Notation) *
+            </label>
+            <textarea
+              value={config.allowed_ip_ranges?.join('\n') || ''}
+              onChange={(e) => {
+                const ranges = e.target.value.split('\n').filter(r => r.trim() !== '');
+                setConfig({ ...config, allowed_ip_ranges: ranges });
+              }}
+              placeholder="Masukkan IP ranges (satu per baris):&#10;192.168.0.0/16  ← Jaringan lokal&#10;182.10.0.0/16   ← IP Public ISP&#10;100.64.0.0/10   ← CGNAT (Telkomsel/Indosat)&#10;10.0.0.0/8      ← Private network"
+              rows={6}
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900 transition-all outline-none text-gray-900 dark:text-white font-mono text-sm"
+            />
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                ✅ <strong>Format:</strong> IP_ADDRESS/SUBNET (CIDR notation)
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                ✅ <strong>/16</strong> = 65,536 IP addresses (rekomendasi untuk ISP range)
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                ✅ <strong>/24</strong> = 256 IP addresses (rekomendasi untuk jaringan lokal)
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 font-bold">
+                ⚠️ <strong>JANGAN</strong> gunakan 0.0.0.0/0 (mengizinkan semua IP = tidak aman!)
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+              ⚡ Quick Presets (klik untuk apply):
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfig({
+                    ...config,
+                    allowed_ip_ranges: [
+                      '192.168.0.0/16',  // Local network
+                      '10.0.0.0/8'        // Private network
+                    ]
+                  });
+                }}
+                className="px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border border-green-300 dark:border-green-700 rounded-lg text-xs text-green-700 dark:text-green-300 transition-colors"
+              >
+                🏫 WiFi Sekolah (Local Only)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfig({
+                    ...config,
+                    allowed_ip_ranges: [
+                      '192.168.0.0/16',
+                      '182.10.0.0/16',    // Example ISP range
+                      '100.64.0.0/10'     // CGNAT
+                    ]
+                  });
+                }}
+                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border border-blue-300 dark:border-blue-700 rounded-lg text-xs text-blue-700 dark:text-blue-300 transition-colors"
+              >
+                📱 WiFi + Data Seluler
+              </button>
+            </div>
+          </div>
+
+          {/* Security Level */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+              🛡️ Network Security Level
+            </label>
+            <select
+              value={config.network_security_level || 'high'}
+              onChange={(e) => setConfig({ ...config, network_security_level: e.target.value as 'low' | 'medium' | 'high' })}
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900 transition-all outline-none text-gray-900 dark:text-white"
+            >
+              <option value="high">🔴 HIGH - Strict IP + GPS + Face Recognition (Recommended)</option>
+              <option value="medium">🟡 MEDIUM - IP + GPS Only</option>
+              <option value="low">🟢 LOW - GPS Only (Not Recommended)</option>
+            </select>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-bold">
+              ⚠️ <strong>Rekomendasi: HIGH</strong> - Semua validasi aktif untuk keamanan maksimal
+            </p>
+          </div>
+
+          {/* Require WiFi Toggle */}
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="require-wifi"
+                checked={config.require_wifi !== false} 
+                onChange={(e) => setConfig({ ...config, require_wifi: e.target.checked })}
+                className="mt-1 w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 rounded"
+              />
+              <div className="flex-1">
+                <label htmlFor="require-wifi" className="block text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                  Wajibkan WiFi SSID Validation?
+                </label>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                  ❌ <strong>TIDAK DISARANKAN</strong> - Browser tidak bisa deteksi nama WiFi (privacy policy)
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">
+                  ✅ <strong>Gunakan IP Whitelisting saja</strong> (lebih reliable dan sesuai standar Google/Microsoft/Cisco)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning for Empty IP Ranges */}
+          {(!config.allowed_ip_ranges || config.allowed_ip_ranges.length === 0) && (
+            <div className="mt-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4">
+              <p className="text-sm font-bold text-red-900 dark:text-red-100 mb-1">
+                ⚠️ PERINGATAN: IP Ranges Kosong!
+              </p>
+              <p className="text-xs text-red-700 dark:text-red-300">
+                Jika IP ranges kosong, <strong>SEMUA USER AKAN DIBLOKIR</strong> saat absensi.
+                Pastikan mengisi minimal 1 IP range yang valid.
+              </p>
+            </div>
+          )}
+
+          {/* Success Preview */}
+          {config.allowed_ip_ranges && config.allowed_ip_ranges.length > 0 && (
+            <div className="mt-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
+              <p className="text-sm font-bold text-green-900 dark:text-green-100 mb-2">
+                ✅ IP Whitelisting Active - {config.allowed_ip_ranges.length} range(s) configured:
+              </p>
+              <ul className="space-y-1">
+                {config.allowed_ip_ranges.map((range, idx) => (
+                  <li key={idx} className="text-xs text-green-700 dark:text-green-300 font-mono">
+                    • {range}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                🔒 <strong>Siswa, Guru, dan Admin</strong> hanya bisa absensi dari IP di atas
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* WiFi Config (DEPRECATED - Use IP Whitelisting Instead) */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border-2 border-gray-200 dark:border-gray-700 opacity-60">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <FaWifi className="text-gray-400" />
+                WiFi yang Diizinkan
+                <span className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full">
+                  DEPRECATED
+                </span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                ⚠️ Browser tidak bisa deteksi WiFi SSID. Gunakan <strong>IP Whitelisting</strong> di atas.
+              </p>
+            </div>
             <button
               onClick={() => setShowWiFiForm(!showWiFiForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-xl hover:bg-gray-500 transition-all cursor-not-allowed"
+              disabled
             >
               <FaPlus />
               Tambah WiFi

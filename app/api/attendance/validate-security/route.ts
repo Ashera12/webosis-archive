@@ -79,13 +79,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== 2. IP WHITELISTING - ENTERPRISE STANDARD (Google Workspace / Microsoft 365) =====
-    // Standar internasional: Server-side IP validation, bukan WiFi SSID (browser tidak bisa baca SSID)
-    // Role-based access: Siswa = strict IP, Guru/Admin = bypass
+    // 🔐 STRICT MODE: SEMUA USER (Siswa, Guru, Admin) HARUS dari IP Internal Sekolah
+    // Standar keamanan tinggi: Server-side IP validation dengan CIDR notation
+    // NO ROLE BYPASS - Akses hanya diizinkan dari jaringan sekolah
     
     const allowedIPRanges = activeConfig.allowed_ip_ranges || [];
     const clientIP = body.networkInfo?.ipAddress || request.headers.get('x-forwarded-for')?.split(',')[0].trim() || null;
     
-    console.log('[Security Validation] 🌐 IP Whitelisting Check (Enterprise Standard)');
+    console.log('[Security Validation] 🔐 IP Whitelisting Check (STRICT MODE - All Users)');
     console.log('[Security Validation] User:', {
       role: userRole,
       email: session.user.email,
@@ -93,45 +94,61 @@ export async function POST(request: NextRequest) {
     });
     console.log('[Security Validation] Config:', {
       allowedIPRanges,
-      strictMode: activeConfig.require_wifi || false
+      totalRanges: allowedIPRanges.length
     });
     
-    // 🔓 PERMISSIVE MODE - Allow ALL IPs (Development/Testing)
+    // ⚠️ CRITICAL: Empty IP ranges = BLOCK ALL
+    if (!allowedIPRanges || allowedIPRanges.length === 0) {
+      console.error('[Security Validation] ❌ NO IP RANGES CONFIGURED - BLOCKING ALL USERS');
+      
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'no_ip_ranges_configured',
+        severity: 'CRITICAL',
+        description: 'IP ranges not configured, blocking all access',
+        metadata: {
+          role: userRole,
+          ip: clientIP,
+          location: { lat: body.latitude, lng: body.longitude }
+        }
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Konfigurasi IP Whitelisting belum diatur. Hubungi admin untuk setup.',
+        details: {
+          hint: 'Admin harus mengkonfigurasi IP ranges di halaman Attendance Settings',
+          note: 'Semua user (siswa, guru, admin) harus akses dari jaringan sekolah'
+        },
+        action: 'BLOCK_ATTENDANCE',
+        severity: 'CRITICAL',
+        violations: ['NO_IP_RANGES_CONFIGURED']
+      }, { status: 403 });
+    }
+    
+    // 🔓 PERMISSIVE MODE - Allow ALL IPs (Development/Testing ONLY!)
+    // ⚠️ WARNING: Gunakan hanya untuk testing, JANGAN di production
     if (allowedIPRanges.includes('0.0.0.0/0')) {
-      console.log('[Security Validation] 🔓 PERMISSIVE MODE (0.0.0.0/0) - All IPs allowed');
+      console.warn('[Security Validation] ⚠️  PERMISSIVE MODE (0.0.0.0/0) - All IPs allowed');
+      console.warn('[Security Validation] ⚠️  WARNING: This is NOT SECURE! Only use for testing!');
       
       await logSecurityEvent({
         user_id: userId,
         event_type: 'permissive_mode_access',
-        severity: 'INFO',
-        description: 'Access granted via permissive mode (0.0.0.0/0)',
+        severity: 'WARNING',
+        description: 'Access granted via permissive mode (0.0.0.0/0) - INSECURE!',
         metadata: {
           role: userRole,
           ip: clientIP,
           location: { lat: body.latitude, lng: body.longitude }
         }
       });
-    }
-    // 👨‍🏫 ROLE-BASED BYPASS - Guru/Admin/Developer bypass IP validation
-    // Standar enterprise: Admin dapat akses dari mana saja, Student dibatasi IP sekolah
-    else if (userRole === 'guru' || userRole === 'admin' || userRole === 'developer') {
-      console.log('[Security Validation] 👨‍🏫 ROLE BYPASS - Guru/Admin/Developer allowed from any IP');
       
-      await logSecurityEvent({
-        user_id: userId,
-        event_type: 'role_based_bypass',
-        severity: 'INFO',
-        description: `${userRole} role bypass IP validation`,
-        metadata: {
-          role: userRole,
-          ip: clientIP,
-          location: { lat: body.latitude, lng: body.longitude }
-        }
-      });
-    }
-    // 👨‍🎓 STUDENT - STRICT IP WHITELISTING (International Standard)
-    else if (userRole === 'siswa') {
-      console.log('[Security Validation] 👨‍🎓 STUDENT MODE - Strict IP validation enforced');
+      // Continue to next validation (tidak block, tapi tetap log)
+    } 
+    // 🔐 STRICT IP WHITELISTING - Applied to ALL Users (Siswa, Guru, Admin)
+    else {
+      console.log('[Security Validation] 🔐 STRICT MODE - IP validation enforced for ALL users');
       
       if (!clientIP) {
         violations.push('IP_NOT_DETECTED');
@@ -154,7 +171,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'IP address tidak terdeteksi. Pastikan Anda terhubung ke internet.',
           details: {
-            hint: 'Refresh halaman dan pastikan koneksi internet aktif'
+            hint: 'Refresh halaman dan pastikan koneksi internet aktif',
+            note: 'Sistem memerlukan IP address untuk validasi keamanan'
           },
           action: 'BLOCK_ATTENDANCE',
           severity: 'HIGH',
@@ -163,27 +181,31 @@ export async function POST(request: NextRequest) {
         }, { status: 403 });
       }
       
-      // Validate IP against whitelist
+      // Validate IP against whitelist (APPLIES TO ALL ROLES)
       const { isIPInAllowedRanges } = await import('@/lib/networkUtils');
       const isIPValid = isIPInAllowedRanges(clientIP, allowedIPRanges);
       
       console.log('[Security Validation] IP Whitelist Check:', {
         clientIP,
         isValid: isIPValid,
-        allowedRanges: allowedIPRanges
+        allowedRanges: allowedIPRanges,
+        userRole: userRole.toUpperCase()
       });
       
       if (!isIPValid) {
         violations.push('IP_NOT_IN_WHITELIST');
         securityScore -= 50;
         
-        console.error('[Security Validation] ❌ IP NOT IN WHITELIST (Strict Mode for Students)');
+        console.error('[Security Validation] ❌ IP NOT IN WHITELIST');
+        console.error('[Security Validation] ❌ User Role:', userRole.toUpperCase());
+        console.error('[Security Validation] ❌ Client IP:', clientIP);
+        console.error('[Security Validation] ❌ Allowed Ranges:', allowedIPRanges);
         
         await logSecurityEvent({
           user_id: userId,
           event_type: 'ip_whitelist_failed',
           severity: 'HIGH',
-          description: `Student IP not in whitelist: ${clientIP}`,
+          description: `${userRole.toUpperCase()} IP not in whitelist: ${clientIP}`,
           metadata: {
             role: userRole,
             client_ip: clientIP,
@@ -192,15 +214,28 @@ export async function POST(request: NextRequest) {
           }
         });
         
+        // Error message berbeda untuk setiap role (lebih informatif)
+        const roleSpecificMessage = userRole === 'siswa' 
+          ? 'Siswa hanya dapat melakukan absensi dari jaringan sekolah.'
+          : userRole === 'guru'
+          ? 'Guru hanya dapat melakukan absensi dari jaringan sekolah.'
+          : 'Admin hanya dapat melakukan absensi dari jaringan sekolah.';
+        
         return NextResponse.json({
           success: false,
-          error: 'Akses ditolak! Anda harus terhubung ke jaringan sekolah.',
+          error: `Akses ditolak! Anda harus terhubung ke jaringan sekolah.`,
           details: {
+            role: userRole.toUpperCase(),
             yourIP: clientIP,
             allowedIPRanges: allowedIPRanges,
             hint: 'Hubungkan ke WiFi sekolah dan pastikan tidak menggunakan data seluler',
-            note: 'Siswa hanya dapat melakukan absensi dari jaringan sekolah (IP Whitelisting)',
-            solution: 'Matikan data seluler → Connect ke WiFi sekolah → Refresh halaman'
+            note: roleSpecificMessage,
+            solution: [
+              '1. Matikan data seluler',
+              '2. Connect ke WiFi sekolah',
+              '3. Refresh halaman ini',
+              '4. Jika masih gagal, hubungi admin untuk verifikasi IP Anda'
+            ]
           },
           action: 'BLOCK_ATTENDANCE',
           severity: 'HIGH',
@@ -209,13 +244,15 @@ export async function POST(request: NextRequest) {
         }, { status: 403 });
       }
       
-      console.log('[Security Validation] ✅ IP VALID - Student access from school network');
+      console.log('[Security Validation] ✅ IP VALID - Access from school network');
+      console.log('[Security Validation] ✅ Role:', userRole.toUpperCase());
+      console.log('[Security Validation] ✅ IP:', clientIP);
       
       await logSecurityEvent({
         user_id: userId,
         event_type: 'ip_validation_success',
         severity: 'INFO',
-        description: `Student IP validated: ${clientIP}`,
+        description: `${userRole.toUpperCase()} IP validated: ${clientIP}`,
         metadata: {
           role: userRole,
           ip: clientIP,
@@ -225,7 +262,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log('[Security Validation] ✅ Network validation complete (Enterprise IP Whitelisting)');
+    console.log('[Security Validation] ✅ Network validation complete (Enterprise IP Whitelisting - STRICT MODE)');
 
     // ===== 3. VALIDATE LOCATION =====
     console.log('[Security Validation] Checking location...');

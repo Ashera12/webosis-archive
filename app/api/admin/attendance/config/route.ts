@@ -126,14 +126,16 @@ export async function POST(request: NextRequest) {
       radius_meters,
       allowed_wifi_ssids,
       is_active = true,
-      // Network Monitoring Fields
+      // 🔐 ENTERPRISE IP WHITELISTING (Primary Security)
       allowed_ip_ranges,
+      require_wifi,
+      network_security_level,
+      // Legacy Network Monitoring Fields (backward compatibility)
       required_subnet,
       enable_ip_validation,
       enable_webrtc_detection,
       enable_private_ip_check,
       enable_subnet_matching,
-      network_security_level,
       allowed_connection_types,
       min_network_quality,
       enable_mac_address_validation,
@@ -151,9 +153,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!Array.isArray(allowed_wifi_ssids) || allowed_wifi_ssids.length === 0) {
+    // 🔐 CRITICAL: Validate IP Whitelisting (primary security mechanism)
+    if (!allowed_ip_ranges || !Array.isArray(allowed_ip_ranges) || allowed_ip_ranges.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'At least one WiFi SSID is required' },
+        { 
+          success: false, 
+          error: 'IP Whitelisting is required. Please configure at least one IP range (CIDR notation).' 
+        },
+        { status: 400 }
+      );
+    }
+
+    // WiFi SSID is optional (deprecated - IP validation is primary)
+    if (!Array.isArray(allowed_wifi_ssids)) {
+      return NextResponse.json(
+        { success: false, error: 'allowed_wifi_ssids must be an array' },
         { status: 400 }
       );
     }
@@ -173,14 +187,16 @@ export async function POST(request: NextRequest) {
       allowed_wifi_ssids,
       is_active,
       updated_at: new Date().toISOString(),
-      // Network Monitoring Fields
+      // 🔐 ENTERPRISE IP WHITELISTING (Primary Security)
       allowed_ip_ranges: allowed_ip_ranges || [],
+      require_wifi: require_wifi !== undefined ? require_wifi : false, // false = IP validation only (recommended)
+      network_security_level: network_security_level || 'high', // Changed default to 'high'
+      // Legacy Network Monitoring Fields (backward compatibility)
       required_subnet: required_subnet || null,
       enable_ip_validation: enable_ip_validation || false,
       enable_webrtc_detection: enable_webrtc_detection !== false, // default true
       enable_private_ip_check: enable_private_ip_check !== false, // default true
       enable_subnet_matching: enable_subnet_matching || false,
-      network_security_level: network_security_level || 'medium',
       allowed_connection_types: allowed_connection_types || ['wifi'],
       min_network_quality: min_network_quality || 'fair',
       enable_mac_address_validation: enable_mac_address_validation || false,

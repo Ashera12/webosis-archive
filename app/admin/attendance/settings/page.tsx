@@ -56,6 +56,14 @@ interface SchoolConfig extends NetworkConfig {
   
   // ✅ GPS Bypass (for testing/development)
   bypass_gps_validation?: boolean; // true = allow attendance from anywhere
+  
+  // 🔒 ENROLLMENT SECURITY SETTINGS (NEW)
+  require_enrollment?: boolean; // Mandatory enrollment before attendance
+  require_face_anchor?: boolean; // Require 8-layer AI verified face photo
+  require_device_binding?: boolean; // Require WebAuthn/Passkey registration
+  ai_verification_threshold?: number; // Minimum AI match score (0.0-1.0)
+  anti_spoofing_threshold?: number; // Minimum anti-spoofing score (0.0-1.0)
+  min_anti_spoofing_layers?: number; // Minimum layers passed (0-8)
 }
 
 export default function AttendanceSettingsPage() {
@@ -72,6 +80,14 @@ export default function AttendanceSettingsPage() {
     // 🔐 ENTERPRISE IP WHITELISTING (Default Config)
     allowed_ip_ranges: [], // Admin must configure this!
     require_wifi: false, // Use IP validation (recommended)
+    
+    // 🔒 ENROLLMENT SECURITY (Default: STRICT)
+    require_enrollment: true,
+    require_face_anchor: true,
+    require_device_binding: true,
+    ai_verification_threshold: 0.80, // 80% match score
+    anti_spoofing_threshold: 0.95, // 95% anti-spoofing score
+    min_anti_spoofing_layers: 7, // 7 out of 8 layers must pass
     
     // Network Monitoring defaults (deprecated)
     enable_ip_validation: false,
@@ -1083,6 +1099,206 @@ export default function AttendanceSettingsPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* 🔒 ENROLLMENT SECURITY SETTINGS (NEW) */}
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-2 border-purple-300 dark:border-purple-700 rounded-xl p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-purple-100 dark:bg-purple-800 rounded-xl">
+                <svg className="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  🔒 Enrollment Security Settings
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Zero-Trust architecture with mandatory biometric enrollment
+                </p>
+              </div>
+            </div>
+
+            {/* Require Enrollment */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-600">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="require-enrollment"
+                  checked={config.require_enrollment !== false}
+                  onChange={(e) => setConfig({ ...config, require_enrollment: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 rounded"
+                />
+                <div className="flex-1">
+                  <label htmlFor="require-enrollment" className="block text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                    ✅ Mandatory Enrollment
+                  </label>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <strong>HIGHLY RECOMMENDED:</strong> User MUST complete enrollment (face photo + device binding) before attendance access
+                  </p>
+                  <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                    💡 Without enrollment, users cannot access /attendance page
+                  </p>
+                  {!config.require_enrollment && (
+                    <div className="mt-2 bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-600 rounded px-2 py-1">
+                      <p className="text-xs font-bold text-red-800 dark:text-red-200">
+                        ⚠️ WARNING: Enrollment disabled - Zero-Trust security compromised!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Require Face Anchor */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-600">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="require-face-anchor"
+                  checked={config.require_face_anchor !== false}
+                  onChange={(e) => setConfig({ ...config, require_face_anchor: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 rounded"
+                  disabled={!config.require_enrollment}
+                />
+                <div className="flex-1">
+                  <label htmlFor="require-face-anchor" className="block text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                    📸 Require 8-Layer AI Face Verification
+                  </label>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    Require face anchor photo with 8-layer anti-spoofing (liveness, mask detection, deepfake, pose, lighting, depth, expression, age)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Require Device Binding */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-600">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="require-device-binding"
+                  checked={config.require_device_binding !== false}
+                  onChange={(e) => setConfig({ ...config, require_device_binding: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-purple-600 focus:ring-2 focus:ring-purple-500 rounded"
+                  disabled={!config.require_enrollment}
+                />
+                <div className="flex-1">
+                  <label htmlFor="require-device-binding" className="block text-sm font-bold text-gray-900 dark:text-white cursor-pointer">
+                    🔐 Require Device Binding (WebAuthn/Passkey)
+                  </label>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    Require WebAuthn/Passkey registration (Windows Hello, TouchID, Android Biometric)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Verification Threshold */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-600">
+              <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                🤖 AI Face Match Threshold
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0.50"
+                  max="0.95"
+                  step="0.05"
+                  value={config.ai_verification_threshold || 0.80}
+                  onChange={(e) => setConfig({ ...config, ai_verification_threshold: parseFloat(e.target.value) })}
+                  className="flex-1 h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 w-16 text-right">
+                  {((config.ai_verification_threshold || 0.80) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                Minimum AI match score required (recommended: 75-85%)
+              </p>
+            </div>
+
+            {/* Anti-Spoofing Threshold */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-600">
+              <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                🛡️ Anti-Spoofing Threshold
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0.80"
+                  max="0.99"
+                  step="0.01"
+                  value={config.anti_spoofing_threshold || 0.95}
+                  onChange={(e) => setConfig({ ...config, anti_spoofing_threshold: parseFloat(e.target.value) })}
+                  className="flex-1 h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 w-16 text-right">
+                  {((config.anti_spoofing_threshold || 0.95) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                Overall score required for 8-layer anti-spoofing (recommended: 90-98%)
+              </p>
+            </div>
+
+            {/* Minimum Anti-Spoofing Layers */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-200 dark:border-purple-600">
+              <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">
+                📊 Minimum Anti-Spoofing Layers
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="8"
+                  step="1"
+                  value={config.min_anti_spoofing_layers || 7}
+                  onChange={(e) => setConfig({ ...config, min_anti_spoofing_layers: parseInt(e.target.value) })}
+                  className="flex-1 h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <span className="text-lg font-bold text-purple-600 dark:text-purple-400 w-16 text-right">
+                  {config.min_anti_spoofing_layers || 7}/8
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                How many layers must pass (8 total: liveness, mask, deepfake, pose, light, depth, expression, age)
+              </p>
+            </div>
+
+            {/* Security Level Preview */}
+            <div className="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg p-4 border border-purple-300 dark:border-purple-600">
+              <p className="text-sm font-bold text-purple-900 dark:text-purple-100 mb-2">
+                📋 Current Enrollment Security Level:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className={config.require_enrollment ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>
+                  {config.require_enrollment ? "✅" : "❌"} Mandatory Enrollment
+                </div>
+                <div className={config.require_face_anchor ? "text-green-700 dark:text-green-300" : "text-gray-500"}>
+                  {config.require_face_anchor ? "✅" : "⚪"} Face Anchor (8-layer AI)
+                </div>
+                <div className={config.require_device_binding ? "text-green-700 dark:text-green-300" : "text-gray-500"}>
+                  {config.require_device_binding ? "✅" : "⚪"} Device Binding (Passkey)
+                </div>
+                <div className="text-purple-700 dark:text-purple-300">
+                  🎯 AI Match: {((config.ai_verification_threshold || 0.80) * 100).toFixed(0)}%
+                </div>
+                <div className="text-purple-700 dark:text-purple-300">
+                  🛡️ Anti-Spoof: {((config.anti_spoofing_threshold || 0.95) * 100).toFixed(0)}%
+                </div>
+                <div className="text-purple-700 dark:text-purple-300">
+                  📊 Min Layers: {config.min_anti_spoofing_layers || 7}/8
+                </div>
+              </div>
+              {config.require_enrollment && config.require_face_anchor && config.require_device_binding && (
+                <div className="mt-3 p-2 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-600 rounded">
+                  <p className="text-xs font-bold text-green-800 dark:text-green-200">
+                    🔒 MAXIMUM SECURITY: Zero-Trust + 8-Layer AI + Hardware-Backed Keys
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -373,7 +373,6 @@ SELECT
   bd.reference_photo_url,
   bd.enrollment_status,
   COUNT(DISTINCT wc.id) as passkey_count,
-  COUNT(DISTINCT df.id) as device_count,
   CASE 
     WHEN bd.reference_photo_url IS NOT NULL AND COUNT(wc.id) > 0 THEN TRUE
     ELSE FALSE
@@ -384,7 +383,6 @@ SELECT
 FROM users u
 LEFT JOIN biometric_data bd ON bd.user_id = u.id
 LEFT JOIN webauthn_credentials wc ON wc.user_id = u.id
-LEFT JOIN device_fingerprints df ON df.user_id = u.id
 LEFT JOIN attendance_records ar ON ar.user_id = u.id
 GROUP BY u.id, u.name, u.email, u.role, bd.reference_photo_url, bd.enrollment_status, bd.created_at;
 

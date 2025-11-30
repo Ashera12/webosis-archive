@@ -139,7 +139,7 @@ INSERT INTO user_activities (
   'test_activity',
   'Testing user_activities table after creation',
   'success',
-  '{"test": true, "timestamp": "' || NOW() || '"}'::jsonb,
+  jsonb_build_object('test', true, 'timestamp', NOW()::text),
   '100.87.220.23'
 );
 

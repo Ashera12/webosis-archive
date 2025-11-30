@@ -68,18 +68,40 @@ export async function getNetworkInfo(): Promise<NetworkInfo> {
       }
     }
 
-    // 2. Get Local IP Address using WebRTC
+    // 2. Try WebRTC IP detection first
+    console.log('[Network Utils] 🔍 Trying WebRTC IP detection...');
     const localIP = await getLocalIPAddress();
     if (localIP) {
+      console.log('[Network Utils] ✅ WebRTC IP detected:', localIP);
       networkInfo.ipAddress = localIP;
       networkInfo.ipType = isPrivateIP(localIP) ? 'private' : 'public';
       networkInfo.isLocalNetwork = isPrivateIP(localIP);
+    } else {
+      console.log('[Network Utils] ⚠️ WebRTC failed, trying server-side detection...');
+      
+      // 3. Fallback to server-side IP detection
+      try {
+        const response = await fetch('/api/attendance/detect-ip');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.ipAddress) {
+            console.log('[Network Utils] ✅ Server-side IP detected:', data.ipAddress);
+            networkInfo.ipAddress = data.ipAddress;
+            networkInfo.ipType = data.isLocalNetwork ? 'private' : 'public';
+            networkInfo.isLocalNetwork = data.isLocalNetwork;
+            networkInfo.connectionType = data.connectionType || networkInfo.connectionType;
+          }
+        }
+      } catch (apiError) {
+        console.error('[Network Utils] ❌ Server-side detection failed:', apiError);
+      }
     }
 
   } catch (error) {
     console.error('[Network Utils] Error getting network info:', error);
   }
 
+  console.log('[Network Utils] 📊 Final result:', networkInfo);
   return networkInfo;
 }
 
@@ -149,6 +171,10 @@ export function isPrivateIP(ip: string): boolean {
   
   // 127.0.0.0 - 127.255.255.255 (localhost)
   if (parts[0] === 127) return true;
+  
+  // 100.64.0.0 - 100.127.255.255 (Carrier-grade NAT - CGNAT)
+  // This includes IP like 100.87.220.23
+  if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
   
   return false;
 }

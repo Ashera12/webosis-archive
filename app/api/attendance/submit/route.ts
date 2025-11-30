@@ -24,6 +24,13 @@ interface AttendanceSubmit {
     downlink?: number;
     effectiveType?: string;
   };
+  aiVerification?: {
+    verified: boolean;
+    matchScore: number;
+    confidence: number;
+    isLive: boolean;
+    provider: string;
+  };
   notes?: string;
 }
 
@@ -238,6 +245,8 @@ export async function POST(request: NextRequest) {
           os: deviceInfo.os,
           device_type: deviceInfo.device_type,
           is_mobile: deviceInfo.is_mobile,
+          // AI Verification Data
+          ai_verification: body.aiVerification || null,
         },
         notes: body.notes,
         status: 'present',
@@ -256,7 +265,7 @@ export async function POST(request: NextRequest) {
       userRole,
       activityType: 'attendance_checkin',
       action: 'User checked in to school',
-      description: `Absen masuk di ${body.wifiSSID} (IP: ${clientIp})`,
+      description: `Absen masuk di ${body.wifiSSID} (IP: ${clientIp})${body.aiVerification ? ` - AI: ${(body.aiVerification.matchScore * 100).toFixed(0)}% match` : ''}`,
       metadata: {
         attendance_id: attendance.id,
         location: `${body.latitude}, ${body.longitude}`,
@@ -270,6 +279,12 @@ export async function POST(request: NextRequest) {
         accuracy: body.locationAccuracy,
         fingerprint_verified: true,
         webauthn_verified: true,
+        // AI Verification metadata for dashboard
+        ai_verified: body.aiVerification?.verified || false,
+        ai_match_score: body.aiVerification?.matchScore || 0,
+        ai_confidence: body.aiVerification?.confidence || 0,
+        ai_is_live: body.aiVerification?.isLive || false,
+        ai_provider: body.aiVerification?.provider || 'none',
       },
       ipAddress: clientIp,
       userAgent,

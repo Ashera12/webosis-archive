@@ -31,18 +31,55 @@ export async function POST(request: NextRequest) {
     const body: FaceVerificationRequest = await request.json();
     
     console.log('[AI Face Verification] Starting for user:', session.user.email);
-    console.log('[AI Face Verification] Photos:', {
-      current: body.liveSelfieBase64 ? 'base64 (' + (body.liveSelfieBase64.length / 1024).toFixed(2) + 'KB)' : body.currentPhotoUrl?.substring(0, 50) + '...',
-      reference: body.referencePhotoUrl.substring(0, 50) + '...'
-    });
-
-    // Verify user can only check their own photos
+    console.log('[AI Face Verification] User ID:', body.userId);
+    
+    // CRITICAL SECURITY: Verify user can only check their own photos
     if (body.userId !== session.user.id) {
+      console.error('[AI Verify] ❌ SECURITY VIOLATION: User trying to verify another account!', {
+        sessionUserId: session.user.id,
+        requestUserId: body.userId
+      });
       return NextResponse.json({
         success: false,
-        error: 'Cannot verify photos for other users'
+        error: 'Security violation: Cannot verify photos for other users'
       }, { status: 403 });
     }
+
+    // CRITICAL: Fetch user's registered biometric data (reference photo)
+    const { data: biometricData, error: bioError } = await supabaseAdmin
+      .from('user_biometric')
+      .select('reference_photo_url, user_id')
+      .eq('user_id', body.userId)
+      .single();
+
+    if (bioError || !biometricData) {
+      console.error('[AI Verify] ❌ No biometric data found for user:', body.userId);
+      return NextResponse.json({
+        success: false,
+        error: 'No biometric registration found. Please register first.'
+      }, { status: 404 });
+    }
+
+    // CRITICAL SECURITY: Verify reference photo belongs to this user
+    if (!biometricData.reference_photo_url.includes(body.userId)) {
+      console.error('[AI Verify] ❌ SECURITY VIOLATION: Reference photo does not belong to user!', {
+        userId: body.userId,
+        referencePhoto: biometricData.reference_photo_url.substring(0, 100)
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Security violation: Invalid reference photo'
+      }, { status: 403 });
+    }
+
+    // Use database reference photo (not from request)
+    const referencePhotoUrl = biometricData.reference_photo_url;
+    
+    console.log('[AI Face Verification] Photos:', {
+      current: body.liveSelfieBase64 ? 'base64 (' + (body.liveSelfieBase64.length / 1024).toFixed(2) + 'KB)' : body.currentPhotoUrl?.substring(0, 50) + '...',
+      reference: referencePhotoUrl.substring(0, 50) + '...',
+      userOwnership: 'VERIFIED ✅'
+    });
 
     let verificationResult = {
       success: false,
@@ -52,48 +89,90 @@ export async function POST(request: NextRequest) {
       isFake: false,
       confidence: 0,
       details: {} as any,
-      aiProvider: 'none'
+      aiProvider: 'none',
+      reasoning: '' as string | undefined
     };
 
-    // ===== PRIORITY: Google Gemini Vision API =====
-    if (process.env.GEMINI_API_KEY) {
-      console.log('[AI Face Verification] Using Google Gemini Vision API');
-      verificationResult = await verifyWithGemini(
-        body.liveSelfieBase64 || body.currentPhotoUrl || '', 
-        body.referencePhotoUrl
-      );
+    // AI PROVIDER AUTO-SWITCHING (Adaptive Learning seperti Live Chat)
+    // Priority: Gemini → OpenAI → Google Cloud → Azure → Basic Fallback
+    
+    const aiProviders = [
+      {
+        name: 'Gemini Vision',
+        check: () => !!process.env.GEMINI_API_KEY,
+        execute: () => verifyWithGemini(
+          body.liveSelfieBase64 || body.currentPhotoUrl || '', 
+          referencePhotoUrl
+        )
+      },
+      {
+        name: 'OpenAI Vision',
+        check: () => !!process.env.OPENAI_API_KEY,
+        execute: () => verifyWithOpenAI(
+          body.currentPhotoUrl || '', 
+          referencePhotoUrl
+        )
+      },
+      {
+        name: 'Google Cloud Vision',
+        check: () => !!process.env.GOOGLE_CLOUD_API_KEY,
+        execute: () => verifyWithGoogleVision(
+          body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+          referencePhotoUrl
+        )
+      },
+      {
+        name: 'Azure Face',
+        check: () => !!process.env.AZURE_FACE_API_KEY,
+        execute: () => verifyWithAzureFace(
+          body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+          referencePhotoUrl
+        )
+      },
+      {
+        name: 'Basic Fallback',
+        check: () => true,
+        execute: () => basicImageVerification(
+          body.currentPhotoUrl || body.liveSelfieBase64 || '', 
+          referencePhotoUrl
+        )
+      }
+    ];
+
+    // AUTO-SWITCH: Try each AI provider until one succeeds (like live chat adaptive learning)
+    let lastError = null;
+    for (const provider of aiProviders) {
+      if (!provider.check()) {
+        console.log(`[AI Verify] ⏭️ Skipping ${provider.name} (not configured)`);
+        continue;
+      }
+
+      try {
+        console.log(`[AI Verify] 🔄 Trying ${provider.name}...`);
+        verificationResult = await provider.execute();
+        
+        if (verificationResult.success) {
+          console.log(`[AI Verify] ✅ ${provider.name} succeeded!`);
+          break; // Success! Stop trying other providers
+        } else {
+          console.log(`[AI Verify] ⚠️ ${provider.name} returned unsuccessful result, trying next...`);
+          lastError = `${provider.name} failed to verify`;
+        }
+      } catch (error: any) {
+        console.error(`[AI Verify] ❌ ${provider.name} error:`, error.message);
+        lastError = error.message;
+        // Continue to next provider (auto-switch)
+        continue;
+      }
     }
-    // ===== OPTION 1: OpenAI Vision API =====
-    else if (process.env.OPENAI_API_KEY) {
-      console.log('[AI Face Verification] Using OpenAI Vision API');
-      verificationResult = await verifyWithOpenAI(
-        body.currentPhotoUrl || '', 
-        body.referencePhotoUrl
-      );
-    }
-    // ===== OPTION 2: Google Cloud Vision API =====
-    else if (process.env.GOOGLE_CLOUD_API_KEY) {
-      console.log('[AI Face Verification] Using Google Cloud Vision API');
-      verificationResult = await verifyWithGoogleVision(
-        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
-        body.referencePhotoUrl
-      );
-    }
-    // ===== OPTION 3: Azure Face API =====
-    else if (process.env.AZURE_FACE_API_KEY) {
-      console.log('[AI Face Verification] Using Azure Face API');
-      verificationResult = await verifyWithAzureFace(
-        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
-        body.referencePhotoUrl
-      );
-    }
-    // ===== FALLBACK: Basic Image Analysis =====
-    else {
-      console.log('[AI Face Verification] Using basic image analysis (fallback)');
-      verificationResult = await basicImageVerification(
-        body.currentPhotoUrl || body.liveSelfieBase64 || '', 
-        body.referencePhotoUrl
-      );
+
+    if (!verificationResult.success) {
+      console.error('[AI Verify] ❌ All AI providers failed!', lastError);
+      return NextResponse.json({
+        success: false,
+        error: 'All AI verification providers failed',
+        details: lastError
+      }, { status: 500 });
     }
 
     console.log('[AI Face Verification] Result:', {
@@ -104,22 +183,31 @@ export async function POST(request: NextRequest) {
       provider: verificationResult.aiProvider
     });
 
-    // Log hasil ke database
-    await supabaseAdmin
-      .from('ai_verification_logs')
-      .insert({
-        user_id: body.userId,
-        current_photo_url: body.currentPhotoUrl,
-        reference_photo_url: body.referencePhotoUrl,
-        face_detected: verificationResult.faceDetected,
-        match_score: verificationResult.matchScore,
-        is_live: verificationResult.isLive,
-        is_fake: verificationResult.isFake,
-        confidence: verificationResult.confidence,
-        ai_provider: verificationResult.aiProvider,
-        details: verificationResult.details,
-        created_at: new Date().toISOString()
-      });
+    // AI LEARNING SYSTEM: Store verification data for continuous improvement
+    // Like live chat AI that learns from interactions
+    try {
+      await supabaseAdmin
+        .from('ai_verification_logs')
+        .insert({
+          user_id: body.userId,
+          current_photo_url: body.currentPhotoUrl || 'base64_selfie',
+          reference_photo_url: referencePhotoUrl,
+          face_detected: verificationResult.faceDetected,
+          match_score: verificationResult.matchScore,
+          is_live: verificationResult.isLive,
+          is_fake: verificationResult.isFake,
+          confidence: verificationResult.confidence,
+          ai_provider: verificationResult.aiProvider,
+          details: verificationResult.details,
+          reasoning: verificationResult.reasoning || null,
+          created_at: new Date().toISOString()
+        });
+      
+      console.log('[AI Learning] ✅ Verification data stored for learning');
+    } catch (learningError: any) {
+      console.error('[AI Learning] ⚠️ Failed to store learning data:', learningError.message);
+      // Non-fatal error, continue with verification
+    }
 
     // Tentukan apakah verifikasi berhasil
     const threshold = 0.7; // 70% confidence minimum

@@ -839,6 +839,14 @@ export default function AttendancePage() {
           downlink: connection?.downlink,
           effectiveType: connection?.effectiveType,
         },
+        // Include AI verification result for dashboard sync
+        aiVerification: aiVerification ? {
+          verified: true,
+          matchScore: aiVerification.matchScore,
+          confidence: aiVerification.confidence,
+          isLive: aiVerification.isLive,
+          provider: aiVerification.aiProvider || 'gemini-vision',
+        } : undefined,
       };
       
       console.log('📤 Submitting attendance with payload:', {

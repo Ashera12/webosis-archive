@@ -78,100 +78,162 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // ===== 2. VALIDATE WIFI SSID (STRICT ENFORCEMENT) =====
-    // NOTE: Browser cannot directly detect WiFi SSID, but we still enforce it as first layer
-    // Combined with GPS + Fingerprint + AI Pattern Detection for maximum security
-    console.log('[Security Validation] Checking WiFi (STRICT MODE)...');
+    // ===== 2. VALIDATE WIFI & IP (WITH PERMISSIVE MODE) =====
+    console.log('[Security Validation] Checking WiFi & IP...');
     const allowedSSIDs = activeConfig.allowed_wifi_ssids || [];
+    const allowedIPRanges = activeConfig.allowed_ip_ranges || [];
     const requireWiFi = activeConfig.require_wifi || false;
     const providedWiFi = body.wifiSSID.trim();
+    const clientIP = body.networkInfo?.ipAddress || request.headers.get('x-forwarded-for')?.split(',')[0].trim() || null;
     
     console.log('[Security Validation] WiFi Config:', {
       allowedSSIDs,
+      allowedIPRanges,
       requireWiFi,
-      providedWiFi
+      providedWiFi,
+      clientIP
     });
     
-    // ❌ BLOCK if WiFi is Unknown/Not Detected
-    if (providedWiFi === 'Unknown' || providedWiFi === 'DETECTION_FAILED' || !providedWiFi) {
-      violations.push('WIFI_NOT_DETECTED');
-      securityScore -= 50;
-      
-      console.error('[Security Validation] ❌ WiFi NOT DETECTED:', providedWiFi);
+    // 🔓 PERMISSIVE MODE - Allow ALL IPs (Development/Testing)
+    if (allowedIPRanges.includes('0.0.0.0/0')) {
+      console.log('[Security Validation] 🔓 PERMISSIVE MODE detected - allowing all access');
+      console.log('[Security Validation] ✅ Access granted (development/testing mode)');
       
       await logSecurityEvent({
         user_id: userId,
-        event_type: 'wifi_not_detected',
-        severity: 'HIGH',
-        description: 'WiFi SSID not detected - Browser limitation or not connected',
+        event_type: 'permissive_mode_access',
+        severity: 'INFO',
+        description: 'Access granted via permissive mode (0.0.0.0/0)',
         metadata: {
-          provided_wifi: providedWiFi,
-          allowed_wifis: allowedSSIDs,
-          location: { lat: body.latitude, lng: body.longitude },
-          timestamp: new Date(body.timestamp).toISOString()
+          wifi: providedWiFi,
+          ip: clientIP,
+          location: { lat: body.latitude, lng: body.longitude }
         }
       });
       
-      return NextResponse.json({
-        success: false,
-        error: `WiFi tidak terdeteksi! Browser tidak dapat membaca nama WiFi.`,
-        details: {
-          yourWiFi: providedWiFi,
-          allowedWiFi: allowedSSIDs,
-          hint: 'Pastikan Anda terhubung ke WiFi sekolah: ' + allowedSSIDs.join(', '),
-          note: 'Browser security mencegah pembacaan nama WiFi. Sistem akan menggunakan IP address validation sebagai backup.'
-        },
-        action: 'BLOCK_ATTENDANCE',
-        severity: 'HIGH',
-        violations,
-        securityScore
-      }, { status: 403 });
+      // Skip WiFi validation completely in permissive mode
+      console.log('[Security Validation] ✅ WiFi validation bypassed (permissive mode)');
     }
-    
-    // Strict WiFi validation (case-insensitive)
-    const isWiFiValid = allowedSSIDs.some((ssid: string) => ssid.toLowerCase() === providedWiFi.toLowerCase());
-
-    if (!isWiFiValid && (requireWiFi || allowedSSIDs.length > 0)) {
-      violations.push('INVALID_WIFI');
-      securityScore -= 40;
+    // WiFi NOT required - Allow access
+    else if (!requireWiFi) {
+      console.log('[Security Validation] ℹ️  WiFi not required - allowing access');
+      console.log('[Security Validation] ✅ Access granted (WiFi not enforced)');
+    }
+    // STRICT MODE - Validate WiFi or IP
+    else {
+      // Try IP validation first (more reliable)
+      let isIPValid = false;
+      if (clientIP && allowedIPRanges.length > 0) {
+        const { isIPInAllowedRanges } = await import('@/lib/networkUtils');
+        isIPValid = isIPInAllowedRanges(clientIP, allowedIPRanges);
+        console.log('[Security Validation] IP validation:', {
+          clientIP,
+          isValid: isIPValid,
+          ranges: allowedIPRanges
+        });
+      }
       
-      console.error('[Security Validation] ❌ WiFi INVALID (STRICT MODE):', {
-        provided: providedWiFi,
-        allowed: allowedSSIDs,
-        requireWiFi
-      });
+      // If IP validation passed, skip WiFi check
+      if (isIPValid) {
+        console.log('[Security Validation] ✅ IP validation passed - WiFi check skipped');
+        
+        await logSecurityEvent({
+          user_id: userId,
+          event_type: 'ip_validation_success',
+          severity: 'INFO',
+          description: `IP validation passed: ${clientIP}`,
+          metadata: {
+            ip: clientIP,
+            ranges: allowedIPRanges,
+            wifi: providedWiFi,
+            location: { lat: body.latitude, lng: body.longitude }
+          }
+        });
+      }
+      // Fallback to WiFi validation
+      else if (providedWiFi !== 'Unknown' && providedWiFi !== 'DETECTION_FAILED' && providedWiFi) {
+        const isWiFiValid = allowedSSIDs.some((ssid: string) => ssid.toLowerCase() === providedWiFi.toLowerCase());
+        
+        if (!isWiFiValid && allowedSSIDs.length > 0) {
+          violations.push('INVALID_WIFI');
+          securityScore -= 40;
+          
+          console.error('[Security Validation] ❌ WiFi INVALID:', {
+            provided: providedWiFi,
+            allowed: allowedSSIDs
+          });
 
-      // Log to security events for AI analysis
-      await logSecurityEvent({
-        user_id: userId,
-        event_type: 'wifi_validation_failed',
-        severity: 'HIGH',
-        description: `WiFi validation failed: ${providedWiFi}`,
-        metadata: {
-          provided_wifi: providedWiFi,
-          allowed_wifis: allowedSSIDs,
-          location: { lat: body.latitude, lng: body.longitude },
-          timestamp: new Date(body.timestamp).toISOString()
+          await logSecurityEvent({
+            user_id: userId,
+            event_type: 'wifi_validation_failed',
+            severity: 'HIGH',
+            description: `WiFi validation failed: ${providedWiFi}`,
+            metadata: {
+              provided_wifi: providedWiFi,
+              allowed_wifis: allowedSSIDs,
+              client_ip: clientIP,
+              location: { lat: body.latitude, lng: body.longitude }
+            }
+          });
+
+          return NextResponse.json({
+            success: false,
+            error: `WiFi tidak valid! Anda harus terhubung ke WiFi sekolah.`,
+            details: {
+              yourWiFi: providedWiFi,
+              yourIP: clientIP,
+              allowedWiFi: allowedSSIDs,
+              hint: 'Pastikan terhubung ke salah satu jaringan: ' + allowedSSIDs.join(', ')
+            },
+            action: 'BLOCK_ATTENDANCE',
+            severity: 'HIGH',
+            violations,
+            securityScore
+          }, { status: 403 });
         }
-      });
-
-      return NextResponse.json({
-        success: false,
-        error: `WiFi tidak valid! Anda harus terhubung ke WiFi sekolah.`,
-        details: {
-          yourWiFi: providedWiFi,
-          allowedWiFi: allowedSSIDs,
-          hint: 'Pastikan terhubung ke salah satu jaringan: ' + allowedSSIDs.join(', '),
-          note: 'WiFi validation + GPS + Fingerprint + AI Pattern Detection aktif'
-        },
-        action: 'BLOCK_ATTENDANCE',
-        severity: 'HIGH',
-        violations,
-        securityScore
-      }, { status: 403 });
+        
+        console.log('[Security Validation] ✅ WiFi valid:', providedWiFi);
+      }
+      // Both IP and WiFi failed
+      else {
+        violations.push('WIFI_NOT_DETECTED');
+        securityScore -= 50;
+        
+        console.error('[Security Validation] ❌ WiFi NOT DETECTED and IP validation failed');
+        
+        await logSecurityEvent({
+          user_id: userId,
+          event_type: 'wifi_ip_validation_failed',
+          severity: 'HIGH',
+          description: 'Both WiFi and IP validation failed',
+          metadata: {
+            provided_wifi: providedWiFi,
+            client_ip: clientIP,
+            allowed_wifis: allowedSSIDs,
+            allowed_ips: allowedIPRanges,
+            location: { lat: body.latitude, lng: body.longitude }
+          }
+        });
+        
+        return NextResponse.json({
+          success: false,
+          error: `Koneksi tidak valid! Pastikan Anda terhubung ke jaringan sekolah.`,
+          details: {
+            yourWiFi: providedWiFi,
+            yourIP: clientIP,
+            allowedWiFi: allowedSSIDs,
+            allowedIPRanges: allowedIPRanges,
+            hint: 'Hubungkan ke WiFi sekolah atau gunakan jaringan yang diizinkan'
+          },
+          action: 'BLOCK_ATTENDANCE',
+          severity: 'HIGH',
+          violations,
+          securityScore
+        }, { status: 403 });
+      }
     }
 
-    console.log('[Security Validation] ✅ WiFi valid (STRICT MODE):', providedWiFi);
+    console.log('[Security Validation] ✅ Network validation complete');
     
     // Log successful WiFi validation for AI pattern analysis
     await logSecurityEvent({

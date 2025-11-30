@@ -46,9 +46,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Extract allowed SSIDs and IP ranges from config
-    // Assuming school_location_config has 'allowed_wifi_ssids' and 'allowed_ip_ranges' columns (JSON arrays)
-    const allowedSSIDs = config.allowed_wifi_ssids || [];
-    const allowedIPRanges = config.allowed_ip_ranges || ['192.168.', '10.0.', '172.16.']; // Default private IP ranges
+    // Note: allowed_wifi_ssids and allowed_ip_ranges are TEXT[] (PostgreSQL arrays)
+    const allowedSSIDs = Array.isArray(config.allowed_wifi_ssids) 
+      ? config.allowed_wifi_ssids 
+      : (config.allowed_wifi_ssids || []);
+    
+    const allowedIPRanges = Array.isArray(config.allowed_ip_ranges)
+      ? config.allowed_ip_ranges
+      : ['192.168.', '10.0.', '172.16.']; // Default private IP ranges
 
     console.log('[WiFi Config API] ✅ Allowed SSIDs:', allowedSSIDs);
     console.log('[WiFi Config API] ✅ Allowed IP Ranges:', allowedIPRanges);

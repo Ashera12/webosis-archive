@@ -305,8 +305,20 @@ export default function AttendancePage() {
   };
 
   const handleSetupBiometric = async () => {
+    console.log('[Setup] 🚀 Starting biometric setup...');
+    console.log('[Setup] Photo blob exists:', !!photoBlob);
+    console.log('[Setup] Fingerprint hash exists:', !!fingerprintHash);
+    console.log('[Setup] Session user:', session?.user?.id);
+    
     if (!photoBlob || !fingerprintHash) {
+      console.error('[Setup] ❌ Missing photo or fingerprint');
       toast.error('Silakan ambil foto selfie terlebih dahulu');
+      return;
+    }
+
+    if (!session?.user?.id) {
+      console.error('[Setup] ❌ No session user ID');
+      toast.error('Session tidak valid. Silakan login kembali.');
       return;
     }
 
@@ -314,12 +326,13 @@ export default function AttendancePage() {
     
     try {
       // Step 1: Test biometric availability
-      console.log('[Biometric] 🔍 Testing biometric availability...');
+      console.log('[Setup] 🔍 Testing biometric availability...');
       const biometricTest = await testBiometric();
       
-      console.log('[Biometric] Test result:', biometricTest);
+      console.log('[Setup] Test result:', biometricTest);
       
       if (!biometricTest.supported) {
+        console.error('[Setup] ❌ WebAuthn not supported');
         toast.error(
           <div>
             <div className="font-bold">❌ WebAuthn Not Supported</div>
@@ -332,6 +345,7 @@ export default function AttendancePage() {
       }
       
       if (!biometricTest.available) {
+        console.warn('[Setup] ⚠️ Platform authenticator not available');
         toast.error(
           <div>
             <div className="font-bold">⚠️ {biometricTest.type} Not Available</div>
@@ -344,6 +358,7 @@ export default function AttendancePage() {
       }
       
       // Show available biometric type
+      console.log('[Setup] ✅ Biometric ready:', biometricTest.type);
       toast.success(
         <div>
           <div className="font-bold">✅ Biometric Ready!</div>
@@ -355,14 +370,24 @@ export default function AttendancePage() {
       // Step 2: Upload photo
       const uploadToast = toast.loading('📤 Mengupload foto...');
       
-      console.log('[Biometric] 🔄 Starting photo upload...');
-      const photoUrl = await uploadAttendancePhoto(photoBlob, session!.user.id!);
+      console.log('[Setup] 📤 Starting photo upload...');
+      console.log('[Setup] Photo size:', (photoBlob.size / 1024).toFixed(2), 'KB');
+      
+      let photoUrl: string;
+      try {
+        photoUrl = await uploadAttendancePhoto(photoBlob, session.user.id);
+        console.log('[Setup] ✅ Photo uploaded:', photoUrl);
+      } catch (uploadError: any) {
+        toast.dismiss(uploadToast);
+        console.error('[Setup] ❌ Photo upload failed:', uploadError);
+        throw new Error(`Photo upload failed: ${uploadError.message || 'Unknown error'}`);
+      }
       
       toast.dismiss(uploadToast);
       toast.success('✅ Foto berhasil diupload!');
       
       // Step 3: Register WebAuthn credential
-      console.log('[Biometric] 🔐 Registering WebAuthn credential...');
+      console.log('[Setup] 🔐 Registering WebAuthn credential...');
       
       const registerToast = toast.loading(
         <div>
@@ -371,42 +396,58 @@ export default function AttendancePage() {
         </div>
       );
       
-      const webauthnResult = await registerCredential(
-        session!.user.id!,
-        session!.user.email || 'user',
-        session!.user.name || 'User'
-      );
+      let webauthnResult: any;
+      try {
+        webauthnResult = await registerCredential(
+          session.user.id,
+          session.user.email || 'user',
+          session.user.name || 'User'
+        );
+        console.log('[Setup] WebAuthn result:', webauthnResult);
+      } catch (webauthnError: any) {
+        toast.dismiss(registerToast);
+        console.error('[Setup] ❌ WebAuthn registration error:', webauthnError);
+        throw new Error(`WebAuthn registration failed: ${webauthnError.message || 'Unknown error'}`);
+      }
       
       toast.dismiss(registerToast);
       
       if (!webauthnResult.success) {
-        console.error('[Biometric] ❌ WebAuthn registration failed:', webauthnResult.error);
+        console.error('[Setup] ❌ WebAuthn registration failed:', webauthnResult.error);
         throw new Error(webauthnResult.error || 'Biometric registration failed');
       }
       
-      console.log('[Biometric] ✅ WebAuthn credential registered!');
+      console.log('[Setup] ✅ WebAuthn credential registered!');
+      console.log('[Setup] Credential ID:', webauthnResult.credentialId);
       
-      // Step 4: Save to legacy biometric setup API (for backward compatibility)
-      console.log('[Biometric] 💾 Saving biometric data...');
+      // Step 4: Save to biometric setup API
+      console.log('[Setup] 💾 Saving biometric data to database...');
+      
+      const setupPayload = {
+        referencePhotoUrl: photoUrl,
+        fingerprintTemplate: fingerprintHash,
+        webauthnCredentialId: webauthnResult.credentialId,
+      };
+      
+      console.log('[Setup] Setup payload:', setupPayload);
       
       const response = await fetch('/api/attendance/biometric/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          referencePhotoUrl: photoUrl,
-          fingerprintTemplate: fingerprintHash,
-          webauthnCredentialId: webauthnResult.credentialId, // Link WebAuthn credential
-        }),
+        body: JSON.stringify(setupPayload),
       });
 
+      console.log('[Setup] API response status:', response.status);
+      
       const data = await response.json();
+      console.log('[Setup] API response data:', data);
 
       if (!response.ok) {
-        console.error('[Biometric] ❌ Setup save failed:', data);
-        throw new Error(data.error || 'Setup gagal');
+        console.error('[Setup] ❌ Setup save failed:', data);
+        throw new Error(data.error || 'Setup gagal disimpan ke database');
       }
 
-      console.log('[Biometric] ✅ Biometric setup complete:', data);
+      console.log('[Setup] ✅ Biometric setup complete:', data);
       
       // Show detailed success message
       toast.success(
@@ -422,20 +463,45 @@ export default function AttendancePage() {
         { duration: 7000 }
       );
       
+      console.log('[Setup] 🎯 Updating UI state...');
       setHasSetup(true);
       setRequirements(prev => ({ ...prev, biometric: true }));
       setStep('ready');
+      console.log('[Setup] ✅ Setup complete - redirecting to ready state');
       
     } catch (error: any) {
-      console.error('[Biometric] ❌ Setup error:', error);
+      console.error('[Setup] ❌❌❌ SETUP ERROR:', error);
+      console.error('[Setup] Error name:', error.name);
+      console.error('[Setup] Error message:', error.message);
+      console.error('[Setup] Error stack:', error.stack);
+      
+      // Determine user-friendly error message
+      let userMessage = error.message || 'Unknown error';
+      
+      if (error.name === 'NotAllowedError') {
+        userMessage = 'Biometric dibatalkan atau tidak diizinkan. Silakan coba lagi dan izinkan akses biometric.';
+      } else if (error.name === 'NotSupportedError') {
+        userMessage = 'Biometric tidak didukung di browser ini. Gunakan Chrome, Edge, Safari, atau Firefox versi terbaru.';
+      } else if (error.name === 'AbortError') {
+        userMessage = 'Biometric timeout atau dibatalkan. Silakan coba lagi.';
+      } else if (error.message?.includes('Photo upload failed')) {
+        userMessage = 'Gagal mengupload foto. Periksa koneksi internet dan coba lagi.';
+      } else if (error.message?.includes('WebAuthn registration failed')) {
+        userMessage = 'Gagal mendaftarkan biometric. Pastikan browser mendukung WebAuthn.';
+      } else if (error.message?.includes('Setup gagal disimpan')) {
+        userMessage = 'Data biometric gagal disimpan ke database. Hubungi admin.';
+      }
+      
       toast.error(
         <div>
           <div className="font-bold">❌ Gagal Setup Biometric</div>
-          <div className="text-sm mt-1">{error.message || 'Unknown error'}</div>
+          <div className="text-sm mt-1">{userMessage}</div>
+          <div className="text-xs mt-2 opacity-70">Lihat console (F12) untuk detail error</div>
         </div>,
-        { duration: 5000 }
+        { duration: 8000 }
       );
     } finally {
+      console.log('[Setup] 🏁 Finishing setup process...');
       setLoading(false);
     }
   };

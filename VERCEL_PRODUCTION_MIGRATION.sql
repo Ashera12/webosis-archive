@@ -281,14 +281,18 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_active
 -- RLS policies for webauthn_credentials
 ALTER TABLE public.webauthn_credentials ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own credentials" ON public.webauthn_credentials;
+DROP POLICY IF EXISTS "Service role full access to credentials" ON public.webauthn_credentials;
+
 -- Users can read their own credentials
-CREATE POLICY IF NOT EXISTS "Users can view own credentials"
+CREATE POLICY "Users can view own credentials"
   ON public.webauthn_credentials
   FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Service role can do everything
-CREATE POLICY IF NOT EXISTS "Service role full access to credentials"
+CREATE POLICY "Service role full access to credentials"
   ON public.webauthn_credentials
   FOR ALL
   TO service_role
@@ -470,10 +474,12 @@ BEGIN
 END $$;
 
 -- ============================================
--- 6. ACTIVITY TYPES VERIFICATION
+-- 6. ACTIVITY TYPES VERIFICATION (Optional - uncomment to check)
 -- ============================================
 
 -- Verify activity types are being logged correctly
+-- Uncomment below to see activity statistics:
+/*
 SELECT 
   activity_type,
   COUNT(*) as count,
@@ -482,12 +488,15 @@ FROM public.user_activity
 WHERE created_at > NOW() - INTERVAL '7 days'
 GROUP BY activity_type
 ORDER BY count DESC;
+*/
 
 -- ============================================
--- 7. COMPLETION SUMMARY
+-- 7. COMPLETION SUMMARY (Optional - uncomment to check)
 -- ============================================
 
 -- Summary of all tables and critical columns
+-- Uncomment below to see schema details:
+/*
 SELECT 
   'error_logs' as table_name,
   column_name,
@@ -510,7 +519,7 @@ SELECT
 FROM information_schema.columns
 WHERE table_schema = 'public' 
 AND table_name = 'biometric_data'
-AND column_name IN ('is_first_attendance_enrollment', 're_enrollment_allowed', 're_enrollment_reason')
+AND column_name IN ('is_first_attendance_enrollment', 're_enrollment_allowed', 're_enrollment_reason', 'webauthn_credential_id')
 
 UNION ALL
 
@@ -526,6 +535,7 @@ AND table_name = 'attendance'
 AND column_name IN ('is_enrollment_attendance', 'user_id', 'status')
 
 ORDER BY table_name, column_name;
+*/
 
 -- ============================================
 -- MIGRATION COMPLETE

@@ -27,6 +27,7 @@ import {
   FaTerminal,
   FaClipboardCheck,
 } from 'react-icons/fa';
+import { Shield } from 'lucide-react';
 
 interface MenuItem {
   name: string;
@@ -54,6 +55,7 @@ export default function AdminSidebar() {
     { name: 'Sekbid', icon: <FaSitemap />, href: '/admin/data/sekbid' },
     { name: 'Anggota (Members)', icon: <FaUserFriends />, href: '/admin/data/members' },
     { name: 'Absensi', icon: <FaClipboardCheck />, href: '/admin/attendance' },
+    { name: 'Re-enrollment Requests', icon: <Shield className="w-5 h-5" />, href: '/admin/re-enrollment' },
     { name: 'Program Kerja', icon: <FaClipboardList />, href: '/admin/proker' },
     { name: 'Announcements', icon: <FaBullhorn />, href: '/admin/announcements' },
     { name: 'Polls', icon: <FaPoll />, href: '/admin/polls' },

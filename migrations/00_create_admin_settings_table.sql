@@ -18,13 +18,17 @@ CREATE INDEX IF NOT EXISTS idx_admin_settings_key ON admin_settings(key);
 -- Enable RLS
 ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Allow authenticated read access" ON admin_settings;
+DROP POLICY IF EXISTS "Service role full access" ON admin_settings;
+
 -- Allow all authenticated users to read
-CREATE POLICY IF NOT EXISTS "Allow authenticated read access"
+CREATE POLICY "Allow authenticated read access"
   ON admin_settings FOR SELECT
   USING (auth.role() = 'authenticated');
 
 -- Allow service role to do everything
-CREATE POLICY IF NOT EXISTS "Service role full access"
+CREATE POLICY "Service role full access"
   ON admin_settings FOR ALL
   USING (auth.role() = 'service_role');
 

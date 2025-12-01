@@ -58,11 +58,6 @@ VALUES
 ON CONFLICT (key) DO UPDATE 
 SET value = EXCLUDED.value, updated_at = NOW();
 
--- ✅ STEP 5: Disable GPS bypass (FORCE real GPS validation)
-UPDATE school_location_config 
-SET bypass_gps_validation = false
-WHERE bypass_gps_validation = true;
-
 -- Success message
 DO $$
 DECLARE
@@ -77,9 +72,8 @@ BEGIN
   SELECT COUNT(*) INTO location_count FROM school_location_config;
   
   RAISE NOTICE '✅ STRICT GPS validation enabled (accuracy < 20m required)';
-  RAISE NOTICE '✅ GPS bypass DISABLED (no fake GPS allowed)';
   RAISE NOTICE '✅ School radius: 200m';
-  RAISE NOTICE '✅ IP validation DISABLED temporarily';
+  RAISE NOTICE '✅ IP validation DISABLED (GPS validation only)';
   RAISE NOTICE '✅ IP 125.160.157.192 whitelisted (Telkom range: 125.160.0.0/16)';
   RAISE NOTICE '📊 Total locations: %', location_count;
   RAISE NOTICE '📋 Current IP ranges: %', ip_ranges;

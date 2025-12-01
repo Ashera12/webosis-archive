@@ -1,7 +1,26 @@
--- Add Mikrotik integration settings to admin_settings table
--- Schema: admin_settings (key, value, description, category, is_secret)
+-- =====================================================
+-- MIKROTIK INTEGRATION SETTINGS
+-- Add all Mikrotik configuration to admin_settings
+-- SAFE: Uses ON CONFLICT to prevent duplicates
+-- =====================================================
 
--- Insert Mikrotik configuration settings
+-- STEP 1: Ensure admin_settings table exists with proper schema
+CREATE TABLE IF NOT EXISTS admin_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value TEXT,
+  description TEXT,
+  category TEXT DEFAULT 'general',
+  is_secret BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- STEP 2: Create indices if they don't exist
+CREATE INDEX IF NOT EXISTS idx_admin_settings_key ON admin_settings(key);
+CREATE INDEX IF NOT EXISTS idx_admin_settings_category ON admin_settings(category);
+
+-- STEP 3: Insert Mikrotik configuration settings
 INSERT INTO admin_settings (key, value, description, category, is_secret)
 VALUES 
   (

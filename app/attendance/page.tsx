@@ -23,6 +23,11 @@ import {
   authenticateCredential,
   testBiometric,
 } from '@/lib/webauthn';
+import { 
+  detectBiometricMethods, 
+  authenticateWithFallback,
+  type BiometricMethod 
+} from '@/lib/biometric-methods';
 import { useSecurityAnalysis } from '@/components/SecurityAnalyzerProvider';
 
 interface BiometricSetupData {
@@ -40,7 +45,7 @@ export default function AttendancePage() {
   // 🔒 USE BACKGROUND SECURITY ANALYSIS (runs on login)
   const { result: backgroundAnalysis, isReady, isBlocked, blockReasons } = useSecurityAnalysis();
   
-  const [step, setStep] = useState<'check' | 'setup' | 'ready' | 'verify-biometric' | 'capture' | 'submitting'>('check');
+  const [step, setStep] = useState<'check' | 'setup' | 'ready' | 'verify-biometric' | 'capture' | 'submitting' | 'blocked'>('check');
   const [hasSetup, setHasSetup] = useState(false);
   const [requirements, setRequirements] = useState({
     role: false,
@@ -75,6 +80,14 @@ export default function AttendancePage() {
   const [deviceCapabilities, setDeviceCapabilities] = useState<any>(null);
   const [pinCode, setPinCode] = useState('');
   const [aiVerification, setAiVerification] = useState<any>(null);
+  
+  // Re-enrollment request state
+  const [reEnrollmentStatus, setReEnrollmentStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
+  
+  // Biometric methods detection
+  const [availableMethods, setAvailableMethods] = useState<BiometricMethod[]>([]);
+  const [selectedMethod, setSelectedMethod] = useState<BiometricMethod | null>(null);
+  const [showMethodSelection, setShowMethodSelection] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,6 +97,30 @@ export default function AttendancePage() {
     // ✅ NO ENROLLMENT GATE - First-time users auto-enroll on submit
     // Set checkingEnrollment false immediately to avoid blocking UI
     setCheckingEnrollment(false);
+    
+    // Fetch re-enrollment request status
+    if (session?.user?.id) {
+      fetch('/api/attendance/request-re-enrollment')
+        .then(res => res.json())
+        .then(data => {
+          if (data.hasRequest) {
+            setReEnrollmentStatus(data.status);
+            console.log('📋 Re-enrollment status:', data.status);
+          }
+        })
+        .catch(err => console.error('Failed to fetch re-enrollment status:', err));
+    }
+    
+    // Detect available biometric methods
+    detectBiometricMethods().then(methods => {
+      setAvailableMethods(methods);
+      const primaryMethod = methods.find(m => m.primary && m.available);
+      if (primaryMethod) {
+        setSelectedMethod(primaryMethod);
+        console.log('🔐 Primary biometric method:', primaryMethod.name);
+      }
+      console.log('🔐 Available biometric methods:', methods.filter(m => m.available).map(m => m.name));
+    });
   }, [status, session]);
 
   // 🔒 SYNC BACKGROUND ANALYSIS (ran on login) with page state
@@ -737,8 +774,15 @@ export default function AttendancePage() {
               console.error('❌ Validation details:', data.details);
             }
             
-            // Redirect back to ready step
-            setTimeout(() => setStep('ready'), 3000);
+            // ✅ FIX: Set step to 'blocked' instead of 'ready'
+            setStep('blocked');
+            
+            // Store violation details for display
+            setSecurityValidation({
+              violations: violations,
+              details: data.details,
+              error: data.error
+            });
             break;
             
           case 'SHOW_COMPLETED':
@@ -1981,6 +2025,85 @@ export default function AttendancePage() {
                 )}
               </div>
             )}
+            
+            {/* Biometric Methods Selection */}
+            {availableMethods.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-700 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-purple-900 dark:text-purple-100 flex items-center gap-2">
+                    🔐 Metode Biometrik
+                  </h3>
+                  {availableMethods.filter(m => m.available).length > 1 && (
+                    <button
+                      onClick={() => setShowMethodSelection(!showMethodSelection)}
+                      className="text-xs text-purple-600 dark:text-purple-400 underline"
+                    >
+                      {showMethodSelection ? 'Sembunyikan' : 'Pilih Lainnya'}
+                    </button>
+                  )}
+                </div>
+                
+                {/* Selected/Primary Method Display */}
+                {selectedMethod && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 mb-2 border-2 border-purple-300 dark:border-purple-600">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{selectedMethod.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-bold text-gray-900 dark:text-white">
+                          {selectedMethod.name}
+                          {selectedMethod.primary && (
+                            <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">
+                              Rekomendasi
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          {selectedMethod.description}
+                        </div>
+                      </div>
+                      <div className="text-green-500 text-xl">✓</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Method Selection (when expanded) */}
+                {showMethodSelection && (
+                  <div className="space-y-2 mt-3">
+                    <div className="text-xs text-purple-700 dark:text-purple-300 font-semibold mb-2">
+                      Pilih metode lain:
+                    </div>
+                    {availableMethods
+                      .filter(m => m.available && m.id !== selectedMethod?.id)
+                      .map(method => (
+                        <button
+                          key={method.id}
+                          onClick={() => {
+                            setSelectedMethod(method);
+                            setShowMethodSelection(false);
+                            toast.success(`Metode diubah ke: ${method.name}`);
+                          }}
+                          className="w-full bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg p-3 border border-purple-200 dark:border-purple-700 transition-all flex items-center gap-3 text-left"
+                        >
+                          <span className="text-2xl">{method.icon}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                              {method.name}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              {method.description}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+                
+                <div className="mt-3 text-xs text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 rounded p-2">
+                  💡 <strong>Auto-fallback:</strong> Jika metode ini gagal, sistem akan mencoba metode lain secara otomatis
+                </div>
+              </div>
+            )}
+            
             <button
               onClick={async () => {
                 // ===== PROPER FLOW: Security → Biometric Verify → Capture =====
@@ -2041,6 +2164,127 @@ export default function AttendancePage() {
                 </>
               )}
             </button>
+
+            {/* Re-enrollment Request Button */}
+            {enrollmentStatus && (
+              <div className="mt-4">
+                {reEnrollmentStatus === 'pending' ? (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-xl p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="animate-pulse">⏳</div>
+                      <span className="font-bold text-yellow-900 dark:text-yellow-100">
+                        Request Re-enrollment Pending
+                      </span>
+                    </div>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Permintaan Anda sedang menunggu persetujuan admin
+                    </p>
+                  </div>
+                ) : reEnrollmentStatus === 'approved' ? (
+                  <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">✅</span>
+                      <span className="font-bold text-green-900 dark:text-green-100">
+                        Re-enrollment Disetujui
+                      </span>
+                    </div>
+                    <p className="text-sm text-green-700 dark:text-green-300 mb-3">
+                      Anda dapat mendaftar ulang biometrik sekarang
+                    </p>
+                    <button
+                      onClick={() => {
+                        setStep('setup');
+                        setReEnrollmentStatus('none');
+                      }}
+                      className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
+                    >
+                      Mulai Re-enrollment
+                    </button>
+                  </div>
+                ) : reEnrollmentStatus === 'rejected' ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">❌</span>
+                      <span className="font-bold text-red-900 dark:text-red-100">
+                        Request Ditolak
+                      </span>
+                    </div>
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      Hubungi admin untuk informasi lebih lanjut
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      if (!session?.user?.id) {
+                        toast.error('Silakan login terlebih dahulu');
+                        return;
+                      }
+
+                      const reason = prompt(
+                        '📝 Alasan Re-enrollment (minimal 10 karakter):\n\n' +
+                        'Contoh:\n' +
+                        '- Ganti perangkat/HP baru\n' +
+                        '- Biometrik tidak berfungsi\n' +
+                        '- Data rusak/error\n\n' +
+                        'Masukkan alasan Anda:'
+                      );
+
+                      if (!reason || reason.trim().length < 10) {
+                        toast.error('Alasan terlalu pendek (minimal 10 karakter)');
+                        return;
+                      }
+
+                      const loadingToast = toast.loading('📨 Mengirim permintaan re-enrollment...');
+
+                      try {
+                        const response = await fetch('/api/attendance/request-re-enrollment', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ reason: reason.trim() })
+                        });
+
+                        const data = await response.json();
+
+                        toast.dismiss(loadingToast);
+
+                        if (!response.ok || !data.success) {
+                          if (data.status === 'pending') {
+                            toast.error('⏳ Permintaan Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan admin', {
+                              duration: 5000
+                            });
+                            setReEnrollmentStatus('pending');
+                          } else {
+                            toast.error(data.error || 'Gagal mengirim permintaan');
+                          }
+                          return;
+                        }
+
+                        setReEnrollmentStatus('pending');
+                        
+                        toast.success(
+                          '✅ Permintaan re-enrollment berhasil dikirim!\n\n' +
+                          'Admin akan meninjau permintaan Anda.\n' +
+                          'Anda akan dihubungi setelah disetujui.',
+                          { duration: 7000 }
+                        );
+
+                      } catch (error: any) {
+                        toast.dismiss(loadingToast);
+                        console.error('Re-enrollment request error:', error);
+                        toast.error('Terjadi kesalahan: ' + error.message);
+                      }
+                    }}
+                    className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Request Re-enrollment Biometrik
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2189,6 +2433,111 @@ export default function AttendancePage() {
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-900 dark:text-white font-semibold text-lg">Memproses absensi...</p>
             <p className="text-gray-600 dark:text-gray-300 text-sm mt-2">Mohon tunggu sebentar</p>
+          </div>
+        )}
+
+        {/* Blocked - Security Validation Failed */}
+        {step === 'blocked' && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-red-300 dark:border-red-700">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
+                <FaExclamationTriangle className="text-3xl text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-red-900 dark:text-red-100 mb-2">Akses Ditolak</h2>
+              <p className="text-red-700 dark:text-red-300 text-sm">
+                {securityValidation?.error || 'Validasi keamanan gagal'}
+              </p>
+            </div>
+
+            {/* Violation Details */}
+            {securityValidation?.violations && securityValidation.violations.length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-4">
+                <div className="font-bold text-red-900 dark:text-red-100 mb-2">❌ Pelanggaran:</div>
+                <ul className="space-y-2 text-sm text-red-700 dark:text-red-300">
+                  {securityValidation.violations.map((violation: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-red-500">•</span>
+                      <span>
+                        {violation === 'IP_NOT_IN_WHITELIST' && '📡 IP address tidak terdaftar di jaringan sekolah'}
+                        {violation === 'IP_NOT_DETECTED' && '🌐 IP address tidak terdeteksi'}
+                        {violation === 'LOCATION_TOO_FAR' && '📍 Lokasi Anda terlalu jauh dari sekolah'}
+                        {violation === 'LOCATION_NOT_ACCURATE' && '🎯 Akurasi GPS tidak memenuhi syarat'}
+                        {violation === 'LOCATION_NOT_DETECTED' && '📍 Lokasi tidak terdeteksi'}
+                        {violation === 'FINGERPRINT_MISMATCH' && '🔐 Device fingerprint tidak cocok'}
+                        {violation === 'OUTSIDE_ATTENDANCE_HOURS' && '⏰ Di luar jam absensi'}
+                        {!['IP_NOT_IN_WHITELIST', 'IP_NOT_DETECTED', 'LOCATION_TOO_FAR', 'LOCATION_NOT_ACCURATE', 'LOCATION_NOT_DETECTED', 'FINGERPRINT_MISMATCH', 'OUTSIDE_ATTENDANCE_HOURS'].includes(violation) && violation}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Solution Steps */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
+              <div className="font-bold text-blue-900 dark:text-blue-100 mb-2">💡 Cara Mengatasi:</div>
+              <ol className="space-y-2 text-sm text-blue-700 dark:text-blue-300 ml-4 list-decimal">
+                {securityValidation?.violations?.includes('IP_NOT_IN_WHITELIST') && (
+                  <>
+                    <li>Matikan <strong>data seluler</strong> Anda</li>
+                    <li>Hubungkan ke <strong>WiFi sekolah</strong></li>
+                    <li>Pastikan koneksi WiFi stabil</li>
+                    <li>Tekan tombol "Coba Lagi" di bawah</li>
+                  </>
+                )}
+                {securityValidation?.violations?.includes('LOCATION_TOO_FAR') && (
+                  <>
+                    <li>Pastikan Anda berada di <strong>area sekolah</strong></li>
+                    <li>Aktifkan <strong>GPS/Lokasi</strong> di perangkat</li>
+                    <li>Tunggu hingga GPS mendapat sinyal akurat</li>
+                  </>
+                )}
+                {securityValidation?.violations?.includes('LOCATION_NOT_ACCURATE') && (
+                  <>
+                    <li>Pindah ke area <strong>terbuka</strong> (hindari gedung tertutup)</li>
+                    <li>Pastikan <strong>GPS mode High Accuracy</strong> aktif</li>
+                    <li>Tunggu beberapa detik hingga akurasi membaik</li>
+                  </>
+                )}
+                {(!securityValidation?.violations || securityValidation.violations.length === 0) && (
+                  <li>Refresh halaman dan coba lagi</li>
+                )}
+              </ol>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setSecurityValidation(null);
+                  setStep('check');
+                  window.location.reload();
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Coba Lagi
+              </button>
+
+              <button
+                onClick={() => redirect('/dashboard')}
+                className="w-full px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
+
+            {/* Debug Info (only in development) */}
+            {securityValidation?.details && process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-900 rounded-lg text-xs font-mono">
+                <div className="font-bold text-gray-700 dark:text-gray-300 mb-1">Debug Info:</div>
+                <pre className="text-gray-600 dark:text-gray-400 overflow-auto">
+                  {JSON.stringify(securityValidation.details, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 

@@ -114,6 +114,15 @@ class BackgroundSecurityAnalyzer {
   }
 
   /**
+   * Clear all cached analysis (force refresh)
+   * Call this when admin updates config
+   */
+  clearCache(): void {
+    console.log('[Background Analyzer] 🗑️ Clearing all cached analysis...');
+    this.analysisCache.clear();
+  }
+
+  /**
    * Perform comprehensive security analysis
    */
   private async performAnalysis(userId: string, userEmail: string): Promise<SecurityAnalysisResult> {
@@ -485,10 +494,19 @@ class BackgroundSecurityAnalyzer {
     bypassGPSValidation?: boolean;
   }> {
     try {
+      // ✅ FORCE FRESH DATA - Cache busting with timestamp
+      const cacheBuster = `_t=${Date.now()}`;
+      const url = `/api/school/wifi-config?${cacheBuster}`;
+      
       // Use /api/school/wifi-config endpoint (public, loads from school_location_config)
-      const response = await fetch('/api/school/wifi-config', {
+      const response = await fetch(url, {
         credentials: 'include',
         cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       if (!response.ok) {

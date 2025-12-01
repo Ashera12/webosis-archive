@@ -128,6 +128,14 @@ export default function AttendancePage() {
     if (backgroundAnalysis && step === 'ready') {
       console.log('[Attendance] 🔒 Using background security analysis:', backgroundAnalysis);
       
+      // ✅ LOG GPS CONFIG DETAIL untuk debug
+      console.log('📍 GPS CONFIG dari Background Analyzer:');
+      console.log('   School Name:', backgroundAnalysis.location?.locationName);
+      console.log('   School GPS:', backgroundAnalysis.location?.schoolLatitude, backgroundAnalysis.location?.schoolLongitude);
+      console.log('   Radius:', backgroundAnalysis.location?.allowedRadius, 'meters');
+      console.log('   Require WiFi:', backgroundAnalysis.location?.requireWiFi);
+      console.log('   IP Ranges:', backgroundAnalysis.location?.allowedIPRanges?.length || 0);
+      
       // Set WiFi detection from background analysis
       if (backgroundAnalysis.wifi) {
         const wifiData = {

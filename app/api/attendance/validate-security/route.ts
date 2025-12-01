@@ -181,34 +181,43 @@ export async function POST(request: NextRequest) {
         }, { status: 403 });
       }
       
-      // Validate IP against whitelist (APPLIES TO ALL ROLES)
-      const { isIPInAllowedRanges } = await import('@/lib/networkUtils');
-      const isIPValid = isIPInAllowedRanges(clientIP, allowedIPRanges);
+      // Validate IP using HYBRID MODE (Mikrotik + Whitelist)
+      // Try Mikrotik first (real-time device list), fallback to IP whitelist
+      const { validateIPWithMikrotik } = await import('@/lib/mikrotikAPI');
+      const ipValidation = await validateIPWithMikrotik(clientIP, allowedIPRanges);
       
-      console.log('[Security Validation] IP Whitelist Check:', {
+      console.log('[Security Validation] IP Hybrid Validation:', {
         clientIP,
-        isValid: isIPValid,
+        isValid: ipValidation.valid,
+        source: ipValidation.source,
+        details: ipValidation.details,
         allowedRanges: allowedIPRanges,
         userRole: userRole.toUpperCase()
       });
+      
+      const isIPValid = ipValidation.valid;
       
       if (!isIPValid) {
         violations.push('IP_NOT_IN_WHITELIST');
         securityScore -= 50;
         
-        console.error('[Security Validation] ❌ IP NOT IN WHITELIST');
+        console.error('[Security Validation] ❌ IP NOT IN WHITELIST/MIKROTIK');
         console.error('[Security Validation] ❌ User Role:', userRole.toUpperCase());
         console.error('[Security Validation] ❌ Client IP:', clientIP);
+        console.error('[Security Validation] ❌ Validation Source:', ipValidation.source);
+        console.error('[Security Validation] ❌ Validation Details:', ipValidation.details);
         console.error('[Security Validation] ❌ Allowed Ranges:', allowedIPRanges);
         
         await logSecurityEvent({
           user_id: userId,
-          event_type: 'ip_whitelist_failed',
+          event_type: ipValidation.source === 'mikrotik' ? 'mikrotik_validation_failed' : 'ip_whitelist_failed',
           severity: 'HIGH',
-          description: `${userRole.toUpperCase()} IP not in whitelist: ${clientIP}`,
+          description: `${userRole.toUpperCase()} IP validation failed (${ipValidation.source}): ${clientIP}`,
           metadata: {
             role: userRole,
             client_ip: clientIP,
+            validation_source: ipValidation.source,
+            validation_details: ipValidation.details,
             allowed_ranges: allowedIPRanges,
             location: { lat: body.latitude, lng: body.longitude }
           }
@@ -264,52 +273,104 @@ export async function POST(request: NextRequest) {
 
     console.log('[Security Validation] ✅ Network validation complete (Enterprise IP Whitelisting - STRICT MODE)');
 
-    // ===== 3. VALIDATE LOCATION =====
+    // ===== 3. VALIDATE LOCATION (STRICT MODE) =====
     console.log('[Security Validation] Checking location...');
     
     // ✅ Check admin_settings for location requirement (key-value store)
-    const { data: locationSetting } = await supabaseAdmin
+    const { data: locationSettingsData } = await supabaseAdmin
       .from('admin_settings')
-      .select('value')
-      .eq('key', 'location_required')
-      .single();
+      .select('key, value')
+      .in('key', ['location_required', 'location_strict_mode', 'location_max_radius', 'location_gps_accuracy_required']);
+    
+    const locationSettings = new Map(locationSettingsData?.map((s: any) => [s.key, s.value]) || []);
     
     // Default to TRUE (strict mode) if setting doesn't exist
-    const locationRequired = locationSetting?.value !== 'false';
+    const locationRequired = locationSettings.get('location_required') !== 'false';
+    const locationStrictMode = locationSettings.get('location_strict_mode') === 'true';
+    const maxRadius = parseInt(locationSettings.get('location_max_radius') || '100'); // Default 100m
+    const minAccuracy = parseInt(locationSettings.get('location_gps_accuracy_required') || '50'); // Default 50m
     
-    // Also allow GPS bypass from config (backward compatibility)
-    const bypassGPS = activeConfig.bypass_gps_validation === true;
+    // ⚠️ STRICT MODE: Disable GPS bypass in production
+    const bypassGPS = locationStrictMode ? false : (activeConfig.bypass_gps_validation === true);
     
-    if (!locationRequired || bypassGPS || !body.latitude || !body.longitude) {
-      console.log('[Security Validation] ⚠️ LOCATION BYPASS - Validation skipped', {
+    if (!locationRequired && !locationStrictMode) {
+      console.log('[Security Validation] ⚠️ LOCATION VALIDATION DISABLED (Admin setting)');
+      warnings.push('LOCATION_VALIDATION_DISABLED');
+      securityScore -= 20; // Higher penalty for disabled validation
+      
+      await supabaseAdmin.from('security_events').insert({
+        user_id: userId,
+        event_type: 'location_validation_disabled',
+        severity: 'MEDIUM',
+        metadata: {
+          description: 'Location validation disabled by admin',
+          reason: 'Admin set location_required=false',
+          security_impact: 'Users can check-in from anywhere'
+        }
+      });
+      
+    } else if (bypassGPS) {
+      console.log('[Security Validation] ⚠️ LOCATION BYPASS - Validation skipped (backward compatibility)', {
         locationRequired,
         bypassGPS,
-        hasCoordinates: !!(body.latitude && body.longitude),
-        reason: !locationRequired ? 'Admin set location_required=false' : 
-                bypassGPS ? 'Config bypass enabled' : 
-                'No GPS coordinates (HTTPS required)'
+        strictMode: locationStrictMode
       });
       
       warnings.push('LOCATION_BYPASS_ACTIVE');
-      securityScore -= 5; // Small penalty for bypass mode
+      securityScore -= 15;
       
-      // 🔒 SECURITY: Log all bypass events for audit trail
       await supabaseAdmin.from('security_events').insert({
         user_id: userId,
         event_type: 'location_bypass_used',
-        severity: 'LOW',
+        severity: 'MEDIUM',
         metadata: {
           description: 'Location validation bypassed',
-          reason: !locationRequired ? 'Admin disabled location_required' : 
-                  bypassGPS ? 'Config GPS bypass enabled' : 
-                  'No GPS coordinates provided (HTTPS required)',
+          reason: 'Config GPS bypass enabled (legacy mode)',
           actual_location: body.latitude ? { lat: body.latitude, lng: body.longitude } : null,
           school_location: { lat: activeConfig.latitude, lng: activeConfig.longitude }
         }
       });
       
+    } else if (!body.latitude || !body.longitude) {
+      // STRICT MODE: Reject if no GPS coordinates
+      violations.push('NO_GPS_COORDINATES');
+      securityScore -= 50;
+      
+      console.error('[Security Validation] ❌ No GPS coordinates provided');
+      
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'gps_coordinates_missing',
+        severity: 'HIGH',
+        description: 'GPS coordinates missing - HTTPS required for geolocation',
+        metadata: {
+          locationRequired,
+          strictMode: locationStrictMode,
+          hint: 'Browser geolocation requires HTTPS'
+        }
+      });
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Lokasi GPS tidak terdeteksi. Pastikan Anda mengizinkan akses lokasi.',
+        details: {
+          hint: 'Klik Allow pada popup permission browser',
+          note: 'Geolocation hanya bekerja di HTTPS',
+          solution: [
+            '1. Refresh halaman',
+            '2. Klik Allow pada popup lokasi',
+            '3. Pastikan GPS aktif di perangkat',
+            '4. Pastikan situs menggunakan HTTPS'
+          ]
+        },
+        action: 'BLOCK_ATTENDANCE',
+        severity: 'HIGH',
+        violations,
+        securityScore
+      }, { status: 403 });
+      
     } else {
-      // NORMAL GPS VALIDATION
+      // STRICT GPS VALIDATION with accuracy check
       const distance = calculateDistance(
         body.latitude,
         body.longitude,
@@ -317,13 +378,23 @@ export async function POST(request: NextRequest) {
         parseFloat(activeConfig.longitude)
       );
 
-      const allowedRadius = activeConfig.radius_meters;
+      // Use minimum of configured radius and max radius setting
+      const allowedRadius = Math.min(activeConfig.radius_meters, maxRadius);
       const isLocationValid = distance <= allowedRadius;
+      
+      // Check GPS accuracy if provided (optional field)
+      const gpsAccuracy = (body as any).accuracy || 999999;
+      const isAccuracyGood = gpsAccuracy <= minAccuracy;
 
-      console.log('[Security Validation] Distance:', {
-        calculated: Math.round(distance) + 'm',
-        allowed: allowedRadius + 'm',
-        valid: isLocationValid
+      console.log('[Security Validation] Location Check:', {
+        distance: Math.round(distance) + 'm',
+        allowedRadius: allowedRadius + 'm',
+        configRadius: activeConfig.radius_meters + 'm',
+        maxRadius: maxRadius + 'm',
+        gpsAccuracy: Math.round(gpsAccuracy) + 'm',
+        requiredAccuracy: minAccuracy + 'm',
+        valid: isLocationValid && isAccuracyGood,
+        strictMode: locationStrictMode
       });
 
       if (!isLocationValid) {
@@ -340,13 +411,34 @@ export async function POST(request: NextRequest) {
             allowedRadius: allowedRadius + ' meter',
             schoolName: activeConfig.location_name,
             hint: `Anda harus berada dalam radius ${allowedRadius}m dari sekolah`,
-            adminHint: 'Admin dapat mengaktifkan GPS bypass mode di settings untuk testing'
+            strictMode: locationStrictMode,
+            note: locationStrictMode ? 'Strict mode aktif - bypass dinonaktifkan' : undefined
           },
           action: 'BLOCK_ATTENDANCE',
           severity: 'HIGH',
           violations,
           securityScore
         }, { status: 403 });
+      }
+      
+      if (!isAccuracyGood) {
+        violations.push('GPS_ACCURACY_LOW');
+        securityScore -= 15;
+        warnings.push(`Akurasi GPS rendah: ${Math.round(gpsAccuracy)}m (minimal: ${minAccuracy}m)`);
+        
+        console.warn('[Security Validation] ⚠️ GPS accuracy below minimum');
+        
+        await supabaseAdmin.from('security_events').insert({
+          user_id: userId,
+          event_type: 'gps_accuracy_low',
+          severity: 'MEDIUM',
+          metadata: {
+            accuracy: gpsAccuracy,
+            required: minAccuracy,
+            distance,
+            allowedRadius
+          }
+        });
       }
 
       console.log('[Security Validation] ✅ Location valid');

@@ -114,15 +114,6 @@ class BackgroundSecurityAnalyzer {
   }
 
   /**
-   * Clear all cached analysis (force refresh)
-   * Call this when admin updates config
-   */
-  clearCache(): void {
-    console.log('[Background Analyzer] 🗑️ Clearing all cached analysis...');
-    this.analysisCache.clear();
-  }
-
-  /**
    * Perform comprehensive security analysis
    */
   private async performAnalysis(userId: string, userEmail: string): Promise<SecurityAnalysisResult> {

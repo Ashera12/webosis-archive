@@ -44,17 +44,28 @@ VALUES ('attendance_ip_validation_enabled', 'false', NOW(), NOW())
 ON CONFLICT (key) DO UPDATE 
 SET value = 'false', updated_at = NOW();
 
--- ✅ STEP 4: Set STRICT GPS validation
+-- ✅ STEP 4: Set STRICT GPS validation (SECURITY CRITICAL!)
 INSERT INTO admin_settings (key, value, created_at, updated_at)
 VALUES 
-  ('location_gps_accuracy_required', '50', NOW(), NOW()),
-  ('location_radius_meters', '100', NOW(), NOW()),
+  ('location_gps_accuracy_required', '20', NOW(), NOW()),  -- ✅ STRICT: Max 20m accuracy
+  ('location_radius_meters', '200', NOW(), NOW()),          -- ✅ School radius: 200m
   ('location_latitude', '-6.200000', NOW(), NOW()),
   ('location_longitude', '106.816666', NOW(), NOW()),
-  ('location_validation_strict', 'true', NOW(), NOW()),
-  ('location_permission_required', 'true', NOW(), NOW())
+  ('location_validation_strict', 'true', NOW(), NOW()),     -- ✅ ENABLE strict mode
+  ('location_strict_mode', 'true', NOW(), NOW()),           -- ✅ FORCE strict validation
+  ('location_permission_required', 'true', NOW(), NOW()),
+  ('strict_gps_validation', 'true', NOW(), NOW())           -- ✅ NO BYPASS ALLOWED
 ON CONFLICT (key) DO UPDATE 
-SET updated_at = NOW();
+SET value = EXCLUDED.value, updated_at = NOW();
+
+-- ✅ STEP 5: Disable GPS bypass (FORCE real GPS validation)
+UPDATE school_location_config 
+SET bypass_gps_validation = false
+WHERE bypass_gps_validation = true;
+
+RAISE NOTICE '✅ STRICT GPS validation enabled (accuracy < 20m required)';
+RAISE NOTICE '✅ GPS bypass DISABLED (no fake GPS allowed)';
+RAISE NOTICE '✅ School radius: 200m';
 
 -- Success message
 DO $$

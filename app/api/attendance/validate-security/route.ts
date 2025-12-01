@@ -287,11 +287,11 @@ export async function POST(request: NextRequest) {
     // Default to TRUE (strict mode) if setting doesn't exist
     const locationRequired = locationSettings.get('location_required') !== 'false';
     const locationStrictMode = locationSettings.get('location_strict_mode') === 'true';
-    const maxRadius = parseInt(locationSettings.get('location_max_radius') || '100'); // Default 100m
-    const minAccuracy = parseInt(locationSettings.get('location_gps_accuracy_required') || '50'); // Default 50m
+    const maxRadius = parseInt(locationSettings.get('location_max_radius') || '200'); // Default 200m
+    const minAccuracy = parseInt(locationSettings.get('location_gps_accuracy_required') || '20'); // Default 20m
     
-    // ⚠️ STRICT MODE: Disable GPS bypass in production
-    const bypassGPS = locationStrictMode ? false : (activeConfig.bypass_gps_validation === true);
+    // 🚨 STRICT MODE: GPS bypass ALWAYS DISABLED (no exceptions!)
+    const bypassGPS = false; // FORCE strict validation - no bypass allowed
     
     if (!locationRequired && !locationStrictMode) {
       console.log('[Security Validation] ⚠️ LOCATION VALIDATION DISABLED (Admin setting)');
@@ -428,7 +428,7 @@ export async function POST(request: NextRequest) {
       const allowedRadius = Math.min(activeConfig.radius_meters, maxRadius);
       const isLocationValid = distance <= allowedRadius;
       
-      // Check GPS accuracy (STRICT: must be <= minAccuracy)
+      // Check GPS accuracy (STRICT: must be <= minAccuracy) - BLOCKING!
       const isAccuracyGood = gpsAccuracy <= minAccuracy;
 
       console.log('[Security Validation] Location Check:', {
@@ -445,7 +445,7 @@ export async function POST(request: NextRequest) {
 
       if (!isLocationValid) {
         violations.push('OUTSIDE_RADIUS');
-        securityScore -= 50;
+        securityScore = 0; // BLOCK
 
         console.error('[Security Validation] ❌ Location OUTSIDE radius');
 
@@ -467,24 +467,48 @@ export async function POST(request: NextRequest) {
         }, { status: 403 });
       }
       
+      // 🚨 STRICT MODE: BLOCK if GPS accuracy too low (> minAccuracy)
       if (!isAccuracyGood) {
         violations.push('GPS_ACCURACY_LOW');
-        securityScore -= 15;
-        warnings.push(`Akurasi GPS rendah: ${Math.round(gpsAccuracy)}m (minimal: ${minAccuracy}m)`);
+        securityScore = 0; // BLOCK
         
-        console.warn('[Security Validation] ⚠️ GPS accuracy below minimum');
+        console.error('[Security Validation] ❌ GPS accuracy TOO LOW - BLOCKED');
+        console.error('[Security Validation] Accuracy:', Math.round(gpsAccuracy), 'm (required: <', minAccuracy, 'm)');
         
         await supabaseAdmin.from('security_events').insert({
           user_id: userId,
-          event_type: 'gps_accuracy_low',
-          severity: 'MEDIUM',
+          event_type: 'gps_accuracy_too_low',
+          severity: 'HIGH',
           metadata: {
             accuracy: gpsAccuracy,
             required: minAccuracy,
             distance,
-            allowedRadius
+            allowedRadius,
+            action: 'BLOCKED'
           }
         });
+        
+        return NextResponse.json({
+          success: false,
+          error: `🎯 AKURASI GPS TERLALU RENDAH!`,
+          details: {
+            yourAccuracy: Math.round(gpsAccuracy) + ' meter',
+            requiredAccuracy: '< ' + minAccuracy + ' meter',
+            currentDistance: Math.round(distance) + ' meter',
+            hint: 'GPS tidak cukup akurat untuk memverifikasi lokasi Anda',
+            solution: [
+              '1. Pindah ke AREA TERBUKA (keluar dari gedung)',
+              '2. Tunggu 30-60 detik hingga GPS lock ke satelit',
+              '3. Pastikan GPS/Location di device AKTIF (Settings → Location → High Accuracy)',
+              '4. Coba lagi setelah akurasi < ' + minAccuracy + 'm',
+              '5. Jika masih gagal, hubungi admin'
+            ]
+          },
+          action: 'BLOCK_ATTENDANCE',
+          severity: 'HIGH',
+          violations,
+          securityScore: 0
+        }, { status: 403 });
       }
 
       console.log('[Security Validation] ✅ Location valid');
@@ -694,13 +718,16 @@ export async function POST(request: NextRequest) {
     console.log('[Security Validation] ✅ All validations passed!');
     console.log('[Security Validation] Security Score:', securityScore);
 
-    // Calculate distance for response (use 0 if bypassed)
-    const responseDistance = (!locationRequired || bypassGPS || !body.latitude) ? 0 : calculateDistance(
-      body.latitude,
-      body.longitude,
-      parseFloat(activeConfig.latitude),
-      parseFloat(activeConfig.longitude)
-    );
+    // Calculate REAL distance (always show actual distance, even if bypassed)
+    const responseDistance = body.latitude && body.longitude 
+      ? calculateDistance(
+          body.latitude,
+          body.longitude,
+          parseFloat(activeConfig.latitude),
+          parseFloat(activeConfig.longitude)
+        )
+      : 0; // Only 0 if no GPS coordinates at all
+    
     const responseRadius = activeConfig.radius_meters;
 
     return NextResponse.json({

@@ -99,8 +99,19 @@ class BackgroundSecurityAnalyzer {
 
   /**
    * Get cached analysis if still valid
+   * Check URL param ?forceRefresh=1 to bypass cache
    */
   getCachedAnalysis(userId: string): SecurityAnalysisResult | null {
+    // Check if force refresh requested via URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('forceRefresh') === '1') {
+        console.log('[Background Analyzer] 🔄 Force refresh requested via URL - clearing cache');
+        this.analysisCache.delete(userId);
+        return null;
+      }
+    }
+    
     const cached = this.analysisCache.get(userId);
     if (!cached) return null;
 

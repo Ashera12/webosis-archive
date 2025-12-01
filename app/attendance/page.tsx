@@ -89,6 +89,21 @@ export default function AttendancePage() {
   const [selectedMethod, setSelectedMethod] = useState<BiometricMethod | null>(null);
   const [showMethodSelection, setShowMethodSelection] = useState(false);
 
+  // 🔄 FORCE REFRESH: Check URL parameter on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('forceRefresh') === '1') {
+        console.log('[Attendance] 🔄 Force refresh detected! Removing parameter...');
+        // Remove the parameter from URL
+        urlParams.delete('forceRefresh');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+        console.log('[Attendance] ✅ URL cleaned, analyzer will bypass cache');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       redirect('/login?callbackUrl=/attendance');

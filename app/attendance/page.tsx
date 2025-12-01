@@ -173,6 +173,55 @@ export default function AttendancePage() {
       }
     }
   }, [backgroundAnalysis, step]);
+  
+  // Log step changes for debugging
+  useEffect(() => {
+    if (step) {
+      console.log(`\n📱 ========== UI STATE CHANGE ==========`);
+      console.log(`🔄 Step changed to: ${step.toUpperCase()}`);
+      console.log(`👤 User: ${session?.user?.name || 'Not logged in'}`);
+      console.log(`📧 Email: ${session?.user?.email || 'N/A'}`);
+      console.log(`🎭 Role: ${(session?.user as any)?.role || 'N/A'}`);
+      console.log(`⏰ Time: ${new Date().toLocaleString()}`);
+      
+      // Log relevant data for current step
+      switch (step) {
+        case 'check':
+          console.log('📋 Requirements:', {
+            role: requirements.role,
+            wifi: requirements.wifi,
+            location: requirements.location,
+            biometric: requirements.biometric
+          });
+          break;
+        case 'setup':
+          console.log('🔐 Setup mode: User needs to enroll biometric');
+          break;
+        case 'ready':
+          console.log('✅ Ready to attend');
+          console.log('📍 Location:', locationData ? `${locationData.latitude}, ${locationData.longitude}` : 'Not detected');
+          console.log('📶 WiFi:', wifiSSID || 'Not set');
+          console.log('🔐 Fingerprint:', fingerprintHash ? fingerprintHash.substring(0, 12) + '...' : 'Not generated');
+          break;
+        case 'blocked':
+          console.log('🚫 BLOCKED - Validation failed');
+          console.log('❌ Violations:', securityValidation?.violations || []);
+          console.log('📋 Details:', securityValidation?.details || {});
+          break;
+        case 'capture':
+          console.log('📸 Photo capture mode');
+          break;
+        case 'submitting':
+          console.log('⏳ Submitting attendance...');
+          break;
+        case 'verify-biometric':
+          console.log('🔐 Biometric verification mode');
+          break;
+      }
+      
+      console.log('=========================================\n');
+    }
+  }, [step]);
 
   useEffect(() => {
     if (session?.user) {
@@ -763,16 +812,40 @@ export default function AttendancePage() {
               );
             }
             
-            // Log violations
-            if (violations.length > 0) {
-              console.error('🚨 Security violations:', violations);
-              console.error('📊 Security score:', data.securityScore);
+            // ✅ SYNC: Log violations with detailed info
+            console.error('\n🚨 ========== ATTENDANCE BLOCKED ==========');
+            console.error('❌ Action:', data.action);
+            console.error('❌ Error:', data.error);
+            console.error('❌ Violations:', violations);
+            console.error('📊 Security Score:', data.securityScore);
+            
+            if (data.details) {
+              console.error('📋 Details:', {
+                yourIP: data.details.yourIP,
+                allowedIPRanges: data.details.allowedIPRanges,
+                distance: data.details.distance,
+                accuracy: data.details.accuracy,
+                hint: data.details.hint,
+                solution: data.details.solution
+              });
             }
             
-            // Show detailed info in console
-            if (data.details) {
-              console.error('❌ Validation details:', data.details);
-            }
+            // Log each violation with description
+            violations.forEach((violation: string) => {
+              const descriptions: Record<string, string> = {
+                'IP_NOT_IN_WHITELIST': '📡 IP address tidak terdaftar di jaringan sekolah',
+                'IP_NOT_DETECTED': '🌐 IP address tidak terdeteksi',
+                'LOCATION_TOO_FAR': '📍 Lokasi terlalu jauh dari sekolah',
+                'LOCATION_NOT_ACCURATE': '🎯 Akurasi GPS tidak memenuhi syarat',
+                'LOCATION_NOT_DETECTED': '📍 Lokasi tidak terdeteksi',
+                'FINGERPRINT_MISMATCH': '🔐 Device fingerprint tidak cocok',
+                'OUTSIDE_ATTENDANCE_HOURS': '⏰ Di luar jam absensi'
+              };
+              console.error(`   → ${violation}: ${descriptions[violation] || violation}`);
+            });
+            
+            console.error('🔒 UI State: Changing to BLOCKED');
+            console.error('=========================================\n');
             
             // ✅ FIX: Set step to 'blocked' instead of 'ready'
             setStep('blocked');
@@ -804,12 +877,23 @@ export default function AttendancePage() {
       }
 
       // Validation SUCCESS
+      console.log('\n✅ ========== ATTENDANCE ALLOWED ==========');
       console.log('✅ Security validation passed!');
-      console.log('📊 Security score:', data.data.securityScore);
+      console.log('📊 Security Score:', data.data.securityScore);
+      console.log('📍 Distance from school:', data.data.distance + 'm');
+      console.log('📶 WiFi SSID:', data.data.wifiSSID);
+      console.log('🌐 Your IP:', data.data.yourIP || 'Not detected');
+      console.log('🔐 Fingerprint:', data.data.fingerprintHash?.substring(0, 12) + '...');
       
       if (data.data.warnings && data.data.warnings.length > 0) {
         console.warn('⚠️ Warnings:', data.data.warnings);
+        data.data.warnings.forEach((warning: string) => {
+          console.warn('   → ' + warning);
+        });
       }
+      
+      console.log('🔓 UI State: Remaining on READY (validation passed)');
+      console.log('=========================================\n');
       
       setSecurityValidation(data.data);
       
@@ -2107,30 +2191,38 @@ export default function AttendancePage() {
             <button
               onClick={async () => {
                 // ===== PROPER FLOW: Security → Biometric Verify → Capture =====
-                console.log('🔐 Starting attendance flow...');
+                console.log('\n🚀 ========== ATTENDANCE FLOW START ==========');
+                console.log('👤 User:', session?.user?.name || 'Unknown');
+                console.log('📧 Email:', session?.user?.email || 'Unknown');
+                console.log('🎭 Role:', (session?.user as any)?.role || 'Unknown');
+                console.log('📍 Current Location:', locationData ? `${locationData.latitude}, ${locationData.longitude}` : 'Not detected');
+                console.log('📶 WiFi SSID:', wifiSSID || 'Not set');
+                console.log('🔐 Fingerprint:', fingerprintHash ? fingerprintHash.substring(0, 12) + '...' : 'Not generated');
+                console.log('🔒 Selected Biometric Method:', selectedMethod?.name || 'None');
+                console.log('\n--- Step 1: Security Validation ---');
                 
-                // Step 1: Security Validation (WiFi + Location)
-                console.log('Step 1: Security validation...');
                 const isSecure = await validateSecurity();
                 if (!isSecure) {
-                  console.log('❌ Security validation failed');
+                  console.error('❌ Step 1 FAILED: Security validation failed');
+                  console.error('🔴 Flow terminated - UI should show BLOCKED state\n');
                   return;
                 }
                 
-                console.log('✅ Security validated');
+                console.log('✅ Step 1 PASSED: Security validated');
+                console.log('\n--- Step 2: Biometric Verification ---');
                 
-                // Step 2: Biometric Verification (Fingerprint + Face)
-                console.log('Step 2: Biometric verification...');
                 const isBiometricValid = await handleBiometricVerification();
                 if (!isBiometricValid) {
-                  console.log('❌ Biometric verification failed');
+                  console.error('❌ Step 2 FAILED: Biometric verification failed\n');
                   return;
                 }
                 
-                console.log('✅ Biometric verified');
+                console.log('✅ Step 2 PASSED: Biometric verified');
+                console.log('\n--- Step 3: Photo Capture ---');
+                console.log('📸 Proceeding to photo capture for AI face analysis');
+                console.log('🔓 UI State: Changing to CAPTURE');
+                console.log('=========================================\n');
                 
-                // Step 3: Proceed to Photo Capture for AI Face Analysis
-                console.log('Step 3: Proceeding to photo capture...');
                 setStep('capture');
               }}
               disabled={
@@ -2509,6 +2601,13 @@ export default function AttendancePage() {
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
+                  console.log('\n🔄 ========== USER RETRY ATTENDANCE ==========');
+                  console.log('👤 User clicked "Coba Lagi" button');
+                  console.log('📋 Previous violations:', securityValidation?.violations || []);
+                  console.log('🔄 Action: Clearing validation state and reloading page');
+                  console.log('🔄 UI State: Changing from BLOCKED → CHECK → Page reload');
+                  console.log('=========================================\n');
+                  
                   setSecurityValidation(null);
                   setStep('check');
                   window.location.reload();
@@ -2522,7 +2621,11 @@ export default function AttendancePage() {
               </button>
 
               <button
-                onClick={() => redirect('/dashboard')}
+                onClick={() => {
+                  console.log('\n🏠 User clicked "Kembali ke Dashboard"');
+                  console.log('🔄 Redirecting to /dashboard\n');
+                  redirect('/dashboard');
+                }}
                 className="w-full px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all active:scale-95"
               >
                 Kembali ke Dashboard

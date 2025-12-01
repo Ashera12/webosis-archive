@@ -439,6 +439,17 @@ export default function AdminDashboard() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Link
+            href="/admin/attendance/mikrotik"
+            className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group border-2 border-emerald-300"
+          >
+            <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+              🔐
+            </div>
+            <span className="text-sm font-medium">Keamanan</span>
+            <span className="text-xs opacity-80 mt-1">Mikrotik</span>
+          </Link>
+
+          <Link
             href="/admin/activity"
             className="flex flex-col items-center justify-center p-6 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-white shadow-lg hover:shadow-2xl hover:scale-105 transition-all group"
           >

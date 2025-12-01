@@ -729,6 +729,12 @@ export default function AttendancePage() {
 
     try {
       console.log('🔒 Starting security validation...');
+      console.log('📍 Sending location data:', {
+        lat: locationData.latitude,
+        lon: locationData.longitude,
+        accuracy: locationData.accuracy,
+        wifiSSID: wifiSSID.trim()
+      });
       
       const response = await fetch('/api/attendance/validate-security', {
         method: 'POST',
@@ -736,6 +742,7 @@ export default function AttendancePage() {
         body: JSON.stringify({
           latitude: locationData.latitude,
           longitude: locationData.longitude,
+          accuracy: locationData.accuracy, // ✅ CRITICAL: Send GPS accuracy for fake GPS detection
           wifiSSID: wifiSSID.trim(),
           fingerprintHash,
           timestamp: Date.now()

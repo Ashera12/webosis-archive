@@ -22,7 +22,7 @@ INSERT INTO school_location_config (
   allowed_ip_ranges,
   is_active
 )
-SELECT 
+SELECT    
   'SMK Webosis',
   -6.200000,
   106.816666,

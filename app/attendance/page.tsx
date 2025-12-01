@@ -2067,6 +2067,220 @@ export default function AttendancePage() {
               </div>
             )}
 
+            {/* 📊 TABEL ANALISIS KEAMANAN - Real-time Validation Status */}
+            {(wifiDetection || locationData || fingerprintHash || backgroundAnalysis) && (
+              <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900 dark:to-slate-900 border-2 border-gray-300 dark:border-gray-600 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    📊 Analisis Keamanan Real-time
+                  </h3>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date().toLocaleTimeString('id-ID')}
+                  </span>
+                </div>
+                
+                {/* Validation Status Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-300 dark:border-gray-600">
+                        <th className="text-left py-2 px-2 font-semibold text-gray-700 dark:text-gray-300">Parameter</th>
+                        <th className="text-left py-2 px-2 font-semibold text-gray-700 dark:text-gray-300">Nilai</th>
+                        <th className="text-center py-2 px-2 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {/* IP Address */}
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                          🌐 IP Address
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {wifiDetection?.ipAddress || backgroundAnalysis?.wifi?.ipAddress || 'Detecting...'}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {backgroundAnalysis?.wifi?.isValid ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              ✓ Valid
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              ⚠ Pending
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* Connection Type */}
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                          📡 Tipe Koneksi
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
+                          <span className={`font-semibold ${
+                            wifiDetection?.connectionType === 'wifi' || wifiDetection?.connectionType === 'WIFI' 
+                              ? 'text-green-600 dark:text-green-400'
+                              : wifiDetection?.connectionType === 'cellular' || wifiDetection?.connectionType === 'CELLULAR'
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-blue-600 dark:text-blue-400'
+                          }`}>
+                            {(wifiDetection?.connectionType || backgroundAnalysis?.wifi?.connectionType || 'Unknown').toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {(wifiDetection?.connectionType === 'wifi' || wifiDetection?.connectionType === 'WIFI') ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              ✓ WiFi
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                              ⚠ Cellular
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* Location */}
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                          📍 Lokasi GPS
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {locationData ? 
+                            `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}` 
+                            : 'Not detected'}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {backgroundAnalysis?.location?.detected ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              ✓ Detected
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              ✗ Missing
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* GPS Accuracy */}
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                          🎯 Akurasi GPS
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
+                          {locationData?.accuracy ? 
+                            `${locationData.accuracy.toFixed(0)} meter` 
+                            : 'N/A'}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {locationData?.accuracy && locationData.accuracy <= 50 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              ✓ Akurat
+                            </span>
+                          ) : locationData?.accuracy && locationData.accuracy <= 100 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              ⚠ Cukup
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              ✗ Buruk
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* Fingerprint */}
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                          🔐 Device ID
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {fingerprintHash ? fingerprintHash.substring(0, 16) + '...' : 'Generating...'}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {fingerprintHash ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              ✓ Ready
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                              ⏳ Loading
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* Background Analysis Result */}
+                      {backgroundAnalysis && (
+                        <tr className="hover:bg-gray-100 dark:hover:bg-gray-800 border-t-2 border-gray-400 dark:border-gray-500">
+                          <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                            🔒 Analisis Background
+                          </td>
+                          <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
+                            {backgroundAnalysis.wifi?.validationError ? (
+                              <span className="text-red-600 dark:text-red-400 text-xs">
+                                ⚠ {backgroundAnalysis.wifi.validationError}
+                              </span>
+                            ) : (
+                              <span className="text-green-600 dark:text-green-400 text-xs">
+                                ✓ Passed
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            {isBlocked ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                🚫 Blocked
+                              </span>
+                            ) : backgroundAnalysis.wifi?.isValid ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                ✓ Allowed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                ⏳ Validating
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Legend */}
+                <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600 flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Valid/Akurat</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-full bg-yellow-500"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Warning/Pending</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Error/Blocked</span>
+                  </div>
+                </div>
+                
+                {/* Warning if blocked */}
+                {isBlocked && blockReasons && blockReasons.length > 0 && (
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg">
+                    <div className="font-bold text-red-900 dark:text-red-100 text-sm mb-1">
+                      🚫 Blocked Reasons:
+                    </div>
+                    <ul className="text-xs text-red-700 dark:text-red-300 ml-4 list-disc space-y-1">
+                      {blockReasons.map((reason, idx) => (
+                        <li key={idx}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Security Validation Success Info */}
             {securityValidation && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl p-4 mb-4 sm:mb-6">

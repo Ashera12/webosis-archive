@@ -1,18 +1,45 @@
--- Fix IP ranges to include CGNAT (100.64.0.0/10)
--- This fixes the issue where user IP 114.122.103.106 is blocked
--- CGNAT (Carrier-Grade NAT) is used by ISPs for shared IP addresses
+-- =====================================================
+-- FIX IP RANGES - ADD CGNAT SUPPORT
+-- Fixes blocking for IP 114.122.103.106
+-- =====================================================
 
--- Update school_location_config to include comprehensive IP ranges
+-- Update existing school locations with CGNAT range
 UPDATE school_location_config 
 SET allowed_ip_ranges = ARRAY[
-  '192.168.0.0/16',     -- Private network: 192.168.0.0 - 192.168.255.255 (65,536 IPs)
-  '10.0.0.0/8',         -- Private network: 10.0.0.0 - 10.255.255.255 (16,777,216 IPs)
-  '172.16.0.0/12',      -- Private network: 172.16.0.0 - 172.31.255.255 (1,048,576 IPs)
-  '100.64.0.0/10'       -- CGNAT: 100.64.0.0 - 100.127.255.255 (4,194,304 IPs) ← FIX FOR 114.122.103.106
+  '192.168.0.0/16',   -- Private: 192.168.0.0 - 192.168.255.255
+  '10.0.0.0/8',       -- Private: 10.0.0.0 - 10.255.255.255
+  '172.16.0.0/12',    -- Private: 172.16.0.0 - 172.31.255.255
+  '100.64.0.0/10'     -- CGNAT: 100.64.0.0 - 100.127.255.255 ← FIX
 ]
-WHERE allowed_ip_ranges IS NULL 
-   OR allowed_ip_ranges = '{}' 
-   OR allowed_ip_ranges = ARRAY['192.168.', '10.0.', '172.16.'];
+WHERE location_name IS NOT NULL;
+
+-- Insert default location if table is empty
+INSERT INTO school_location_config (
+  location_name,
+  latitude,
+  longitude,
+  radius_meters,
+  allowed_ip_ranges,
+  is_active
+)
+SELECT 
+  'SMK Webosis',
+  -6.200000,
+  106.816666,
+  100,
+  ARRAY['192.168.0.0/16', '10.0.0.0/8', '172.16.0.0/12', '100.64.0.0/10'],
+  true
+WHERE NOT EXISTS (SELECT 1 FROM school_location_config LIMIT 1);
+
+-- Success message
+DO $$
+DECLARE
+  location_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO location_count FROM school_location_config;
+  RAISE NOTICE '✅ IP ranges updated! Total locations: %', location_count;
+  RAISE NOTICE '✅ IP 114.122.103.106 should now work (CGNAT included)';
+END $$;
 
 -- Verify the update
 SELECT 

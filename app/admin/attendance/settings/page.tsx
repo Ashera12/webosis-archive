@@ -119,6 +119,8 @@ export default function AttendanceSettingsPage() {
   const [newSSID, setNewSSID] = useState(''); // Legacy simple mode
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [currentIP, setCurrentIP] = useState<string>('Detecting...');
+  const [detectingIP, setDetectingIP] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -133,9 +135,100 @@ export default function AttendanceSettingsPage() {
         redirect('/dashboard');
       } else {
         fetchConfig();
+        detectCurrentIP(); // Auto-detect IP saat load
       }
     }
   }, [session]);
+
+  // Detect Current IP Address
+  const detectCurrentIP = async () => {
+    setDetectingIP(true);
+    try {
+      const response = await fetch('/api/attendance/detect-ip');
+      const data = await response.json();
+      if (data.ipAddress) {
+        setCurrentIP(data.ipAddress);
+        console.log('🌐 Current IP detected:', data.ipAddress);
+      } else {
+        setCurrentIP('Unable to detect');
+      }
+    } catch (error) {
+      console.error('IP detection error:', error);
+      setCurrentIP('Unable to detect');
+    } finally {
+      setDetectingIP(false);
+    }
+  };
+
+  // Add Current IP to Whitelist
+  const addCurrentIPToWhitelist = () => {
+    if (!currentIP || currentIP === 'Detecting...' || currentIP === 'Unable to detect') {
+      toast.error('❌ IP Address belum terdeteksi! Coba refresh halaman.');
+      return;
+    }
+
+    // Check if IP is private (local network)
+    const isPrivateIP = currentIP.startsWith('192.168.') || 
+                        currentIP.startsWith('10.') || 
+                        currentIP.startsWith('172.16.') ||
+                        currentIP.startsWith('172.17.') ||
+                        currentIP.startsWith('172.18.') ||
+                        currentIP.startsWith('172.19.') ||
+                        currentIP.startsWith('172.20.') ||
+                        currentIP.startsWith('172.21.') ||
+                        currentIP.startsWith('172.22.') ||
+                        currentIP.startsWith('172.23.') ||
+                        currentIP.startsWith('172.24.') ||
+                        currentIP.startsWith('172.25.') ||
+                        currentIP.startsWith('172.26.') ||
+                        currentIP.startsWith('172.27.') ||
+                        currentIP.startsWith('172.28.') ||
+                        currentIP.startsWith('172.29.') ||
+                        currentIP.startsWith('172.30.') ||
+                        currentIP.startsWith('172.31.');
+
+    let cidrRange: string;
+    let networkType: string;
+
+    if (isPrivateIP) {
+      // Local network - use /24 (256 addresses)
+      const ipParts = currentIP.split('.');
+      cidrRange = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}.0/24`;
+      networkType = 'Local Network (WiFi Sekolah)';
+    } else {
+      // Public IP - use /16 (65,536 addresses for ISP range)
+      const ipParts = currentIP.split('.');
+      cidrRange = `${ipParts[0]}.${ipParts[1]}.0.0/16`;
+      networkType = 'Public IP (ISP Range)';
+    }
+
+    // Check if already exists
+    const exists = config.allowed_ip_ranges?.includes(cidrRange);
+    if (exists) {
+      toast.error(`❌ IP Range ${cidrRange} sudah ada di whitelist!`, { duration: 4000 });
+      return;
+    }
+
+    // Add to config
+    const newRanges = [...(config.allowed_ip_ranges || []), cidrRange];
+    setConfig({ ...config, allowed_ip_ranges: newRanges });
+
+    toast.success(
+      <div>
+        <div className="font-bold">✅ IP Range berhasil ditambahkan!</div>
+        <div className="text-xs mt-1">
+          📍 Your IP: {currentIP}
+        </div>
+        <div className="text-xs">
+          📋 CIDR: {cidrRange}
+        </div>
+        <div className="text-xs">
+          🏷️ Type: {networkType}
+        </div>
+      </div>,
+      { duration: 5000 }
+    );
+  };
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -928,16 +1021,42 @@ export default function AttendanceSettingsPage() {
           </div>
 
           {/* Current IP Detection */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-4">
-            <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-2">
-              🌐 IP Address Anda Saat Ini:
-            </p>
-            <code className="block px-3 py-2 bg-white dark:bg-gray-800 rounded-lg text-blue-600 dark:text-blue-300 font-mono text-sm">
-              {typeof window !== 'undefined' ? 'Detecting...' : 'Server Side'}
-            </code>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              💡 Pastikan IP ini termasuk dalam allowed ranges di bawah
-            </p>
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4 mb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                  🌐 IP Address Sekolah Saat Ini:
+                  {detectingIP && <span className="text-xs text-blue-600 animate-pulse">(detecting...)</span>}
+                </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <code className="block px-4 py-2 bg-white dark:bg-gray-800 rounded-lg text-blue-600 dark:text-blue-300 font-mono text-lg font-bold border-2 border-blue-200 dark:border-blue-600 flex-1">
+                    {currentIP}
+                  </code>
+                  <button
+                    onClick={detectCurrentIP}
+                    disabled={detectingIP}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-all font-medium text-sm"
+                    title="Refresh IP"
+                  >
+                    🔄
+                  </button>
+                </div>
+                <button
+                  onClick={addCurrentIPToWhitelist}
+                  disabled={!currentIP || currentIP === 'Detecting...' || currentIP === 'Unable to detect'}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  ➕ Tambahkan IP Ini ke Whitelist (Auto CIDR)
+                </button>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                  💡 IP ini akan otomatis dikonversi ke CIDR notation:
+                </p>
+                <ul className="text-xs text-blue-600 dark:text-blue-400 ml-4 mt-1 space-y-0.5">
+                  <li>• <strong>WiFi Lokal (192.168.x.x):</strong> → 192.168.x.0/24 (256 IP)</li>
+                  <li>• <strong>IP Public (ISP):</strong> → xxx.xxx.0.0/16 (65,536 IP untuk satu range ISP)</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           {/* IP Ranges Input */}
@@ -949,11 +1068,12 @@ export default function AttendanceSettingsPage() {
               value={config.allowed_ip_ranges?.join('\n') || ''}
               onChange={(e) => {
                 const ranges = e.target.value.split('\n').filter(r => r.trim() !== '');
+                console.log('📝 IP Ranges updated:', ranges);
                 setConfig({ ...config, allowed_ip_ranges: ranges });
               }}
               placeholder="Masukkan IP ranges (satu per baris):&#10;192.168.0.0/16  ← Jaringan lokal&#10;182.10.0.0/16   ← IP Public ISP&#10;100.64.0.0/10   ← CGNAT (Telkomsel/Indosat)&#10;10.0.0.0/8      ← Private network"
               rows={6}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900 transition-all outline-none text-gray-900 dark:text-white font-mono text-sm"
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900 transition-all outline-none text-gray-900 dark:text-white font-mono text-sm resize-y"
             />
             <div className="mt-2 space-y-1">
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -974,58 +1094,77 @@ export default function AttendanceSettingsPage() {
           {/* Quick Presets */}
           <div className="mb-4">
             <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-              ⚡ Quick Presets (klik untuk apply):
+              ⚡ Quick Actions:
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  setConfig({
-                    ...config,
-                    allowed_ip_ranges: [
-                      '192.168.0.0/16',  // Local network
-                      '10.0.0.0/8'        // Private network
-                    ]
-                  });
+                  const confirmed = confirm(
+                    '🗑️ HAPUS SEMUA IP RANGES?\n\n' +
+                    'Semua IP range yang sudah ditambahkan akan dihapus.\n\n' +
+                    'Anda bisa tambahkan IP baru menggunakan tombol "Tambahkan IP Ini ke Whitelist" di atas.\n\n' +
+                    'Lanjutkan?'
+                  );
+                  if (confirmed) {
+                    setConfig({
+                      ...config,
+                      allowed_ip_ranges: []
+                    });
+                    toast.success('✅ Semua IP ranges dihapus. Silakan tambahkan IP sekolah yang baru.', { duration: 4000 });
+                  }
                 }}
-                className="px-3 py-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border border-green-300 dark:border-green-700 rounded-lg text-xs text-green-700 dark:text-green-300 transition-colors"
+                className="px-4 py-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 border-2 border-red-300 dark:border-red-700 rounded-xl text-sm font-bold text-red-700 dark:text-red-300 transition-all hover:scale-105 shadow-sm"
               >
-                🏫 WiFi Sekolah (Local Only)
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-2xl">🗑️</span>
+                  <span>Clear All</span>
+                  <span className="text-xs font-normal opacity-75">Hapus Semua IP</span>
+                </div>
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setConfig({
-                    ...config,
-                    allowed_ip_ranges: [
-                      '192.168.0.0/16',
-                      '182.10.0.0/16',    // ISP Public IP
-                      '100.64.0.0/10'     // CGNAT
-                    ]
-                  });
+                  const confirmed = confirm(
+                    '⚠️ WARNING: Testing Mode akan mengizinkan SEMUA IP address!\n\n' +
+                    'Hanya gunakan untuk testing/development.\n\n' +
+                    'JANGAN gunakan di production!\n\n' +
+                    'Lanjutkan?'
+                  );
+                  if (confirmed) {
+                    setConfig({
+                      ...config,
+                      allowed_ip_ranges: ['0.0.0.0/0'],
+                      require_wifi: false,
+                      network_security_level: 'low'
+                    });
+                    toast.error('⚠️ Testing Mode Active - SEMUA IP DIIZINKAN!', { duration: 5000 });
+                  }
                 }}
-                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border border-blue-300 dark:border-blue-700 rounded-lg text-xs text-blue-700 dark:text-blue-300 transition-colors"
+                className="px-4 py-3 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 border-2 border-yellow-300 dark:border-yellow-700 rounded-xl text-sm font-bold text-yellow-700 dark:text-yellow-300 transition-all hover:scale-105 shadow-sm"
               >
-                📱 WiFi + Data Seluler
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfig({
-                    ...config,
-                    allowed_ip_ranges: [
-                      '0.0.0.0/0'  // ALLOW ALL (TESTING ONLY!)
-                    ]
-                  });
-                }}
-                className="px-3 py-2 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-700 dark:text-yellow-300 transition-colors"
-              >
-                ⚠️ Testing Mode (Allow All)
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-2xl">⚠️</span>
+                  <span>Testing Mode</span>
+                  <span className="text-xs font-normal opacity-75">Allow All (Dev Only)</span>
+                </div>
               </button>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              💡 Klik preset untuk auto-fill IP ranges. Preset "Testing Mode" hanya untuk development!
-            </p>
+            <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg">
+              <p className="text-sm font-bold text-green-800 dark:text-green-200 mb-2">
+                ✅ Cara Setup IP Whitelisting yang Benar:
+              </p>
+              <ol className="text-xs text-green-700 dark:text-green-300 space-y-1 ml-4 list-decimal">
+                <li><strong>Sambungkan ke WiFi Sekolah</strong> atau gunakan IP yang akan dipakai untuk absensi</li>
+                <li><strong>Klik tombol "Tambahkan IP Ini ke Whitelist"</strong> di atas untuk auto-add IP Anda</li>
+                <li>IP akan <strong>otomatis dikonversi ke CIDR</strong> (192.168.1.100 → 192.168.1.0/24)</li>
+                <li><strong>Ulangi</strong> untuk semua jaringan yang diizinkan (WiFi sekolah, ISP kantor, dll)</li>
+                <li><strong>Klik "💾 Simpan Konfigurasi"</strong> di bawah untuk menyimpan</li>
+              </ol>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2 font-bold">
+                💡 Tip: Tambahkan IP saat Anda berada di lokasi sekolah untuk hasil terbaik!
+              </p>
+            </div>
           </div>
 
           {/* Security Level */}
@@ -1318,18 +1457,42 @@ export default function AttendanceSettingsPage() {
           {/* Success Preview */}
           {config.allowed_ip_ranges && config.allowed_ip_ranges.length > 0 && (
             <div className="mt-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
-              <p className="text-sm font-bold text-green-900 dark:text-green-100 mb-2">
+              <p className="text-sm font-bold text-green-900 dark:text-green-100 mb-3">
                 ✅ IP Whitelisting Active - {config.allowed_ip_ranges.length} range(s) configured:
               </p>
-              <ul className="space-y-1">
+              <div className="space-y-2">
                 {config.allowed_ip_ranges.map((range, idx) => (
-                  <li key={idx} className="text-xs text-green-700 dark:text-green-300 font-mono">
-                    • {range}
-                  </li>
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-300 dark:border-green-600">
+                    <div className="flex-1">
+                      <code className="text-sm text-green-700 dark:text-green-300 font-mono font-bold">
+                        {range}
+                      </code>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        {range.includes('/24') && '📍 256 IP addresses (Local Network)'}
+                        {range.includes('/16') && '🌐 65,536 IP addresses (ISP Range)'}
+                        {range === '0.0.0.0/0' && '⚠️ ALL IP addresses (Testing Only!)'}
+                        {!range.includes('/24') && !range.includes('/16') && range !== '0.0.0.0/0' && '📋 Custom CIDR range'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newRanges = config.allowed_ip_ranges?.filter((_, i) => i !== idx) || [];
+                        setConfig({ ...config, allowed_ip_ranges: newRanges });
+                        toast.success(`✅ IP range ${range} dihapus`, { duration: 3000 });
+                      }}
+                      className="ml-3 p-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition-all"
+                      title="Hapus IP Range ini"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 ))}
-              </ul>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+              </div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-3 font-bold">
                 🔒 <strong>Siswa, Guru, dan Admin</strong> hanya bisa absensi dari IP di atas
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                💡 Klik tombol 🗑️ untuk hapus IP range tertentu, atau "Clear All" untuk hapus semua
               </p>
             </div>
           )}

@@ -2048,6 +2048,7 @@ export default function AttendancePage() {
               const schoolLat = backgroundAnalysis?.location?.schoolLatitude || -6.200000;
               const schoolLon = backgroundAnalysis?.location?.schoolLongitude || 106.816666;
               const allowedRadius = backgroundAnalysis?.location?.allowedRadius || 100;
+              const accuracyThreshold = backgroundAnalysis?.location?.accuracyThreshold || 50;
               
               // Haversine formula for distance
               const R = 6371e3; // Earth radius in meters
@@ -2060,61 +2061,99 @@ export default function AttendancePage() {
               const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
               const distance = Math.round(R * c);
               
-              const isOutOfRange = distance > allowedRadius;
               const accuracy = locationData.accuracy || 0;
-              const isPoorAccuracy = accuracy > 50;
+              
+              // 🚨 STRICT VALIDATION - Block fake GPS
+              const isFakeGPS = accuracy === 0 || accuracy > 10000; // 0m = IP geolocation (FAKE!)
+              const isOutOfRange = distance > allowedRadius;
+              const isPoorAccuracy = accuracy > accuracyThreshold && accuracy < 10000;
               
               return (
                 <div className={`border-2 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 ${
-                  isOutOfRange 
+                  isFakeGPS || isOutOfRange
                     ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
                     : isPoorAccuracy
                     ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
                 }`}>
                   <p className={`text-xs sm:text-sm font-semibold flex items-center gap-2 ${
-                    isOutOfRange ? 'text-red-900 dark:text-red-100' :
+                    isFakeGPS || isOutOfRange ? 'text-red-900 dark:text-red-100' :
                     isPoorAccuracy ? 'text-yellow-900 dark:text-yellow-100' :
-                    'text-blue-900 dark:text-blue-100'
+                    'text-green-900 dark:text-green-100'
                   }`}>
-                    <FaMapMarkerAlt /> Lokasi Terdeteksi
+                    <FaMapMarkerAlt /> {isFakeGPS ? '⚠️ LOKASI PALSU TERDETEKSI' : isOutOfRange ? '⚠️ DI LUAR JANGKAUAN' : '✓ Lokasi Valid'}
                   </p>
                   <div className="mt-2 space-y-1">
-                    <p className="text-xs text-gray-700 dark:text-gray-300 font-mono">
+                    <p className={`text-xs font-mono ${isFakeGPS ? 'text-red-700 dark:text-red-300 line-through' : 'text-gray-700 dark:text-gray-300'}`}>
                       📍 {locationData.latitude.toFixed(6)}, {locationData.longitude.toFixed(6)}
+                      {isFakeGPS && <span className="ml-2 text-red-600 font-bold">(PALSU - IP Geolocation)</span>}
                     </p>
                     <p className={`text-xs font-semibold ${
-                      isOutOfRange ? 'text-red-600 dark:text-red-400' :
+                      isFakeGPS || isOutOfRange ? 'text-red-600 dark:text-red-400' :
                       distance > allowedRadius * 0.8 ? 'text-yellow-600 dark:text-yellow-400' :
                       'text-green-600 dark:text-green-400'
                     }`}>
                       📏 Jarak dari sekolah: {distance}m (Max: {allowedRadius}m)
                     </p>
-                    <p className={`text-xs ${
+                    <p className={`text-xs font-semibold ${
+                      isFakeGPS ? 'text-red-600 dark:text-red-400' :
                       isPoorAccuracy ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-blue-600 dark:text-blue-400'
+                      'text-green-600 dark:text-green-400'
                     }`}>
-                      🎯 Akurasi GPS: {accuracy.toFixed(0)}m {isPoorAccuracy ? '⚠️ Kurang akurat' : '✓ Akurat'}
+                      🎯 Akurasi GPS: {accuracy.toFixed(0)}m {
+                        isFakeGPS ? '❌ GPS PALSU!' :
+                        isPoorAccuracy ? '⚠️ Kurang akurat' : 
+                        '✓ Akurat'
+                      }
                     </p>
+                    {!isFakeGPS && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        🎯 Lokasi sekolah: {schoolLat.toFixed(6)}, {schoolLon.toFixed(6)}
+                      </p>
+                    )}
                   </div>
                   
+                  {/* 🚨 CRITICAL WARNING - Fake GPS Detection */}
+                  {isFakeGPS && (
+                    <div className="mt-3 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg border-2 border-red-500 dark:border-red-600">
+                      <p className="text-sm font-bold text-red-900 dark:text-red-100 flex items-center gap-2">
+                        🚨 GPS PALSU TERDETEKSI!
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-red-800 dark:text-red-200">
+                        <p>• Akurasi: {accuracy}m (GPS asli: 5-50m)</p>
+                        <p>• Sumber: IP Geolocation / Fake GPS app</p>
+                        <p>• <strong>ABSENSI AKAN DITOLAK!</strong></p>
+                      </div>
+                      <div className="mt-2 p-2 bg-red-200 dark:bg-red-800/30 rounded">
+                        <p className="text-xs font-bold text-red-900 dark:text-red-100">Cara Memperbaiki:</p>
+                        <ol className="text-xs text-red-800 dark:text-red-200 ml-4 mt-1 list-decimal">
+                          <li>Tutup aplikasi Fake GPS (jika ada)</li>
+                          <li>Aktifkan Location Permission di browser</li>
+                          <li>Pindah ke area terbuka (untuk GPS satelit)</li>
+                          <li>Refresh halaman ini</li>
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Warning jika di luar jangkauan */}
-                  {isOutOfRange && (
+                  {!isFakeGPS && isOutOfRange && (
                     <div className="mt-3 p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-300 dark:border-red-600">
                       <p className="text-xs font-bold text-red-900 dark:text-red-100">⚠️ DI LUAR JANGKAUAN</p>
                       <p className="text-xs text-red-700 dark:text-red-300 mt-1">
                         Anda berada {distance}m dari sekolah. Radius maksimal: {allowedRadius}m.
-                        Absensi akan DITOLAK!
+                        <strong className="block mt-1">ABSENSI AKAN DITOLAK!</strong>
                       </p>
                     </div>
                   )}
                   
                   {/* Warning jika accuracy buruk */}
-                  {isPoorAccuracy && !isOutOfRange && (
+                  {!isFakeGPS && isPoorAccuracy && !isOutOfRange && (
                     <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded border border-yellow-300 dark:border-yellow-600">
                       <p className="text-xs font-bold text-yellow-900 dark:text-yellow-100">⚠️ AKURASI GPS RENDAH</p>
                       <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                        Pindah ke area terbuka untuk akurasi lebih baik (target: &lt;50m)
+                        Akurasi saat ini: {accuracy}m. Target: &lt;{accuracyThreshold}m.
+                        Pindah ke area terbuka untuk sinyal GPS lebih baik.
                       </p>
                     </div>
                   )}

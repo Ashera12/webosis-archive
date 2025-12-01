@@ -21,11 +21,22 @@ WHERE location_name IS NOT NULL
 -- WHERE location_name IS NOT NULL;
 
 -- Update admin_settings untuk disable IP validation (temporary fix)
-UPDATE admin_settings 
-SET 
-  attendance_ip_validation_enabled = false,
-  updated_at = NOW()
-WHERE id = (SELECT id FROM admin_settings ORDER BY is_active DESC LIMIT 1);
+-- admin_settings uses key-value pairs, not direct columns
+INSERT INTO admin_settings (key, value, created_at, updated_at)
+VALUES ('attendance_ip_validation_enabled', 'false', NOW(), NOW())
+ON CONFLICT (key) DO UPDATE 
+SET value = 'false', updated_at = NOW();
+
+-- Also ensure GPS validation is STRICT
+INSERT INTO admin_settings (key, value, created_at, updated_at)
+VALUES 
+  ('location_gps_accuracy_required', '50', NOW(), NOW()),
+  ('location_radius_meters', '100', NOW(), NOW()),
+  ('location_latitude', '-6.200000', NOW(), NOW()),
+  ('location_longitude', '106.816666', NOW(), NOW()),
+  ('location_validation_strict', 'true', NOW(), NOW())
+ON CONFLICT (key) DO UPDATE 
+SET updated_at = NOW();
 
 -- Success message
 DO $$
@@ -56,14 +67,19 @@ FROM school_location_config
 ORDER BY id;
 
 SELECT 
-  attendance_ip_validation_enabled,
-  location_latitude,
-  location_longitude,
-  location_radius_meters,
+  key,
+  value,
   updated_at
 FROM admin_settings
-WHERE is_active = true
-LIMIT 1;
+WHERE key IN (
+  'attendance_ip_validation_enabled',
+  'location_latitude',
+  'location_longitude',
+  'location_radius_meters',
+  'location_gps_accuracy_required',
+  'location_validation_strict'
+)
+ORDER BY key;
 
 -- =====================================================
 -- EXPLANATION: Why IP validation should be disabled

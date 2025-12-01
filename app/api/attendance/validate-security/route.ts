@@ -370,6 +370,52 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
       
     } else {
+      // 🚨 CRITICAL: Detect FAKE GPS (accuracy = 0 or > 10000m)
+      const gpsAccuracy = (body as any).accuracy || 999999;
+      const isFakeGPS = gpsAccuracy === 0 || gpsAccuracy > 10000;
+      
+      if (isFakeGPS) {
+        violations.push('FAKE_GPS_DETECTED');
+        securityScore = 0; // Instant block
+        
+        console.error('[Security Validation] 🚨 FAKE GPS DETECTED');
+        console.error('[Security Validation] Accuracy:', gpsAccuracy, 'm (0 = IP geolocation, >10000 = spoofed)');
+        
+        await supabaseAdmin.from('security_events').insert({
+          user_id: userId,
+          event_type: 'fake_gps_detected',
+          severity: 'CRITICAL',
+          metadata: {
+            accuracy: gpsAccuracy,
+            location: { lat: body.latitude, lng: body.longitude },
+            timestamp: new Date().toISOString(),
+            reason: gpsAccuracy === 0 ? 'IP Geolocation (not real GPS)' : 'GPS Spoofing detected'
+          }
+        });
+        
+        return NextResponse.json({
+          success: false,
+          error: `🚨 GPS PALSU TERDETEKSI!`,
+          details: {
+            accuracy: gpsAccuracy + ' meter',
+            reason: gpsAccuracy === 0 
+              ? 'Menggunakan IP Geolocation (bukan GPS asli)' 
+              : 'GPS Spoofing / Fake GPS app terdeteksi',
+            hint: 'GPS asli memiliki akurasi 5-50 meter',
+            solution: [
+              '1. Tutup aplikasi Fake GPS',
+              '2. Aktifkan Location Permission di browser',
+              '3. Pindah ke area terbuka untuk GPS satelit',
+              '4. Refresh halaman'
+            ]
+          },
+          action: 'BLOCK_ATTENDANCE',
+          severity: 'CRITICAL',
+          violations,
+          securityScore: 0
+        }, { status: 403 });
+      }
+      
       // STRICT GPS VALIDATION with accuracy check
       const distance = calculateDistance(
         body.latitude,
@@ -382,8 +428,7 @@ export async function POST(request: NextRequest) {
       const allowedRadius = Math.min(activeConfig.radius_meters, maxRadius);
       const isLocationValid = distance <= allowedRadius;
       
-      // Check GPS accuracy if provided (optional field)
-      const gpsAccuracy = (body as any).accuracy || 999999;
+      // Check GPS accuracy (STRICT: must be <= minAccuracy)
       const isAccuracyGood = gpsAccuracy <= minAccuracy;
 
       console.log('[Security Validation] Location Check:', {
@@ -394,7 +439,8 @@ export async function POST(request: NextRequest) {
         gpsAccuracy: Math.round(gpsAccuracy) + 'm',
         requiredAccuracy: minAccuracy + 'm',
         valid: isLocationValid && isAccuracyGood,
-        strictMode: locationStrictMode
+        strictMode: locationStrictMode,
+        isFakeGPS: false
       });
 
       if (!isLocationValid) {

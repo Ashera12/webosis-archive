@@ -80,7 +80,10 @@ class BackgroundSecurityAnalyzer {
     // Check cache
     const cached = this.getCachedAnalysis(userId);
     if (cached) {
-      console.log('[Background Analyzer] Using cached analysis');
+      const age = Math.round((Date.now() - new Date(cached.timestamp).getTime()) / 1000);
+      console.log(`[Background Analyzer] ⚠️ Using cached analysis (age: ${age}s)`);
+      console.log('[Background Analyzer] 📍 Cached GPS:', 
+        cached.location?.schoolLatitude, cached.location?.schoolLongitude);
       return cached;
     }
 
@@ -100,8 +103,17 @@ class BackgroundSecurityAnalyzer {
   /**
    * Get cached analysis if still valid
    * Check URL param ?forceRefresh=1 to bypass cache
+   * ⚠️ REDUCED CACHE DURATION TO 30 SECONDS for fresh GPS data
    */
   getCachedAnalysis(userId: string): SecurityAnalysisResult | null {
+    // ✅ ALWAYS FORCE REFRESH - NO CACHE!
+    // GPS data MUST be fresh from database every time
+    console.log('[Background Analyzer] 🔄 Cache DISABLED - forcing fresh analysis for accurate GPS');
+    this.analysisCache.delete(userId);
+    return null;
+    
+    // OLD CODE - DISABLED
+    /*
     // Check if force refresh requested via URL
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -122,6 +134,7 @@ class BackgroundSecurityAnalyzer {
     }
 
     return cached;
+    */
   }
 
   /**

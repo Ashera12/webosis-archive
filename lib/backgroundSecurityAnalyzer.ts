@@ -22,6 +22,11 @@ interface SecurityAnalysisResult {
     longitude?: number;
     accuracy?: number;
     error?: string;
+    // Config from admin_settings
+    schoolLatitude?: number;
+    schoolLongitude?: number;
+    allowedRadius?: number;
+    accuracyThreshold?: number;
   };
   network: {
     ipAddress: string | null;
@@ -118,6 +123,11 @@ class BackgroundSecurityAnalyzer {
       },
       location: {
         detected: false,
+        // Defaults from admin_settings (will be fetched)
+        schoolLatitude: -6.200000,
+        schoolLongitude: 106.816666,
+        allowedRadius: 100,
+        accuracyThreshold: 50,
       },
       network: {
         ipAddress: null,
@@ -162,10 +172,26 @@ class BackgroundSecurityAnalyzer {
         result.blockReasons.push('INVALID_WIFI');
       }
 
-      // 3. Get Location (with permission)
+      // 3. Get Location (with permission) + Fetch admin config
       try {
-        const location = await this.detectLocation();
-        result.location = location;
+        const [location, locationConfig] = await Promise.allSettled([
+          this.detectLocation(),
+          this.fetchLocationConfig(),
+        ]);
+        
+        if (location.status === 'fulfilled') {
+          result.location = { ...result.location, ...location.value };
+        } else {
+          result.location.error = location.reason?.message || 'Location detection failed';
+        }
+        
+        // Add school config to location
+        if (locationConfig.status === 'fulfilled') {
+          result.location.schoolLatitude = locationConfig.value.latitude;
+          result.location.schoolLongitude = locationConfig.value.longitude;
+          result.location.allowedRadius = locationConfig.value.radiusMeters;
+          result.location.accuracyThreshold = locationConfig.value.accuracyThreshold || 50;
+        }
       } catch (error: any) {
         result.location.error = error.message;
         // Location might fail due to permission, not necessarily a blocker
@@ -417,6 +443,50 @@ class BackgroundSecurityAnalyzer {
         { timeout: 5000, maximumAge: 60000 }
       );
     });
+  }
+
+  /**
+   * Fetch school location config from admin_settings
+   */
+  private async fetchLocationConfig(): Promise<{
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    accuracyThreshold: number;
+  }> {
+    try {
+      const response = await fetch('/api/admin/settings', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        console.warn('[Location Config] ⚠️ Failed to fetch admin settings, using defaults');
+        return {
+          latitude: -6.200000,
+          longitude: 106.816666,
+          radiusMeters: 100,
+          accuracyThreshold: 50,
+        };
+      }
+
+      const data = await response.json();
+      
+      return {
+        latitude: parseFloat(data.location_latitude || '-6.200000'),
+        longitude: parseFloat(data.location_longitude || '106.816666'),
+        radiusMeters: parseInt(data.location_radius_meters || '100'),
+        accuracyThreshold: parseInt(data.location_gps_accuracy_required || '50'),
+      };
+    } catch (error) {
+      console.error('[Location Config] Fetch failed:', error);
+      return {
+        latitude: -6.200000,
+        longitude: 106.816666,
+        radiusMeters: 100,
+        accuracyThreshold: 50,
+      };
+    }
   }
 
   /**

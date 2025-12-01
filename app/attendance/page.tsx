@@ -2010,22 +2010,12 @@ export default function AttendancePage() {
                   </p>
                 </div>
                 <div className="space-y-1 text-xs">
-                  {/* Show connection type */}
-                  {wifiDetection.ssid !== 'Unknown' && wifiDetection.ssid !== 'DETECTION_FAILED' ? (
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">
-                      📶 WiFi: {wifiDetection.ssid}
-                    </div>
-                  ) : (
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">
-                      🌐 Internet Terhubung
-                    </div>
-                  )}
+                  {/* Show connection status - Simple & clear */}
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">
+                    🌐 Terhubung ke Internet
+                  </div>
                   
-                  {wifiDetection.connectionType && (
-                    <div className="text-gray-600 dark:text-gray-400 text-sm">
-                      📡 Koneksi: {wifiDetection.connectionType.toUpperCase()}
-                    </div>
-                  )}
+                  {/* Only show IP, no WiFi/Cellular label to avoid confusion */}
                   
                   {wifiDetection.ipAddress && wifiDetection.ipAddress !== 'DETECTION_FAILED' && (
                     <div className="text-blue-700 dark:text-blue-300">
@@ -2052,20 +2042,85 @@ export default function AttendancePage() {
               </div>
             )}
 
-            {/* Location Info */}
-            {locationData && locationData.latitude != null && locationData.longitude != null && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-                <p className="text-xs sm:text-sm font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
-                  <FaMapMarkerAlt /> Lokasi Terdeteksi
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 break-all">
-                  Lat: {locationData.latitude.toFixed(6)}, Lon: {locationData.longitude.toFixed(6)}
-                </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  Akurasi: {(locationData.accuracy || 0).toFixed(0)} meter
-                </p>
-              </div>
-            )}
+            {/* Location Info with Distance Calculation */}
+            {locationData && locationData.latitude != null && locationData.longitude != null && (() => {
+              // Calculate distance from school using backgroundAnalysis config
+              const schoolLat = backgroundAnalysis?.location?.schoolLatitude || -6.200000;
+              const schoolLon = backgroundAnalysis?.location?.schoolLongitude || 106.816666;
+              const allowedRadius = backgroundAnalysis?.location?.allowedRadius || 100;
+              
+              // Haversine formula for distance
+              const R = 6371e3; // Earth radius in meters
+              const φ1 = (locationData.latitude * Math.PI) / 180;
+              const φ2 = (schoolLat * Math.PI) / 180;
+              const Δφ = ((schoolLat - locationData.latitude) * Math.PI) / 180;
+              const Δλ = ((schoolLon - locationData.longitude) * Math.PI) / 180;
+              const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              const distance = Math.round(R * c);
+              
+              const isOutOfRange = distance > allowedRadius;
+              const accuracy = locationData.accuracy || 0;
+              const isPoorAccuracy = accuracy > 50;
+              
+              return (
+                <div className={`border-2 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 ${
+                  isOutOfRange 
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                    : isPoorAccuracy
+                    ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                }`}>
+                  <p className={`text-xs sm:text-sm font-semibold flex items-center gap-2 ${
+                    isOutOfRange ? 'text-red-900 dark:text-red-100' :
+                    isPoorAccuracy ? 'text-yellow-900 dark:text-yellow-100' :
+                    'text-blue-900 dark:text-blue-100'
+                  }`}>
+                    <FaMapMarkerAlt /> Lokasi Terdeteksi
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-gray-700 dark:text-gray-300 font-mono">
+                      📍 {locationData.latitude.toFixed(6)}, {locationData.longitude.toFixed(6)}
+                    </p>
+                    <p className={`text-xs font-semibold ${
+                      isOutOfRange ? 'text-red-600 dark:text-red-400' :
+                      distance > allowedRadius * 0.8 ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-green-600 dark:text-green-400'
+                    }`}>
+                      📏 Jarak dari sekolah: {distance}m (Max: {allowedRadius}m)
+                    </p>
+                    <p className={`text-xs ${
+                      isPoorAccuracy ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-blue-600 dark:text-blue-400'
+                    }`}>
+                      🎯 Akurasi GPS: {accuracy.toFixed(0)}m {isPoorAccuracy ? '⚠️ Kurang akurat' : '✓ Akurat'}
+                    </p>
+                  </div>
+                  
+                  {/* Warning jika di luar jangkauan */}
+                  {isOutOfRange && (
+                    <div className="mt-3 p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-300 dark:border-red-600">
+                      <p className="text-xs font-bold text-red-900 dark:text-red-100">⚠️ DI LUAR JANGKAUAN</p>
+                      <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                        Anda berada {distance}m dari sekolah. Radius maksimal: {allowedRadius}m.
+                        Absensi akan DITOLAK!
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Warning jika accuracy buruk */}
+                  {isPoorAccuracy && !isOutOfRange && (
+                    <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded border border-yellow-300 dark:border-yellow-600">
+                      <p className="text-xs font-bold text-yellow-900 dark:text-yellow-100">⚠️ AKURASI GPS RENDAH</p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                        Pindah ke area terbuka untuk akurasi lebih baik (target: &lt;50m)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 📊 TABEL ANALISIS KEAMANAN - Real-time Validation Status */}
             {(wifiDetection || locationData || fingerprintHash || backgroundAnalysis) && (
@@ -2111,32 +2166,20 @@ export default function AttendancePage() {
                         </td>
                       </tr>
                       
-                      {/* Connection Type */}
+                      {/* Network Status - Simplified */}
                       <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
                         <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
-                          📡 Tipe Koneksi
+                          🌐 Status Jaringan
                         </td>
                         <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
-                          <span className={`font-semibold ${
-                            wifiDetection?.connectionType === 'wifi' || wifiDetection?.connectionType === 'WIFI' 
-                              ? 'text-green-600 dark:text-green-400'
-                              : wifiDetection?.connectionType === 'cellular' || wifiDetection?.connectionType === 'CELLULAR'
-                              ? 'text-orange-600 dark:text-orange-400'
-                              : 'text-blue-600 dark:text-blue-400'
-                          }`}>
-                            {(wifiDetection?.connectionType || backgroundAnalysis?.wifi?.connectionType || 'Unknown').toUpperCase()}
+                          <span className="font-semibold text-green-600 dark:text-green-400">
+                            Terhubung ke Internet
                           </span>
                         </td>
                         <td className="py-2 px-2 text-center">
-                          {(wifiDetection?.connectionType === 'wifi' || wifiDetection?.connectionType === 'WIFI') ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              ✓ WiFi
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                              ⚠ Cellular
-                            </span>
-                          )}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            ✓ Online
+                          </span>
                         </td>
                       </tr>
                       
@@ -2162,6 +2205,51 @@ export default function AttendancePage() {
                           )}
                         </td>
                       </tr>
+                      
+                      {/* Distance from School - Using Active Config */}
+                      {locationData && backgroundAnalysis?.location && (() => {
+                        const schoolLat = backgroundAnalysis.location.schoolLatitude || -6.200000;
+                        const schoolLon = backgroundAnalysis.location.schoolLongitude || 106.816666;
+                        const allowedRadius = backgroundAnalysis.location.allowedRadius || 100;
+                        
+                        const R = 6371e3;
+                        const φ1 = (locationData.latitude * Math.PI) / 180;
+                        const φ2 = (schoolLat * Math.PI) / 180;
+                        const Δφ = ((schoolLat - locationData.latitude) * Math.PI) / 180;
+                        const Δλ = ((schoolLon - locationData.longitude) * Math.PI) / 180;
+                        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                          Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                        const distance = Math.round(R * c);
+                        
+                        const isOutOfRange = distance > allowedRadius;
+                        
+                        return (
+                          <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                            <td className="py-2 px-2 font-medium text-gray-900 dark:text-gray-100">
+                              📏 Jarak dari Sekolah
+                            </td>
+                            <td className="py-2 px-2 text-gray-700 dark:text-gray-300">
+                              {distance}m / {allowedRadius}m
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {isOutOfRange ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                  ✗ Terlalu Jauh
+                                </span>
+                              ) : distance > allowedRadius * 0.8 ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                  ⚠ Mendekati Batas
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  ✓ Dalam Radius
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })()}
                       
                       {/* GPS Accuracy */}
                       <tr className="hover:bg-gray-100 dark:hover:bg-gray-800">

@@ -68,33 +68,22 @@ export async function getNetworkInfo(): Promise<NetworkInfo> {
       }
     }
 
-    // 2. Try WebRTC IP detection first
-    console.log('[Network Utils] 🔍 Trying WebRTC IP detection...');
-    const localIP = await getLocalIPAddress();
-    if (localIP) {
-      console.log('[Network Utils] ✅ WebRTC IP detected:', localIP);
-      networkInfo.ipAddress = localIP;
-      networkInfo.ipType = isPrivateIP(localIP) ? 'private' : 'public';
-      networkInfo.isLocalNetwork = isPrivateIP(localIP);
-    } else {
-      console.log('[Network Utils] ⚠️ WebRTC failed, trying server-side detection...');
-      
-      // 3. Fallback to server-side IP detection
-      try {
-        const response = await fetch('/api/attendance/detect-ip');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.ipAddress) {
-            console.log('[Network Utils] ✅ Server-side IP detected:', data.ipAddress);
-            networkInfo.ipAddress = data.ipAddress;
-            networkInfo.ipType = data.isLocalNetwork ? 'private' : 'public';
-            networkInfo.isLocalNetwork = data.isLocalNetwork;
-            networkInfo.connectionType = data.connectionType || networkInfo.connectionType;
-          }
+    // Get IP Address - Use server-side detection ONLY (WebRTC blocked by browsers)
+    console.log('[Network Utils] 🔍 Getting IP address from server...');
+    try {
+      const response = await fetch('/api/attendance/detect-ip');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.ipAddress) {
+          console.log('[Network Utils] ✅ Server-side IP detected:', data.ipAddress);
+          networkInfo.ipAddress = data.ipAddress;
+          networkInfo.ipType = data.isLocalNetwork ? 'private' : 'public';
+          networkInfo.isLocalNetwork = data.isLocalNetwork;
+          networkInfo.connectionType = data.connectionType || networkInfo.connectionType;
         }
-      } catch (apiError) {
-        console.error('[Network Utils] ❌ Server-side detection failed:', apiError);
       }
+    } catch (apiError) {
+      console.error('[Network Utils] ❌ Server-side detection failed:', apiError);
     }
 
   } catch (error) {

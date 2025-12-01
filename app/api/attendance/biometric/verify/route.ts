@@ -33,15 +33,18 @@ export async function POST(request: NextRequest) {
       webauthnCredentialId, // Optional: from WebAuthn authentication
     } = body;
 
-    if (!fingerprint || !userId) {
+    // SECURITY: Use session user ID if not provided (safer)
+    const targetUserId = userId || session.user.id;
+    
+    if (!fingerprint) {
       return NextResponse.json(
-        { success: false, error: 'Missing required verification data' },
+        { success: false, error: 'Missing device fingerprint' },
         { status: 400 }
       );
     }
 
     // SECURITY: Verify user is checking their own biometric
-    if (session.user.id !== userId) {
+    if (session.user.id !== targetUserId) {
       return NextResponse.json(
         { success: false, error: 'Cannot verify for other users' },
         { status: 403 }
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Biometric Verify] 🔍 Fetching complete user data from database...');
-    console.log('[Biometric Verify] User ID:', userId);
+    console.log('[Biometric Verify] User ID:', targetUserId);
 
     // ============================================
     // STEP 1: GET ALL BIOMETRIC DATA FROM DATABASE
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { data: biometric, error: biometricError } = await supabase
       .from('biometric_data')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', targetUserId)
       .single();
 
     if (biometricError || !biometric) {
@@ -97,7 +100,7 @@ export async function POST(request: NextRequest) {
       const { data: credentials } = await supabase
         .from('webauthn_credentials')
         .select('credential_id')
-        .eq('user_id', userId)
+        .eq('user_id', targetUserId)
         .eq('credential_id', webauthnCredentialId)
         .single();
       
@@ -123,7 +126,7 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId,
+            userId: targetUserId,
             currentPhotoUrl: photoUrl,
             // referencePhotoUrl automatically fetched from database in verify-face API
           }),

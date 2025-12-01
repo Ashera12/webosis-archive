@@ -624,11 +624,45 @@ export default function AttendancePage() {
     console.log('Network info:', netInfo);
     setNetworkInfo(netInfo);
 
-    // 4. Check location
-    const location = await getUserLocation();
-    if (location) {
-      setLocationData(location);
-      setRequirements(prev => ({ ...prev, location: true }));
+    // 4. Check location (CRITICAL - MUST ALLOW!)
+    console.log('[Requirements] 📍 Checking GPS location (REQUIRED)...');
+    try {
+      const location = await getUserLocation();
+      if (location) {
+        console.log('[Requirements] ✅ Location obtained:', {
+          lat: location.latitude.toFixed(6),
+          lon: location.longitude.toFixed(6),
+          accuracy: location.accuracy?.toFixed(0) + 'm'
+        });
+        setLocationData(location);
+        setRequirements(prev => ({ ...prev, location: true }));
+      } else {
+        throw new Error('Location returned null');
+      }
+    } catch (error: any) {
+      console.error('[Requirements] ❌ Location error:', error);
+      
+      // SHOW BLOCKING MODAL - CANNOT PROCEED!
+      toast.error(
+        <div className="max-w-md">
+          <p className="font-bold text-lg mb-2">🚨 IZIN LOKASI DIPERLUKAN!</p>
+          <div className="text-sm space-y-2">
+            <p>{error.message}</p>
+            <p className="mt-3 font-bold text-red-600">
+              ABSENSI TIDAK BISA DILANJUTKAN TANPA IZIN LOKASI!
+            </p>
+          </div>
+        </div>,
+        { 
+          duration: Infinity,  // Never auto-dismiss
+          id: 'location-permission-required'
+        }
+      );
+      
+      // BLOCK progression
+      setStep('blocked');
+      setRequirements(prev => ({ ...prev, location: false }));
+      return;  // STOP here
     }
 
     // 5. Generate fingerprint
@@ -2891,18 +2925,85 @@ export default function AttendancePage() {
                     <li key={idx} className="flex items-start gap-2">
                       <span className="text-red-500">•</span>
                       <span>
+                        {violation === 'LOCATION_PERMISSION_DENIED' && '📍 IZIN LOKASI DITOLAK - WAJIB diaktifkan!'}
+                        {violation === 'FAKE_GPS_DETECTED' && '🚨 GPS PALSU TERDETEKSI'}
                         {violation === 'IP_NOT_IN_WHITELIST' && '📡 IP address tidak terdaftar di jaringan sekolah'}
                         {violation === 'IP_NOT_DETECTED' && '🌐 IP address tidak terdeteksi'}
                         {violation === 'LOCATION_TOO_FAR' && '📍 Lokasi Anda terlalu jauh dari sekolah'}
+                        {violation === 'OUTSIDE_RADIUS' && '📍 Lokasi di luar radius sekolah'}
                         {violation === 'LOCATION_NOT_ACCURATE' && '🎯 Akurasi GPS tidak memenuhi syarat'}
+                        {violation === 'GPS_ACCURACY_LOW' && '🎯 Akurasi GPS terlalu rendah'}
                         {violation === 'LOCATION_NOT_DETECTED' && '📍 Lokasi tidak terdeteksi'}
                         {violation === 'FINGERPRINT_MISMATCH' && '🔐 Device fingerprint tidak cocok'}
                         {violation === 'OUTSIDE_ATTENDANCE_HOURS' && '⏰ Di luar jam absensi'}
-                        {!['IP_NOT_IN_WHITELIST', 'IP_NOT_DETECTED', 'LOCATION_TOO_FAR', 'LOCATION_NOT_ACCURATE', 'LOCATION_NOT_DETECTED', 'FINGERPRINT_MISMATCH', 'OUTSIDE_ATTENDANCE_HOURS'].includes(violation) && violation}
+                        {!['LOCATION_PERMISSION_DENIED', 'FAKE_GPS_DETECTED', 'IP_NOT_IN_WHITELIST', 'IP_NOT_DETECTED', 'LOCATION_TOO_FAR', 'OUTSIDE_RADIUS', 'LOCATION_NOT_ACCURATE', 'GPS_ACCURACY_LOW', 'LOCATION_NOT_DETECTED', 'FINGERPRINT_MISMATCH', 'OUTSIDE_ATTENDANCE_HOURS'].includes(violation) && violation}
                       </span>
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            
+            {/* SPECIAL: Location Permission Denied - Show detailed instructions */}
+            {(!locationData || requirements.location === false) && (
+              <div className="bg-red-100 dark:bg-red-900/30 border-2 border-red-500 dark:border-red-600 rounded-xl p-5 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+                      <FaMapMarkerAlt className="text-white text-xl" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-red-900 dark:text-red-100 text-lg mb-2">
+                      🚨 IZIN LOKASI WAJIB DIAKTIFKAN!
+                    </h3>
+                    <p className="text-red-800 dark:text-red-200 text-sm mb-3">
+                      Sistem absensi MEMBUTUHKAN akses lokasi untuk memastikan Anda berada di area sekolah.
+                      Browser akan meminta izin - Anda HARUS klik <strong>"Allow"</strong> atau <strong>"Izinkan"</strong>.
+                    </p>
+                    
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-3">
+                      <p className="font-bold text-red-900 dark:text-red-100 text-sm mb-2">
+                        📱 Cara Mengaktifkan Izin Lokasi:
+                      </p>
+                      <ol className="text-xs text-gray-700 dark:text-gray-300 space-y-2 ml-4 list-decimal">
+                        <li>
+                          <strong>Di Chrome/Edge:</strong>
+                          <ul className="ml-4 mt-1 space-y-1 list-disc">
+                            <li>Klik ikon 🔒 di sebelah kiri address bar</li>
+                            <li>Cari "Location" atau "Lokasi"</li>
+                            <li>Ubah dari "Block" → "Allow"</li>
+                            <li>Refresh halaman (tekan F5)</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <strong>Di Firefox:</strong>
+                          <ul className="ml-4 mt-1 space-y-1 list-disc">
+                            <li>Klik ikon (i) di address bar</li>
+                            <li>Klik "Permissions" → "Location"</li>
+                            <li>Pilih "Allow"</li>
+                            <li>Refresh halaman</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <strong>Di Safari (iOS/Mac):</strong>
+                          <ul className="ml-4 mt-1 space-y-1 list-disc">
+                            <li>Settings → Safari → Location</li>
+                            <li>Pilih "Ask" atau "Allow"</li>
+                            <li>Buka ulang halaman absensi</li>
+                          </ul>
+                        </li>
+                      </ol>
+                    </div>
+                    
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-600 rounded p-3">
+                      <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                        <strong>⚠️ PENTING:</strong> Pastikan juga GPS/Location di device Anda AKTIF (Settings → Location → ON).
+                        Pindah ke area terbuka jika GPS tidak bisa mendapat sinyal.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2938,7 +3039,61 @@ export default function AttendancePage() {
               </ol>
             </div>
 
-            {/* Action Buttons */}
+            {/* Solution Steps per Violation Type */}
+            <div className="space-y-3 mb-4">
+              {/* IP Violation Solution */}
+              {(securityValidation?.violations?.includes('IP_NOT_IN_WHITELIST') || 
+                securityValidation?.violations?.includes('IP_NOT_DETECTED')) && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <p className="font-bold text-blue-900 dark:text-blue-100 mb-2">💡 Solusi IP:</p>
+                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                    <li>Pastikan terhubung ke WiFi sekolah (bukan data seluler)</li>
+                    <li>Refresh halaman setelah tersambung WiFi</li>
+                    <li>Hubungi admin jika IP belum terdaftar</li>
+                  </ul>
+                </div>
+              )}
+              
+              {/* Fake GPS Solution */}
+              {securityValidation?.violations?.includes('FAKE_GPS_DETECTED') && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4">
+                  <p className="font-bold text-orange-900 dark:text-orange-100 mb-2">⚠️ GPS Palsu Terdeteksi:</p>
+                  <ul className="text-sm text-orange-700 dark:text-orange-300 space-y-1 ml-4 list-disc">
+                    <li><strong>Matikan aplikasi Fake GPS / GPS Spoofer</strong></li>
+                    <li>Restart device Anda</li>
+                    <li>Pastikan Settings → Location → High Accuracy</li>
+                    <li>Coba lagi setelah GPS asli aktif</li>
+                  </ul>
+                </div>
+              )}
+              
+              {/* Distance/Radius Violation Solution */}
+              {(securityValidation?.violations?.includes('LOCATION_TOO_FAR') || 
+                securityValidation?.violations?.includes('OUTSIDE_RADIUS')) && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+                  <p className="font-bold text-purple-900 dark:text-purple-100 mb-2">📍 Lokasi Terlalu Jauh:</p>
+                  <ul className="text-sm text-purple-700 dark:text-purple-300 space-y-1 ml-4 list-disc">
+                    <li>Anda harus berada di area sekolah (radius 200m)</li>
+                    <li>Jarak Anda: <strong>{securityValidation?.distance?.toFixed(0) || '?'}m</strong> dari sekolah</li>
+                    <li>Pindah lebih dekat ke sekolah dan coba lagi</li>
+                  </ul>
+                </div>
+              )}
+              
+              {/* GPS Accuracy Violation Solution */}
+              {(securityValidation?.violations?.includes('LOCATION_NOT_ACCURATE') || 
+                securityValidation?.violations?.includes('GPS_ACCURACY_LOW')) && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                  <p className="font-bold text-yellow-900 dark:text-yellow-100 mb-2">🎯 Akurasi GPS Rendah:</p>
+                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
+                    <li>Pindah ke area terbuka (keluar dari gedung)</li>
+                    <li>Pastikan GPS device aktif (Settings → Location → ON)</li>
+                    <li>Tunggu 10-30 detik hingga GPS lock ke satelit</li>
+                    <li>Akurasi diperlukan: &lt; 20m (Anda: {locationData?.accuracy?.toFixed(0) || '?'}m)</li>
+                  </ul>
+                </div>
+              )}
+            </div>
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {

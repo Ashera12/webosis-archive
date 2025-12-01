@@ -8,33 +8,51 @@
 -- IMPORTANT: IP 125.160.157.192 is a public ISP IP (bukan CGNAT)
 -- Range: 125.160.0.0/16 (PT Telkom Indonesia)
 
--- Option 1: Add specific IP range untuk Telkom
+-- ✅ STEP 1: Ensure admin_settings table has correct structure
+DO $$
+BEGIN
+  -- Check if created_at column exists, if not add it
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_settings' 
+    AND column_name = 'created_at'
+  ) THEN
+    ALTER TABLE admin_settings ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    RAISE NOTICE '✅ Added created_at column to admin_settings';
+  END IF;
+  
+  -- Check if updated_at column exists, if not add it
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_settings' 
+    AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE admin_settings ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+    RAISE NOTICE '✅ Added updated_at column to admin_settings';
+  END IF;
+END $$;
+
+-- ✅ STEP 2: Add Telkom IP range to whitelist
 UPDATE school_location_config 
 SET allowed_ip_ranges = array_append(allowed_ip_ranges, '125.160.0.0/16')
 WHERE location_name IS NOT NULL
   AND NOT ('125.160.0.0/16' = ANY(allowed_ip_ranges));
 
--- Option 2: Add broader range untuk semua public IP (NOT RECOMMENDED for production)
--- Uncomment jika ingin allow semua IP public:
--- UPDATE school_location_config 
--- SET allowed_ip_ranges = array_append(allowed_ip_ranges, '0.0.0.0/0')
--- WHERE location_name IS NOT NULL;
-
--- Update admin_settings untuk disable IP validation (temporary fix)
--- admin_settings uses key-value pairs, not direct columns
+-- ✅ STEP 3: Disable IP validation (use GPS only)
 INSERT INTO admin_settings (key, value, created_at, updated_at)
 VALUES ('attendance_ip_validation_enabled', 'false', NOW(), NOW())
 ON CONFLICT (key) DO UPDATE 
 SET value = 'false', updated_at = NOW();
 
--- Also ensure GPS validation is STRICT
+-- ✅ STEP 4: Set STRICT GPS validation
 INSERT INTO admin_settings (key, value, created_at, updated_at)
 VALUES 
   ('location_gps_accuracy_required', '50', NOW(), NOW()),
   ('location_radius_meters', '100', NOW(), NOW()),
   ('location_latitude', '-6.200000', NOW(), NOW()),
   ('location_longitude', '106.816666', NOW(), NOW()),
-  ('location_validation_strict', 'true', NOW(), NOW())
+  ('location_validation_strict', 'true', NOW(), NOW()),
+  ('location_permission_required', 'true', NOW(), NOW())
 ON CONFLICT (key) DO UPDATE 
 SET updated_at = NOW();
 

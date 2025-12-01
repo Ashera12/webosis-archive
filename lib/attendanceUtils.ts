@@ -117,40 +117,78 @@ function isPrivateIP(ip: string): boolean {
 /**
  * Get user's current GPS location
  */
-export async function getUserLocation(): Promise<{ latitude: number; longitude: number } | null> {
-  return new Promise((resolve) => {
+export async function getUserLocation(): Promise<{ latitude: number; longitude: number; accuracy: number } | null> {
+  return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      console.log('[Geolocation] Not supported by browser');
-      resolve(null);
+      console.error('[Geolocation] ❌ Not supported by browser');
+      reject(new Error('Browser Anda tidak mendukung GPS. Gunakan browser modern (Chrome/Edge/Safari).'));
       return;
     }
 
-    // Check if running on HTTPS or localhost (required for geolocation)
+    // Check if running on HTTPS or localhost (REQUIRED for geolocation)
     const isSecureContext = window.isSecureContext || window.location.protocol === 'https:' || 
                             window.location.hostname === 'localhost' || 
                             window.location.hostname === '127.0.0.1';
     
     if (!isSecureContext) {
-      console.log('[Geolocation] Skipped - HTTPS required (running on HTTP). Location validation will be bypassed.');
-      resolve(null);
+      console.error('[Geolocation] ❌ HTTPS required (running on HTTP)');
+      reject(new Error('Absensi harus diakses via HTTPS untuk keamanan. Hubungi admin IT.'));
       return;
     }
 
+    console.log('[Geolocation] 📍 Requesting high-accuracy GPS location...');
+    console.log('[Geolocation] ⚠️ PLEASE ALLOW location permission when browser asks!');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const accuracy = position.coords.accuracy;
+        console.log('[Geolocation] ✅ Location obtained:', {
+          lat: position.coords.latitude.toFixed(6),
+          lon: position.coords.longitude.toFixed(6),
+          accuracy: accuracy.toFixed(0) + 'm'
+        });
+        
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          accuracy: accuracy
         });
       },
       (error) => {
-        console.log('[Geolocation] Error:', error.message, '- Location validation will be bypassed');
-        resolve(null);
+        console.error('[Geolocation] ❌ Error:', error.code, error.message);
+        
+        let userMessage = '';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            userMessage = '🚨 IZIN LOKASI DITOLAK!\n\n' +
+                         'Anda HARUS mengizinkan akses lokasi untuk absensi.\n\n' +
+                         'Cara mengaktifkan:\n' +
+                         '1. Klik ikon 🔒 di address bar\n' +
+                         '2. Pilih "Site settings" atau "Permissions"\n' +
+                         '3. Ubah "Location" menjadi "Allow"\n' +
+                         '4. Refresh halaman ini\n\n' +
+                         'ABSENSI TIDAK BISA DILANJUTKAN TANPA IZIN LOKASI!';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            userMessage = '⚠️ GPS Tidak Tersedia!\n\n' +
+                         'Pindah ke area terbuka untuk sinyal GPS lebih baik.\n' +
+                         'Pastikan GPS/Location di device Anda AKTIF.';
+            break;
+          case error.TIMEOUT:
+            userMessage = '⏱️ GPS Timeout!\n\n' +
+                         'Pindah ke area terbuka dan coba lagi.\n' +
+                         'Pastikan GPS device Anda aktif.';
+            break;
+          default:
+            userMessage = 'Error GPS: ' + error.message;
+        }
+        
+        reject(new Error(userMessage));
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: true,  // FORCE GPS satelit (not WiFi/cell triangulation)
+        timeout: 15000,            // 15 detik timeout
+        maximumAge: 0,             // FORCE fresh location (no cache)
       }
     );
   });

@@ -1,125 +1,36 @@
 -- =====================================================
 -- MIKROTIK INTEGRATION SETTINGS
--- Add all Mikrotik configuration to admin_settings
+-- SIMPLE VERSION - Just insert into existing table
 -- SAFE: Uses ON CONFLICT to prevent duplicates
 -- =====================================================
 
--- STEP 1: Ensure admin_settings table exists with proper schema
-CREATE TABLE IF NOT EXISTS admin_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT UNIQUE NOT NULL,
-  value TEXT,
-  description TEXT,
-  category TEXT DEFAULT 'general',
-  is_secret BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- STEP 2: Create indices if they don't exist
-CREATE INDEX IF NOT EXISTS idx_admin_settings_key ON admin_settings(key);
-CREATE INDEX IF NOT EXISTS idx_admin_settings_category ON admin_settings(category);
-
--- STEP 3: Insert Mikrotik configuration settings
-INSERT INTO admin_settings (key, value, description, category, is_secret)
+-- Insert Mikrotik configuration settings
+-- Assumes admin_settings table already exists
+INSERT INTO admin_settings (key, value)
 VALUES 
-  (
-    'mikrotik_enabled',
-    'false',
-    'Enable Mikrotik router integration for real-time IP validation',
-    'security',
-    false
-  ),
-  (
-    'mikrotik_host',
-    '',
-    'Mikrotik router IP address (e.g., 192.168.88.1)',
-    'security',
-    true
-  ),
-  (
-    'mikrotik_port',
-    '8728',
-    'Mikrotik API port (default: 8728 for RouterOS API, 80/443 for REST API)',
-    'security',
-    false
-  ),
-  (
-    'mikrotik_username',
-    'admin',
-    'Mikrotik admin username',
-    'security',
-    true
-  ),
-  (
-    'mikrotik_password',
-    '',
-    'Mikrotik admin password (encrypted)',
-    'security',
-    true
-  ),
-  (
-    'mikrotik_api_type',
-    'rest',
-    'API type: rest (RouterOS 7.1+) or routeros (older versions)',
-    'security',
-    false
-  ),
-  (
-    'mikrotik_use_dhcp',
-    'true',
-    'Use DHCP leases for IP validation',
-    'security',
-    false
-  ),
-  (
-    'mikrotik_use_arp',
-    'false',
-    'Use ARP table for IP validation (slower but catches static IPs)',
-    'security',
-    false
-  ),
-  (
-    'mikrotik_cache_duration',
-    '300',
-    'Cache connected devices for N seconds (reduces API calls)',
-    'security',
-    false
-  ),
-  (
-    'ip_validation_mode',
-    'hybrid',
-    'IP validation mode: mikrotik (only), whitelist (only), hybrid (try mikrotik first, fallback to whitelist)',
-    'security',
-    false
-  ),
-  (
-    'location_strict_mode',
-    'true',
-    'Strict location validation - no bypass allowed',
-    'security',
-    false
-  ),
-  (
-    'location_max_radius',
-    '100',
-    'Maximum allowed radius in meters for location validation',
-    'attendance',
-    false
-  ),
-  (
-    'location_gps_accuracy_required',
-    '50',
-    'Required GPS accuracy in meters (reject if lower)',
-    'attendance',
-    false
-  )
+  ('mikrotik_enabled', 'false'),
+  ('mikrotik_host', ''),
+  ('mikrotik_port', '8728'),
+  ('mikrotik_username', 'admin'),
+  ('mikrotik_password', ''),
+  ('mikrotik_api_type', 'rest'),
+  ('mikrotik_use_dhcp', 'true'),
+  ('mikrotik_use_arp', 'false'),
+  ('mikrotik_cache_duration', '300'),
+  ('ip_validation_mode', 'hybrid'),
+  ('location_strict_mode', 'true'),
+  ('location_max_radius', '100'),
+  ('location_gps_accuracy_required', '50')
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
-  description = EXCLUDED.description,
-  category = EXCLUDED.category,
-  is_secret = EXCLUDED.is_secret,
   updated_at = now();
+
+-- Success message
+DO $$
+BEGIN
+  RAISE NOTICE '✅ 13 Mikrotik settings inserted successfully!';
+  RAISE NOTICE 'Settings: mikrotik_enabled, mikrotik_host, mikrotik_port, etc.';
+END $$;
 
 -- Update school_location_config to add allowed_ip_ranges if empty
 -- This is a sample configuration - should be customized per school

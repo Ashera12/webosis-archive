@@ -2085,11 +2085,25 @@ export default function AttendancePage() {
 
             {/* Location Info with Distance Calculation */}
             {locationData && locationData.latitude != null && locationData.longitude != null && (() => {
-              // Calculate distance from school using backgroundAnalysis config
-              const schoolLat = backgroundAnalysis?.location?.schoolLatitude || -6.200000;
-              const schoolLon = backgroundAnalysis?.location?.schoolLongitude || 106.816666;
+              // ✅ LOAD FROM DATABASE ONLY - NO HARDCODED FALLBACK!
+              const schoolLat = backgroundAnalysis?.location?.schoolLatitude;
+              const schoolLon = backgroundAnalysis?.location?.schoolLongitude;
               const allowedRadius = backgroundAnalysis?.location?.allowedRadius || 100;
               const accuracyThreshold = backgroundAnalysis?.location?.accuracyThreshold || 50;
+              
+              // ⚠️ ERROR: School GPS not loaded from admin config!
+              if (!schoolLat || !schoolLon) {
+                console.error('❌ [Attendance] School GPS not configured! Admin must set location.');
+                return (
+                  <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">
+                    <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">❌ KONFIGURASI SEKOLAH BELUM DIATUR</p>
+                    <p className="text-xs text-red-700 dark:text-red-300">
+                      Admin belum mengatur koordinat GPS sekolah di Admin Panel → Attendance Settings.
+                      Harap hubungi admin untuk mengkonfigurasi lokasi sekolah.
+                    </p>
+                  </div>
+                );
+              }
               
               // Haversine formula for distance
               const R = 6371e3; // Earth radius in meters
@@ -2288,9 +2302,19 @@ export default function AttendancePage() {
                       
                       {/* Distance from School - Using Active Config */}
                       {locationData && backgroundAnalysis?.location && (() => {
-                        const schoolLat = backgroundAnalysis.location.schoolLatitude || -6.200000;
-                        const schoolLon = backgroundAnalysis.location.schoolLongitude || 106.816666;
+                        // ✅ LOAD FROM DATABASE ONLY - NO HARDCODED FALLBACK!
+                        const schoolLat = backgroundAnalysis.location.schoolLatitude;
+                        const schoolLon = backgroundAnalysis.location.schoolLongitude;
                         const allowedRadius = backgroundAnalysis.location.allowedRadius || 100;
+                        
+                        // ⚠️ ERROR: School GPS not configured!
+                        if (!schoolLat || !schoolLon) {
+                          return (
+                            <span className="text-red-600 font-semibold">
+                              ❌ GPS sekolah belum dikonfigurasi di Admin Panel
+                            </span>
+                          );
+                        }
                         
                         const R = 6371e3;
                         const φ1 = (locationData.latitude * Math.PI) / 180;

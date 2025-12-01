@@ -123,9 +123,9 @@ class BackgroundSecurityAnalyzer {
       },
       location: {
         detected: false,
-        // Defaults from admin_settings (will be fetched)
-        schoolLatitude: -6.200000,
-        schoolLongitude: 106.816666,
+        // ✅ WILL BE LOADED FROM DATABASE - NO DEFAULTS!
+        schoolLatitude: null,
+        schoolLongitude: null,
         allowedRadius: 100,
         accuracyThreshold: 50,
       },
@@ -446,25 +446,27 @@ class BackgroundSecurityAnalyzer {
   }
 
   /**
-   * Fetch school location config from admin_settings
+   * Fetch school location config from school_location_config table
+   * ✅ LOAD FROM DATABASE ONLY - NO FALLBACK!
    */
   private async fetchLocationConfig(): Promise<{
-    latitude: number;
-    longitude: number;
+    latitude: number | null;
+    longitude: number | null;
     radiusMeters: number;
     accuracyThreshold: number;
   }> {
     try {
-      const response = await fetch('/api/admin/settings', {
+      // Use /api/school/wifi-config endpoint (public, loads from school_location_config)
+      const response = await fetch('/api/school/wifi-config', {
         credentials: 'include',
         cache: 'no-store',
       });
 
       if (!response.ok) {
-        console.warn('[Location Config] ⚠️ Failed to fetch admin settings, using defaults');
+        console.error('[Location Config] ❌ Failed to fetch school config - Admin must configure!');
         return {
-          latitude: -6.200000,
-          longitude: 106.816666,
+          latitude: null,
+          longitude: null,
           radiusMeters: 100,
           accuracyThreshold: 50,
         };
@@ -472,17 +474,33 @@ class BackgroundSecurityAnalyzer {
 
       const data = await response.json();
       
+      // ✅ LOAD FROM DATABASE - NO FALLBACK!
+      const lat = data.config?.latitude ? parseFloat(data.config.latitude) : null;
+      const lon = data.config?.longitude ? parseFloat(data.config.longitude) : null;
+      
+      if (!lat || !lon) {
+        console.error('[Location Config] ❌ School GPS not configured in database! Admin panel required.');
+        console.error('[Location Config] Config received:', data.config);
+      } else {
+        console.log('[Location Config] ✅ Loaded from DB:', {
+          name: data.config.locationName,
+          latitude: lat,
+          longitude: lon,
+          radius: data.config.radiusMeters
+        });
+      }
+      
       return {
-        latitude: parseFloat(data.location_latitude || '-6.200000'),
-        longitude: parseFloat(data.location_longitude || '106.816666'),
-        radiusMeters: parseInt(data.location_radius_meters || '100'),
-        accuracyThreshold: parseInt(data.location_gps_accuracy_required || '50'),
+        latitude: lat,
+        longitude: lon,
+        radiusMeters: data.config?.radiusMeters || 100,
+        accuracyThreshold: 50, // Default accuracy threshold
       };
     } catch (error) {
-      console.error('[Location Config] Fetch failed:', error);
+      console.error('[Location Config] ❌ Fetch failed:', error);
       return {
-        latitude: -6.200000,
-        longitude: 106.816666,
+        latitude: null,
+        longitude: null,
         radiusMeters: 100,
         accuracyThreshold: 50,
       };

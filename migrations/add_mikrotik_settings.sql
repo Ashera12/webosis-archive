@@ -1,104 +1,105 @@
 -- Add Mikrotik integration settings to admin_settings table
+-- Schema: admin_settings (key, value, description, category, is_secret)
 
 -- Insert Mikrotik configuration settings
-INSERT INTO admin_settings (key, value, description, is_public, category)
+INSERT INTO admin_settings (key, value, description, category, is_secret)
 VALUES 
   (
     'mikrotik_enabled',
     'false',
     'Enable Mikrotik router integration for real-time IP validation',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'mikrotik_host',
     '',
     'Mikrotik router IP address (e.g., 192.168.88.1)',
-    false,
-    'security'
+    'security',
+    true
   ),
   (
     'mikrotik_port',
     '8728',
     'Mikrotik API port (default: 8728 for RouterOS API, 80/443 for REST API)',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'mikrotik_username',
     'admin',
     'Mikrotik admin username',
-    false,
-    'security'
+    'security',
+    true
   ),
   (
     'mikrotik_password',
     '',
     'Mikrotik admin password (encrypted)',
-    false,
-    'security'
+    'security',
+    true
   ),
   (
     'mikrotik_api_type',
     'rest',
     'API type: rest (RouterOS 7.1+) or routeros (older versions)',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'mikrotik_use_dhcp',
     'true',
     'Use DHCP leases for IP validation',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'mikrotik_use_arp',
     'false',
     'Use ARP table for IP validation (slower but catches static IPs)',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'mikrotik_cache_duration',
     '300',
     'Cache connected devices for N seconds (reduces API calls)',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'ip_validation_mode',
     'hybrid',
     'IP validation mode: mikrotik (only), whitelist (only), hybrid (try mikrotik first, fallback to whitelist)',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'location_strict_mode',
     'true',
     'Strict location validation - no bypass allowed',
-    false,
-    'security'
+    'security',
+    false
   ),
   (
     'location_max_radius',
     '100',
     'Maximum allowed radius in meters for location validation',
-    true,
-    'attendance'
+    'attendance',
+    false
   ),
   (
     'location_gps_accuracy_required',
     '50',
     'Required GPS accuracy in meters (reject if lower)',
-    false,
-    'attendance'
+    'attendance',
+    false
   )
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
   description = EXCLUDED.description,
-  is_public = EXCLUDED.is_public,
   category = EXCLUDED.category,
+  is_secret = EXCLUDED.is_secret,
   updated_at = now();
 
 -- Update school_location_config to add allowed_ip_ranges if empty
@@ -138,12 +139,12 @@ END $$;
 
 SELECT 
   id,
-  school_name,
+  location_name,
   allowed_ip_ranges,
   latitude,
   longitude,
   radius_meters,
-  bypass_gps_validation,
+  is_active,
   created_at
 FROM school_location_config
 ORDER BY created_at DESC;

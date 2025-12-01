@@ -17,7 +17,7 @@ WHERE allowed_ip_ranges IS NULL
 -- Verify the update
 SELECT 
   id,
-  school_name,
+  location_name,
   allowed_ip_ranges,
   is_active,
   created_at

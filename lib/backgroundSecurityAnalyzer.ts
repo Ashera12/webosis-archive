@@ -22,11 +22,17 @@ interface SecurityAnalysisResult {
     longitude?: number;
     accuracy?: number;
     error?: string;
-    // Config from admin_settings
-    schoolLatitude?: number;
-    schoolLongitude?: number;
+    // ✅ ADMIN PANEL CONFIG - school_location_config (100% SINKRON!)
+    schoolLatitude?: number | null;
+    schoolLongitude?: number | null;
     allowedRadius?: number;
     accuracyThreshold?: number;
+    // ✅ SECURITY SETTINGS dari admin panel
+    locationName?: string;
+    requireWiFi?: boolean;
+    allowedIPRanges?: string[];
+    networkSecurityLevel?: string;
+    bypassGPSValidation?: boolean;
   };
   network: {
     ipAddress: string | null;
@@ -187,10 +193,26 @@ class BackgroundSecurityAnalyzer {
         
         // Add school config to location
         if (locationConfig.status === 'fulfilled') {
-          result.location.schoolLatitude = locationConfig.value.latitude;
-          result.location.schoolLongitude = locationConfig.value.longitude;
-          result.location.allowedRadius = locationConfig.value.radiusMeters;
-          result.location.accuracyThreshold = locationConfig.value.accuracyThreshold || 50;
+          const config = locationConfig.value;
+          // ✅ SINKRONKAN SEMUA ADMIN PANEL CONFIG
+          result.location.schoolLatitude = config.latitude;
+          result.location.schoolLongitude = config.longitude;
+          result.location.allowedRadius = config.radiusMeters;
+          result.location.accuracyThreshold = config.accuracyThreshold || 50;
+          // ✅ SECURITY SETTINGS dari admin panel
+          result.location.locationName = config.locationName;
+          result.location.requireWiFi = config.requireWiFi;
+          result.location.allowedIPRanges = config.allowedIPRanges;
+          result.location.networkSecurityLevel = config.networkSecurityLevel;
+          result.location.bypassGPSValidation = config.bypassGPSValidation;
+          
+          console.log('[Background Analyzer] ✅ Admin config synced:', {
+            location: config.locationName,
+            gps: `${config.latitude}, ${config.longitude}`,
+            radius: config.radiusMeters,
+            requireWiFi: config.requireWiFi,
+            ipRanges: config.allowedIPRanges?.length || 0
+          });
         }
       } catch (error: any) {
         result.location.error = error.message;
@@ -448,12 +470,19 @@ class BackgroundSecurityAnalyzer {
   /**
    * Fetch school location config from school_location_config table
    * ✅ LOAD FROM DATABASE ONLY - NO FALLBACK!
+   * Returns ALL admin panel security settings
    */
   private async fetchLocationConfig(): Promise<{
     latitude: number | null;
     longitude: number | null;
     radiusMeters: number;
     accuracyThreshold: number;
+    // ✅ ADMIN PANEL SECURITY SETTINGS
+    locationName?: string;
+    requireWiFi?: boolean;
+    allowedIPRanges?: string[];
+    networkSecurityLevel?: string;
+    bypassGPSValidation?: boolean;
   }> {
     try {
       // Use /api/school/wifi-config endpoint (public, loads from school_location_config)
@@ -486,7 +515,9 @@ class BackgroundSecurityAnalyzer {
           name: data.config.locationName,
           latitude: lat,
           longitude: lon,
-          radius: data.config.radiusMeters
+          radius: data.config.radiusMeters,
+          requireWiFi: data.config.requireWiFi,
+          ipRanges: data.allowedIPRanges?.length || 0
         });
       }
       
@@ -495,6 +526,12 @@ class BackgroundSecurityAnalyzer {
         longitude: lon,
         radiusMeters: data.config?.radiusMeters || 100,
         accuracyThreshold: 50, // Default accuracy threshold
+        // ✅ ADMIN PANEL SECURITY SETTINGS - 100% SINKRON!
+        locationName: data.config?.locationName,
+        requireWiFi: data.config?.requireWiFi,
+        allowedIPRanges: data.allowedIPRanges || [],
+        networkSecurityLevel: 'medium', // Default
+        bypassGPSValidation: false, // Default
       };
     } catch (error) {
       console.error('[Location Config] ❌ Fetch failed:', error);

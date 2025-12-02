@@ -31,7 +31,8 @@ interface SecurityAnalysisResult {
     locationName?: string;
     requireWiFi?: boolean;
     allowedIPRanges?: string[];
-    networkSecurityLevel?: string;
+    allowedSSIDs?: string[];
+    networkSecurityLevel?: 'low' | 'medium' | 'high' | 'strict';
     bypassGPSValidation?: boolean;
   };
   network: {
@@ -68,12 +69,12 @@ class BackgroundSecurityAnalyzer {
    * Start background analysis immediately after login
    */
   async startAnalysis(userId: string, userEmail: string): Promise<SecurityAnalysisResult> {
-    console.log('[Background Analyzer] Starting for user:', userEmail);
+    // Starting analysis for user
 
     // Check if analysis is already in progress
     const inProgress = this.analysisInProgress.get(userId);
     if (inProgress) {
-      console.log('[Background Analyzer] Analysis already in progress, waiting...');
+      // Analysis already in progress, waiting...
       return inProgress;
     }
 
@@ -102,7 +103,7 @@ class BackgroundSecurityAnalyzer {
           result,
           timestamp: Date.now()
         }));
-        console.log('[Background Analyzer] 💾 Saved to localStorage:', cacheKey);
+        // Saved to localStorage
       } catch (err) {
         console.warn('[Background Analyzer] ⚠️ Failed to save to localStorage:', err);
       }
@@ -123,7 +124,7 @@ class BackgroundSecurityAnalyzer {
     const cached = this.analysisCache.get(userId);
     
     if (!cached) {
-      console.log('[Background Analyzer] 📭 No cached analysis found');
+      // No cached analysis found
       
       // Try to restore from localStorage
       try {
@@ -135,11 +136,11 @@ class BackgroundSecurityAnalyzer {
           const maxAge = 5 * 60 * 1000; // 5 minutes
           
           if (age < maxAge) {
-            console.log('[Background Analyzer] ✅ Restored from localStorage (age: ' + Math.round(age / 1000) + 's)');
+            // Restored from localStorage
             this.analysisCache.set(userId, result);
             return result;
           } else {
-            console.log('[Background Analyzer] ⏰ localStorage cache expired (age: ' + Math.round(age / 1000) + 's)');
+            // localStorage cache expired
             localStorage.removeItem(cacheKey);
           }
         }
@@ -156,12 +157,12 @@ class BackgroundSecurityAnalyzer {
     const maxAge = 5 * 60 * 1000;
     
     if (age > maxAge) {
-      console.log('[Background Analyzer] ⏰ Cache expired (age: ' + Math.round(age / 1000) + 's)');
+      // Cache expired
       this.analysisCache.delete(userId);
       return null;
     }
     
-    console.log('[Background Analyzer] ✅ Using cached analysis (age: ' + Math.round(age / 1000) + 's)');
+    // Using cached analysis
     return cached;
     
     // OLD CODE - DISABLED
@@ -170,7 +171,7 @@ class BackgroundSecurityAnalyzer {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('forceRefresh') === '1') {
-        console.log('[Background Analyzer] 🔄 Force refresh requested via URL - clearing cache');
+        // Force refresh requested
         this.analysisCache.delete(userId);
         return null;
       }
@@ -270,25 +271,18 @@ class BackgroundSecurityAnalyzer {
         // Add school config to location
         if (locationConfig.status === 'fulfilled') {
           const config = locationConfig.value;
-          // ✅ SINKRONKAN SEMUA ADMIN PANEL CONFIG
+          // ✅ SINKRONKAN SEMUA ADMIN PANEL CONFIG (100% COMPLETE)
           result.location.schoolLatitude = config.latitude;
           result.location.schoolLongitude = config.longitude;
           result.location.allowedRadius = config.radiusMeters;
           result.location.accuracyThreshold = config.accuracyThreshold || 50;
-          // ✅ SECURITY SETTINGS dari admin panel
+          // ✅ SECURITY SETTINGS dari admin panel (ALL FIELDS)
           result.location.locationName = config.locationName;
           result.location.requireWiFi = config.requireWiFi;
           result.location.allowedIPRanges = config.allowedIPRanges;
+          result.location.allowedSSIDs = config.allowedSSIDs;
           result.location.networkSecurityLevel = config.networkSecurityLevel;
           result.location.bypassGPSValidation = config.bypassGPSValidation;
-          
-          console.log('[Background Analyzer] ✅ Admin config synced:', {
-            location: config.locationName,
-            gps: `${config.latitude}, ${config.longitude}`,
-            radius: config.radiusMeters,
-            requireWiFi: config.requireWiFi,
-            ipRanges: config.allowedIPRanges?.length || 0
-          });
         }
       } catch (error: any) {
         result.location.error = error.message;
@@ -306,12 +300,7 @@ class BackgroundSecurityAnalyzer {
       result.overallStatus = this.determineOverallStatus(result);
       result.analysisCompleted = true;
 
-      console.log('[Background Analyzer] Analysis complete:', {
-        status: result.overallStatus,
-        blockReasons: result.blockReasons,
-        wifiValid: result.wifi.isValid,
-        biometricRegistered: result.biometric.registered,
-      });
+      // Analysis complete
 
       // 6. Log analysis to database for monitoring
       await this.logAnalysis(userId, userEmail, result);
@@ -359,7 +348,7 @@ class BackgroundSecurityAnalyzer {
           ssid = wifiDetails.ssid;
         }
       } catch (err) {
-        console.warn('[Background Analyzer] WiFi SSID detection not supported');
+        // WiFi SSID detection not supported by browser
       }
 
       return {
@@ -413,8 +402,7 @@ class BackgroundSecurityAnalyzer {
 
       // 🔓 PERMISSIVE MODE: If config allows all IPs (0.0.0.0/0), bypass all checks
       if (allowedIPRanges.includes('0.0.0.0/0')) {
-        console.log('[WiFi Validation] 🔓 PERMISSIVE MODE detected - allowing all access');
-        console.log('[WiFi Validation] ✅ Access granted (development/testing mode)');
+        // Permissive mode - allowing all access
         return { isValid: true };
       }
 
@@ -422,7 +410,7 @@ class BackgroundSecurityAnalyzer {
       if (!ipAddress || ipAddress === 'DETECTION_FAILED') {
         // If not requiring WiFi, allow access
         if (!requireWiFi) {
-          console.log('[WiFi Validation] ⚠️ No IP detected, but WiFi not required - allowing');
+          // No IP detected but WiFi not required
           return { isValid: true };
         }
         return {
@@ -435,7 +423,7 @@ class BackgroundSecurityAnalyzer {
       if (connectionType === 'cellular' || connectionType === '4g' || connectionType === '5g') {
         // If not requiring WiFi, allow cellular
         if (!requireWiFi) {
-          console.log('[WiFi Validation] ⚠️ Cellular detected, but WiFi not required - allowing');
+          // Cellular detected but WiFi not required
           return { isValid: true };
         }
         return {
@@ -553,11 +541,12 @@ class BackgroundSecurityAnalyzer {
     longitude: number | null;
     radiusMeters: number;
     accuracyThreshold: number;
-    // ✅ ADMIN PANEL SECURITY SETTINGS
+    // ✅ ADMIN PANEL SECURITY SETTINGS (ALL FIELDS)
     locationName?: string;
     requireWiFi?: boolean;
     allowedIPRanges?: string[];
-    networkSecurityLevel?: string;
+    allowedSSIDs?: string[];
+    networkSecurityLevel?: 'low' | 'medium' | 'high' | 'strict';
     bypassGPSValidation?: boolean;
   }> {
     try {
@@ -593,30 +582,21 @@ class BackgroundSecurityAnalyzer {
       const lon = data.config?.longitude ? parseFloat(data.config.longitude) : null;
       
       if (!lat || !lon) {
-        console.error('[Location Config] ❌ School GPS not configured in database! Admin panel required.');
-        console.error('[Location Config] Config received:', data.config);
-      } else {
-        console.log('[Location Config] ✅ Loaded from DB:', {
-          name: data.config.locationName,
-          latitude: lat,
-          longitude: lon,
-          radius: data.config.radiusMeters,
-          requireWiFi: data.config.requireWiFi,
-          ipRanges: data.allowedIPRanges?.length || 0
-        });
+        console.error('[Location Config] ❌ GPS not configured');
       }
       
       return {
         latitude: lat,
         longitude: lon,
         radiusMeters: data.config?.radiusMeters || 100,
-        accuracyThreshold: 50, // Default accuracy threshold
+        accuracyThreshold: 50,
         // ✅ ADMIN PANEL SECURITY SETTINGS - 100% SINKRON!
         locationName: data.config?.locationName,
         requireWiFi: data.config?.requireWiFi,
         allowedIPRanges: data.allowedIPRanges || [],
-        networkSecurityLevel: 'medium', // Default
-        bypassGPSValidation: false, // Default
+        allowedSSIDs: data.allowedSSIDs || [],
+        networkSecurityLevel: data.config?.network_security_level || 'medium',
+        bypassGPSValidation: data.config?.bypass_gps_validation || false,
       };
     } catch (error) {
       console.error('[Location Config] ❌ Fetch failed:', error);

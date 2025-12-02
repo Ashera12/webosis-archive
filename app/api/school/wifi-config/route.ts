@@ -137,7 +137,10 @@ export async function GET(request: NextRequest) {
         longitude: config.longitude,
         radiusMeters: config.radius_meters,
         requireWiFi: config.require_wifi || false,
-        isActive: config.is_active
+        isActive: config.is_active,
+        // ✅ ALL ADMIN PANEL SECURITY SETTINGS
+        network_security_level: config.network_security_level || 'medium',
+        bypass_gps_validation: config.bypass_gps_validation || false,
       }
     });
 

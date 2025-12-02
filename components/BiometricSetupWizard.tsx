@@ -112,12 +112,12 @@ export default function BiometricSetupWizard({
         } catch (webauthnError: any) {
           console.warn('[Wizard] WebAuthn failed, using AI-only mode:', webauthnError);
           toast.dismiss('biometric-setup');
-          toast.warning(
+          toast(
             <div>
               <div className="font-bold">⚠️ Using AI-Only Mode</div>
               <div className="text-sm mt-1">Browser biometric setup failed, will use photo verification only</div>
             </div>,
-            { duration: 5000 }
+            { duration: 5000, icon: '⚠️' }
           );
         }
       }

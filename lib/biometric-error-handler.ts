@@ -237,29 +237,15 @@ export class BiometricErrorHandler {
   static showError(errorCode: string, toast: any, context?: any): void {
     const solution = this.getErrorSolution(errorCode, context);
     
-    toast.error(
-      <div className="max-w-sm">
-        <div className="flex items-center gap-2 font-bold mb-2">
-          <span className="text-2xl">{solution.icon}</span>
-          <span>{solution.title}</span>
-        </div>
-        <p className="text-sm mb-3">{solution.message}</p>
-        <div className="text-xs space-y-1">
-          <div className="font-semibold">💡 Solutions:</div>
-          <ul className="list-disc list-inside space-y-1 ml-2">
-            {solution.solutions.slice(0, 3).map((sol, i) => (
-              <li key={i}>{sol}</li>
-            ))}
-          </ul>
-        </div>
-      </div>,
-      { 
-        duration: solution.severity === 'error' ? 10000 : 6000,
-        style: {
-          maxWidth: '500px'
-        }
+    const message = `${solution.icon} ${solution.title}\n\n${solution.message}\n\n💡 Solutions:\n${solution.solutions.slice(0, 3).map(s => `• ${s}`).join('\n')}`;
+    
+    toast.error(message, { 
+      duration: solution.severity === 'error' ? 10000 : 6000,
+      style: {
+        maxWidth: '500px',
+        whiteSpace: 'pre-line'
       }
-    );
+    });
   }
 
   /**

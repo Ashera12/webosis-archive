@@ -94,6 +94,19 @@ class BackgroundSecurityAnalyzer {
     try {
       const result = await analysisPromise;
       this.analysisCache.set(userId, result);
+      
+      // Store in localStorage for persistence
+      try {
+        const cacheKey = `bg-analysis-${userId}`;
+        localStorage.setItem(cacheKey, JSON.stringify({
+          result,
+          timestamp: Date.now()
+        }));
+        console.log('[Background Analyzer] 💾 Saved to localStorage:', cacheKey);
+      } catch (err) {
+        console.warn('[Background Analyzer] ⚠️ Failed to save to localStorage:', err);
+      }
+      
       return result;
     } finally {
       this.analysisInProgress.delete(userId);
@@ -103,14 +116,53 @@ class BackgroundSecurityAnalyzer {
   /**
    * Get cached analysis if still valid
    * Check URL param ?forceRefresh=1 to bypass cache
-   * ⚠️ REDUCED CACHE DURATION TO 30 SECONDS for fresh GPS data
+   * ⚠️ Cache expires after 5 minutes
    */
   getCachedAnalysis(userId: string): SecurityAnalysisResult | null {
-    // ✅ ALWAYS FORCE REFRESH - NO CACHE!
-    // GPS data MUST be fresh from database every time
-    console.log('[Background Analyzer] 🔄 Cache DISABLED - forcing fresh analysis for accurate GPS');
-    this.analysisCache.delete(userId);
-    return null;
+    // Check for cached result
+    const cached = this.analysisCache.get(userId);
+    
+    if (!cached) {
+      console.log('[Background Analyzer] 📭 No cached analysis found');
+      
+      // Try to restore from localStorage
+      try {
+        const cacheKey = `bg-analysis-${userId}`;
+        const stored = localStorage.getItem(cacheKey);
+        if (stored) {
+          const { result, timestamp } = JSON.parse(stored);
+          const age = Date.now() - timestamp;
+          const maxAge = 5 * 60 * 1000; // 5 minutes
+          
+          if (age < maxAge) {
+            console.log('[Background Analyzer] ✅ Restored from localStorage (age: ' + Math.round(age / 1000) + 's)');
+            this.analysisCache.set(userId, result);
+            return result;
+          } else {
+            console.log('[Background Analyzer] ⏰ localStorage cache expired (age: ' + Math.round(age / 1000) + 's)');
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      } catch (err) {
+        console.warn('[Background Analyzer] ⚠️ Failed to restore from localStorage:', err);
+      }
+      
+      return null;
+    }
+    
+    // Check if memory cache expired (5 minutes)
+    const now = Date.now();
+    const age = now - cached.timestamp;
+    const maxAge = 5 * 60 * 1000;
+    
+    if (age > maxAge) {
+      console.log('[Background Analyzer] ⏰ Cache expired (age: ' + Math.round(age / 1000) + 's)');
+      this.analysisCache.delete(userId);
+      return null;
+    }
+    
+    console.log('[Background Analyzer] ✅ Using cached analysis (age: ' + Math.round(age / 1000) + 's)');
+    return cached;
     
     // OLD CODE - DISABLED
     /*

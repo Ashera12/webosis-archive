@@ -125,6 +125,9 @@ export default function AttendancePage() {
       return () => window.removeEventListener('focus', onFocus);
     }
   }, [refreshLocation]);
+
+  // Handle force refresh URL parameter
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('forceRefresh') === '1') {

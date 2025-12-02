@@ -108,8 +108,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Failed to fetch WiFi config',
-        allowedSSIDs: [], // Fallback to allow all
-        allowedIPRanges: ['192.168.', '10.0.', '172.16.'] // Default private IP ranges
+        allowedSSIDs: [],
+        allowedIPRanges: ['192.168.', '10.0.', '172.16.']
       },
       { status: 500 }
     );
@@ -119,26 +119,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/school/wifi-config
  * Update allowed WiFi SSIDs and IP ranges (Admin only)
- * 
- * Body:
- * {
- *   allowedSSIDs: string[],
- *   allowedIPRanges?: string[]
- * }
  */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { allowedSSIDs, allowedIPRanges } = body;
-
-    if (!Array.isArray(allowedSSIDs)) {
-      return NextResponse.json(
-        { error: 'allowedSSIDs must be an array' },
-        { status: 400 }
-      );
-    }
-
-    console.log('[WiFi Config API] Updating allowed SSIDs:', allowedSSIDs);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -158,6 +139,9 @@ export async function POST(request: NextRequest) {
     };
 
     // Add IP ranges if provided
+    if (allowedIPRanges && Array.isArray(allowedIPRanges)) {
+      updateData.allowed_ip_ranges = allowedIPRanges;
+    }
     if (allowedIPRanges && Array.isArray(allowedIPRanges)) {
       updateData.allowed_ip_ranges = allowedIPRanges;
     }

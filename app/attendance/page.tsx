@@ -1685,37 +1685,22 @@ export default function AttendancePage() {
       
       toast.dismiss(verifyToast);
       
-      // ===== 3. CHECK BROWSER FINGERPRINT (NON-BLOCKING) =====
+      // ===== 3. CHECK BROWSER FINGERPRINT (SILENT - NO UI) =====
+      // Browser fingerprint is INFO ONLY for backend logging
+      // NO user notification needed - WebAuthn is primary security
       const fingerprintPassed = biometricData.checks?.fingerprint?.passed;
       
       if (!fingerprintPassed) {
-        console.warn('[Biometric Verify] ⚠️ Browser fingerprint mismatch (non-blocking)');
-        console.warn('[Biometric Verify] Reason: Browser updates/settings can change fingerprint');
-        
-        toast(
-          <div>
-            <div className="font-bold">⚠️ Browser Fingerprint Changed</div>
-            <div className="text-sm mt-1">Device fingerprint berbeda (normal jika browser di-update)</div>
-            <div className="text-xs mt-2 text-gray-600">✓ Akan menggunakan {enrolledMethod.name} sebagai primary security</div>
-          </div>,
-          { 
-            duration: 5000,
-            icon: '⚠️'
-          }
-        );
-        
-        console.log('[Biometric Verify] ▶️ Continuing with', enrolledMethod.name);
+        console.log('[Biometric Verify] ℹ️ Browser fingerprint mismatch (INFO ONLY - non-blocking)');
+        console.log('[Biometric Verify] Reason: Browser updates/cache clear/settings change fingerprint');
+        console.log('[Biometric Verify] ▶️ Proceeding with WebAuthn (primary security)');
       } else {
-        console.log('[Biometric Verify] ✅ Browser fingerprint matched!');
-        
-        toast.success(
-          <div>
-            <div className="font-bold">✅ Device Dikenali!</div>
-            <div className="text-sm mt-1">🔐 Browser fingerprint cocok</div>
-          </div>,
-          { duration: 2000 }
-        );
+        console.log('[Biometric Verify] ✅ Browser fingerprint matched (INFO ONLY)');
       }
+      
+      // ✅ NO toast notification - proceed silently to WebAuthn
+      
+      // ✅ NO toast notification - proceed silently to WebAuthn
       
       // ===== 4. ALWAYS TRY WEBAUTHN VERIFICATION =====
       // Even if hasWebAuthn is false from DB, we should still try to authenticate
@@ -1726,9 +1711,15 @@ export default function AttendancePage() {
       
       const webauthnToast = toast.loading(
         <div>
-          <div className="font-bold">🔐 {enrolledMethod.name}</div>
-          <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt biometric dari device...</div>
-          <div className="text-xs mt-2 opacity-80">✨ Scan wajah/jari Anda saat diminta</div>
+          <div className="font-bold mb-2">👆 SCAN BIOMETRIC ANDA</div>
+          <div className="text-sm mb-1">{enrolledMethod.icon} {enrolledMethod.name}</div>
+          <div className="text-xs opacity-90 mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+            <div className="font-semibold mb-1">📱 Prompt native akan muncul:</div>
+            <div>• Android: Fingerprint prompt</div>
+            <div>• iPhone: Face ID / Touch ID</div>
+            <div>• Windows: Windows Hello</div>
+            <div>• macOS: Touch ID</div>
+          </div>
         </div>
       );
       

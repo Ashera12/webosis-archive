@@ -37,7 +37,7 @@ export default function MikrotikConfigPage() {
     ip_validation_mode: 'hybrid',
     location_strict_mode: 'true',
     location_max_radius: '100',
-    location_gps_accuracy_required: '50',
+    location_gps_accuracy_required: '20', // Default 20m (good accuracy)
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
@@ -325,17 +325,22 @@ export default function MikrotikConfigPage() {
 
             {/* GPS Accuracy Required */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                GPS Accuracy Required (meters)
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                🎯 GPS Accuracy Required (meters)
               </label>
               <input
                 type="number"
+                min="5"
+                max="100"
                 value={settings.location_gps_accuracy_required}
                 onChange={(e) => setSettings({ ...settings, location_gps_accuracy_required: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all outline-none"
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Reject check-ins if GPS accuracy is worse than this value
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Tolak absensi jika akurasi GPS lebih buruk dari nilai ini.<br />
+                📍 <strong>Nilai lebih KECIL = lebih AKURAT</strong><br />
+                Contoh: 5m = SANGAT AKURAT, 20m = BAIK, 50m = KURANG, 100m = BURUK<br />
+                ⚠️ Direkomendasikan: 15-25 meter untuk outdoor
               </p>
             </div>
           </div>

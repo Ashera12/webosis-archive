@@ -436,7 +436,8 @@ export async function POST(request: NextRequest) {
       const allowedRadius = Math.min(activeConfig.radius_meters, maxRadius);
       const isLocationValid = distance <= allowedRadius;
       
-      // Check GPS accuracy (STRICT: must be <= minAccuracy) - BLOCKING!
+      // ✅ FIX: GPS accuracy - LOWER value = BETTER accuracy (5m better than 50m)
+      // PASS if accuracy <= minAccuracy (e.g., 15m accuracy is GOOD if requirement is 20m)
       const isAccuracyGood = gpsAccuracy <= minAccuracy;
 
       console.log('[Security Validation] Location Check:', {
@@ -445,7 +446,8 @@ export async function POST(request: NextRequest) {
         configRadius: activeConfig.radius_meters + 'm',
         maxRadius: maxRadius + 'm',
         gpsAccuracy: Math.round(gpsAccuracy) + 'm',
-        requiredAccuracy: minAccuracy + 'm',
+        requiredAccuracy: '<= ' + minAccuracy + 'm',
+        isAccuracyGood: isAccuracyGood,
         valid: isLocationValid && isAccuracyGood,
         strictMode: locationStrictMode,
         isFakeGPS: false
@@ -476,12 +478,14 @@ export async function POST(request: NextRequest) {
       }
       
       // 🚨 STRICT MODE: BLOCK if GPS accuracy too low (> minAccuracy)
+      // Note: Lower accuracy value = better (5m is better than 50m)
       if (!isAccuracyGood) {
-        violations.push('GPS_ACCURACY_LOW');
+        violations.push('GPS_ACCURACY_TOO_LOW');
         securityScore = 0; // BLOCK
         
-        console.error('[Security Validation] ❌ GPS accuracy TOO LOW - BLOCKED');
-        console.error('[Security Validation] Accuracy:', Math.round(gpsAccuracy), 'm (required: <', minAccuracy, 'm)');
+        console.error('[Security Validation] ❌ GPS ACCURACY TOO LOW - BLOCKED');
+        console.error('[Security Validation] Your accuracy:', Math.round(gpsAccuracy), 'm (need: <=' + minAccuracy + 'm)');
+        console.error('[Security Validation] Example: 5m accuracy = GOOD, 100m accuracy = BAD');
         
         await supabaseAdmin.from('security_events').insert({
           user_id: userId,
@@ -492,24 +496,27 @@ export async function POST(request: NextRequest) {
             required: minAccuracy,
             distance,
             allowedRadius,
-            action: 'BLOCKED'
+            action: 'BLOCKED',
+            explanation: 'GPS accuracy too low (higher number = worse accuracy)'
           }
         });
         
         return NextResponse.json({
           success: false,
-          error: `🎯 AKURASI GPS TERLALU RENDAH!`,
+          error: `🎯 SINYAL GPS TERLALU LEMAH!`,
           details: {
             yourAccuracy: Math.round(gpsAccuracy) + ' meter',
-            requiredAccuracy: '< ' + minAccuracy + ' meter',
-            currentDistance: Math.round(distance) + ' meter',
-            hint: 'GPS tidak cukup akurat untuk memverifikasi lokasi Anda',
+            requiredAccuracy: 'Maksimal ' + minAccuracy + ' meter',
+            currentDistance: Math.round(distance) + ' meter dari sekolah',
+            hint: 'Akurasi GPS Anda: ' + Math.round(gpsAccuracy) + 'm (semakin kecil semakin baik)',
+            explanation: '📍 Nilai akurasi GPS: 5m = SANGAT BAIK, 20m = CUKUP, 100m = BURUK',
             solution: [
-              '1. Pindah ke AREA TERBUKA (keluar dari gedung)',
+              '1. KELUAR dari gedung ke AREA TERBUKA',
               '2. Tunggu 30-60 detik hingga GPS lock ke satelit',
-              '3. Pastikan GPS/Location di device AKTIF (Settings → Location → High Accuracy)',
-              '4. Coba lagi setelah akurasi < ' + minAccuracy + 'm',
-              '5. Jika masih gagal, hubungi admin'
+              '3. Pastikan GPS/Location AKTIF (Settings → Location → High Accuracy)',
+              '4. Tutup aplikasi yang mengganggu GPS (Fake GPS, VPN)',
+              '5. Coba lagi setelah akurasi <= ' + minAccuracy + 'm',
+              '6. Jika masih gagal, hubungi admin (mungkin di dalam gedung)'
             ]
           },
           action: 'BLOCK_ATTENDANCE',

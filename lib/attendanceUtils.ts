@@ -187,7 +187,7 @@ export async function getUserLocation(): Promise<{ latitude: number; longitude: 
       },
       {
         enableHighAccuracy: true,  // FORCE GPS satelit (not WiFi/cell triangulation)
-        timeout: 15000,            // 15 detik timeout
+        timeout: 30000,            // 30 detik timeout (cukup waktu untuk GPS lock)
         maximumAge: 0,             // FORCE fresh location (no cache)
       }
     );

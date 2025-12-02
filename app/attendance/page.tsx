@@ -1380,14 +1380,14 @@ export default function AttendancePage() {
             }
             
             toast.dismiss(registerToast);
-            toast.warn(
+            toast(
               <div>
                 <div className="font-bold">{errorTitle}</div>
                 <div className="text-sm mt-1">{errorDetails}</div>
                 {helpText && <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>}
                 <div className="text-xs mt-2 font-semibold">✓ Akan menggunakan AI Face Recognition</div>
               </div>,
-              { duration: 8000 }
+              { duration: 8000, icon: '⚠️' }
             );
             
             console.warn('[Setup] ⚠️ WebAuthn failed, using AI-only mode');
@@ -1750,13 +1750,13 @@ export default function AttendancePage() {
             }
             
             toast.dismiss(webauthnToast);
-            toast.warn(
+            toast(
               <div>
                 <div className="font-bold">⚠️ {enrolledMethod.name} Gagal</div>
                 <div className="text-sm mt-1">{errorDetails}</div>
                 <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
               </div>,
-              { duration: 6000 }
+              { duration: 6000, icon: '⚠️' }
             );
             // Don't block - continue to AI verification
           }

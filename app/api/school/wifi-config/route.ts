@@ -16,12 +16,6 @@ const supabaseAdmin = createClient(
 /**
  * GET /api/school/wifi-config
  * Returns allowed WiFi SSIDs for school attendance
- * 
- * Response:
- * {
- *   allowedSSIDs: string[],
- *   config: {...}
- * }
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       // Try fetching ALL locations as fallback
-      const { data: allConfigs, error: allError } = await supabaseAdmin
+      const { data: allConfigs } = await supabaseAdmin
         .from('school_location_config')
         .select('*')
         .limit(10);
@@ -64,8 +58,8 @@ export async function GET(request: NextRequest) {
       
       // No configs at all - return permissive defaults
       return NextResponse.json({
-        allowedSSIDs: ['Any WiFi'],  // Accept any SSID
-        allowedIPRanges: ['0.0.0.0/0'],  // Allow ALL IPs (development mode)
+        allowedSSIDs: ['Any WiFi'],
+        allowedIPRanges: ['0.0.0.0/0'],
         config: {
           locationName: 'Development - Permissive Mode',
           requireWiFi: false,
@@ -142,9 +136,6 @@ export async function POST(request: NextRequest) {
     if (allowedIPRanges && Array.isArray(allowedIPRanges)) {
       updateData.allowed_ip_ranges = allowedIPRanges;
     }
-    if (allowedIPRanges && Array.isArray(allowedIPRanges)) {
-      updateData.allowed_ip_ranges = allowedIPRanges;
-    }
 
     // Update school_location_config
     const { data, error } = await supabaseAdmin
@@ -159,5 +150,18 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      success: true,
+      allowedSSIDs,
+      allowedIPRanges: data.allowed_ip_ranges || allowedIPRanges,
+      config: data
+    });
+
+  } catch (error: any) {
+    console.error('[WiFi Config API] ❌ Update error:', error);
+    
+    return NextResponse.json(
+      { error: 'Failed to update WiFi config' },
+      { status: 500 }
+    );
   }
 }

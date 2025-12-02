@@ -556,47 +556,38 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verify fingerprint hash
+    // Verify fingerprint hash (NON-BLOCKING - INFO ONLY)
     const fingerprintMatch = body.fingerprintHash === biometric.fingerprint_template;
     
     if (!fingerprintMatch) {
-      violations.push('FINGERPRINT_MISMATCH');
-      securityScore -= 30;
-
-      console.error('[Security Validation] ❌ Fingerprint MISMATCH:', {
+      // ⚠️ WARNING ONLY - Browser updates/cache clearing can change fingerprint
+      // WebAuthn is the PRIMARY security - fingerprint is INFO ONLY
+      console.warn('[Security Validation] ⚠️ Fingerprint mismatch (NON-BLOCKING):', {
         provided: body.fingerprintHash.substring(0, 20) + '...',
-        stored: biometric.fingerprint_template.substring(0, 20) + '...'
+        stored: biometric.fingerprint_template.substring(0, 20) + '...',
+        reason: 'Browser updates/cache/settings can change fingerprint'
       });
 
-      // Check if device changed
+      // Log for analytics only - NOT a blocking event
       await logSecurityEvent({
         user_id: userId,
         event_type: 'FINGERPRINT_MISMATCH',
-        severity: 'HIGH',
-        description: 'Device fingerprint mismatch detected',
+        severity: 'INFO', // Changed from HIGH to INFO
+        description: 'Browser fingerprint changed (browser update/cache clear) - non-blocking',
         metadata: {
           providedHash: body.fingerprintHash,
           storedHash: biometric.fingerprint_template,
           wifiSSID: body.wifiSSID,
-          location: { lat: body.latitude, lng: body.longitude }
+          location: { lat: body.latitude, lng: body.longitude },
+          note: 'WebAuthn is primary security - fingerprint is supplementary'
         }
       });
 
-      return NextResponse.json({
-        success: false,
-        error: 'Verifikasi perangkat gagal! Device fingerprint tidak cocok.',
-        details: {
-          hint: 'Gunakan perangkat yang sama dengan saat pendaftaran biometric',
-          suggestion: 'Jika Anda mengganti device, silakan daftar ulang biometric'
-        },
-        action: 'BLOCK_ATTENDANCE',
-        severity: 'HIGH',
-        violations,
-        securityScore
-      }, { status: 403 });
+      // ✅ CONTINUE - Do NOT block user
+      console.log('[Security Validation] ▶️ Continuing to WebAuthn verification (primary security)');
+    } else {
+      console.log('[Security Validation] ✅ Fingerprint matched (supplementary check)');
     }
-
-    console.log('[Security Validation] ✅ Fingerprint valid');
 
     // ===== 5. CHECK DUPLICATE ATTENDANCE TODAY =====
     console.log('[Security Validation] Checking duplicate...');

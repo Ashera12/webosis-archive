@@ -2,6 +2,12 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Force new build ID to invalidate all caches
+  generateBuildId: async () => {
+    // Use timestamp to ensure unique build ID every time
+    return `build-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  },
+  
   // Turbopack configuration with absolute path to avoid warnings
   turbopack: {
     root: path.resolve(__dirname),

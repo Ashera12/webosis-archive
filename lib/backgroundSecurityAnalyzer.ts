@@ -96,16 +96,39 @@ class BackgroundSecurityAnalyzer {
       const result = await analysisPromise;
       this.analysisCache.set(userId, result);
       
-      // Store in localStorage for persistence
+      // ✅ PERSISTENT STORAGE with browser compatibility check
       try {
-        const cacheKey = `bg-analysis-${userId}`;
-        localStorage.setItem(cacheKey, JSON.stringify({
-          result,
-          timestamp: Date.now()
-        }));
-        // Saved to localStorage
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const cacheKey = `bg-analysis-${userId}`;
+          const cacheData = {
+            result,
+            timestamp: Date.now(),
+            version: '2.0' // Track data structure version
+          };
+          
+          // Check storage quota before saving
+          if (navigator.storage && navigator.storage.estimate) {
+            const estimate = await navigator.storage.estimate();
+            const quotaUsage = ((estimate.usage || 0) / (estimate.quota || 1)) * 100;
+            if (quotaUsage > 90) {
+              console.warn('[Background Analyzer] ⚠️ Storage quota >90%, clearing old cache');
+              // Clear old analysis cache entries
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith('bg-analysis-') && key !== cacheKey) {
+                  localStorage.removeItem(key);
+                }
+              }
+            }
+          }
+          
+          localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        } else {
+          console.warn('[Background Analyzer] ⚠️ localStorage not available');
+        }
       } catch (err) {
         console.warn('[Background Analyzer] ⚠️ Failed to save to localStorage:', err);
+        // Fallback: keep in-memory cache only
       }
       
       return result;
@@ -128,20 +151,31 @@ class BackgroundSecurityAnalyzer {
       
       // Try to restore from localStorage
       try {
-        const cacheKey = `bg-analysis-${userId}`;
-        const stored = localStorage.getItem(cacheKey);
-        if (stored) {
-          const { result, timestamp } = JSON.parse(stored);
-          const age = Date.now() - timestamp;
-          const maxAge = 5 * 60 * 1000; // 5 minutes
-          
-          if (age < maxAge) {
-            // Restored from localStorage
-            this.analysisCache.set(userId, result);
-            return result;
-          } else {
-            // localStorage cache expired
-            localStorage.removeItem(cacheKey);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const cacheKey = `bg-analysis-${userId}`;
+          const stored = localStorage.getItem(cacheKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const { result, timestamp, version } = parsed;
+            
+            // Validate data structure version
+            if (version !== '2.0') {
+              console.warn('[Background Analyzer] ⚠️ Old cache version, clearing');
+              localStorage.removeItem(cacheKey);
+              return null;
+            }
+            
+            const age = Date.now() - timestamp;
+            const maxAge = 5 * 60 * 1000; // 5 minutes
+            
+            if (age < maxAge) {
+              // Restored from localStorage
+              this.analysisCache.set(userId, result);
+              return result;
+            } else {
+              // localStorage cache expired
+              localStorage.removeItem(cacheKey);
+            }
           }
         }
       } catch (err) {
@@ -500,9 +534,16 @@ class BackgroundSecurityAnalyzer {
     error?: string;
   }> {
     return new Promise((resolve) => {
+      // ✅ BROWSER COMPATIBILITY CHECK
       if (!navigator.geolocation) {
-        resolve({ detected: false, error: 'Geolocation not supported' });
+        console.error('[GPS] ❌ Geolocation API not supported in this browser');
+        resolve({ detected: false, error: 'Browser tidak mendukung GPS. Gunakan Chrome/Firefox/Safari terbaru' });
         return;
+      }
+
+      // Check if HTTPS (required for geolocation)
+      if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        console.warn('[GPS] ⚠️ Geolocation requires HTTPS');
       }
 
       const timeout = setTimeout(() => {
@@ -526,7 +567,11 @@ class BackgroundSecurityAnalyzer {
             error: error.message,
           });
         },
-        { timeout: 5000, maximumAge: 60000 }
+        {
+          enableHighAccuracy: true,  // ✅ HIGH PRECISION GPS
+          timeout: 10000,             // 10s for slower connections
+          maximumAge: 30000           // 30s fresh data
+        }
       );
     });
   }
@@ -535,7 +580,13 @@ class BackgroundSecurityAnalyzer {
    * Fetch school location config from school_location_config table
    * ✅ LOAD FROM DATABASE ONLY - NO FALLBACK!
    * Returns ALL admin panel security settings
+   * 🚀 PERFORMANCE: Cache config untuk 5 menit
    */
+  private configCache: {
+    data: any;
+    timestamp: number;
+  } | null = null;
+  
   private async fetchLocationConfig(): Promise<{
     latitude: number | null;
     longitude: number | null;
@@ -550,8 +601,26 @@ class BackgroundSecurityAnalyzer {
     bypassGPSValidation?: boolean;
   }> {
     try {
-      // ✅ FORCE FRESH DATA - Cache busting with timestamp
-      const cacheBuster = `_t=${Date.now()}`;
+      // 🚀 PERFORMANCE: Use cached config if fresh (<5 min)
+      const now = Date.now();
+      if (this.configCache && (now - this.configCache.timestamp) < 5 * 60 * 1000) {
+        const data = this.configCache.data;
+        return {
+          latitude: data.config?.latitude ? parseFloat(data.config.latitude) : null,
+          longitude: data.config?.longitude ? parseFloat(data.config.longitude) : null,
+          radiusMeters: data.config?.radiusMeters || 100,
+          accuracyThreshold: 50,
+          locationName: data.config?.locationName,
+          requireWiFi: data.config?.requireWiFi,
+          allowedIPRanges: data.allowedIPRanges || [],
+          allowedSSIDs: data.allowedSSIDs || [],
+          networkSecurityLevel: data.config?.network_security_level || 'medium',
+          bypassGPSValidation: data.config?.bypass_gps_validation || false,
+        };
+      }
+      
+      // ✅ FETCH FRESH DATA
+      const cacheBuster = `_t=${now}`;
       const url = `/api/school/wifi-config?${cacheBuster}`;
       
       // Use /api/school/wifi-config endpoint (public, loads from school_location_config)
@@ -576,6 +645,12 @@ class BackgroundSecurityAnalyzer {
       }
 
       const data = await response.json();
+      
+      // 🚀 CACHE CONFIG for better performance
+      this.configCache = {
+        data,
+        timestamp: now
+      };
       
       // ✅ LOAD FROM DATABASE - NO FALLBACK!
       const lat = data.config?.latitude ? parseFloat(data.config.latitude) : null;

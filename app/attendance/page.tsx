@@ -2424,7 +2424,8 @@ export default function AttendancePage() {
               const schoolLat = backgroundAnalysis?.location?.schoolLatitude;
               const schoolLon = backgroundAnalysis?.location?.schoolLongitude;
               const allowedRadius = backgroundAnalysis?.location?.allowedRadius || 100;
-              const accuracyThreshold = backgroundAnalysis?.location?.accuracyThreshold || 50;
+              // ✅ FIX: Use same threshold as API (from gps_accuracy_required setting)
+              const accuracyThreshold = backgroundAnalysis?.location?.accuracyThreshold || 20; // Match API default
               
               // 🔍 DEBUG: Log GPS values
               console.log('[Attendance] 🔍 GPS Debug:', {
@@ -2502,9 +2503,9 @@ export default function AttendancePage() {
                       isPoorAccuracy ? 'text-yellow-600 dark:text-yellow-400' :
                       'text-green-600 dark:text-green-400'
                     }`}>
-                      🎯 Akurasi GPS: {accuracy.toFixed(0)}m {
+                      🎯 Akurasi GPS: {accuracy.toFixed(0)}m (Max: {accuracyThreshold}m) {
                         isFakeGPS ? '❌ GPS PALSU!' :
-                        isPoorAccuracy ? '⚠️ Kurang akurat' : 
+                        isPoorAccuracy ? '⚠️ Kurang akurat - AKAN DITOLAK!' : 
                         '✓ Akurat'
                       }
                     </p>
@@ -2551,12 +2552,24 @@ export default function AttendancePage() {
                   
                   {/* Warning jika accuracy buruk */}
                   {!isFakeGPS && isPoorAccuracy && !isOutOfRange && (
-                    <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded border border-yellow-300 dark:border-yellow-600">
-                      <p className="text-xs font-bold text-yellow-900 dark:text-yellow-100">⚠️ AKURASI GPS RENDAH</p>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                        Akurasi saat ini: {accuracy}m. Target: &lt;{accuracyThreshold}m.
-                        Pindah ke area terbuka untuk sinyal GPS lebih baik.
+                    <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg border-2 border-yellow-500 dark:border-yellow-600">
+                      <p className="text-sm font-bold text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+                        ⚠️ AKURASI GPS RENDAH - AKAN DITOLAK!
                       </p>
+                      <div className="mt-2 space-y-1 text-xs text-yellow-800 dark:text-yellow-200">
+                        <p>• Akurasi saat ini: <strong>{accuracy.toFixed(0)}m</strong></p>
+                        <p>• Akurasi diperlukan: <strong>&lt;{accuracyThreshold}m</strong></p>
+                        <p>• <strong className="text-red-600 dark:text-red-400">ABSENSI AKAN DITOLAK jika lanjut!</strong></p>
+                      </div>
+                      <div className="mt-2 p-2 bg-yellow-200 dark:bg-yellow-800/30 rounded">
+                        <p className="text-xs font-bold text-yellow-900 dark:text-yellow-100">Cara Memperbaiki:</p>
+                        <ol className="text-xs text-yellow-800 dark:text-yellow-200 ml-4 mt-1 list-decimal">
+                          <li>Pindah ke AREA TERBUKA (keluar dari gedung)</li>
+                          <li>Tunggu 30-60 detik hingga GPS lock ke satelit</li>
+                          <li>Pastikan GPS/Location di device AKTIF (High Accuracy)</li>
+                          <li>Refresh halaman setelah akurasi &lt;{accuracyThreshold}m</li>
+                        </ol>
+                      </div>
                     </div>
                   )}
                 </div>

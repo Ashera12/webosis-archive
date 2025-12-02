@@ -55,16 +55,20 @@ export async function GET(request: NextRequest) {
       });
 
     // WebAuthn authentication options
+    // ✅ RP ID MUST MATCH registration - Use dynamic detection
+    const hostname = request.headers.get('host') || 'osissmktest.biezz.my.id';
+    const rpId = hostname.includes('localhost') ? 'localhost' : 'biezz.my.id';
+    
     const options = {
       challenge,
       allowCredentials: credentials.map(cred => ({
         id: cred.credential_id,
         type: 'public-key' as const,
-        transports: cred.transports || ['internal'],
+        transports: cred.transports || ['internal'], // ✅ 'internal' for platform authenticators
       })),
       timeout: 60000, // 60 seconds
-      rpId: process.env.NEXT_PUBLIC_RP_ID || 'osissmktest.biezz.my.id',
-      userVerification: 'required' as const, // MUST use biometric/PIN
+      rpId, // ✅ Dynamically matched with registration
+      userVerification: 'required' as const, // ✅ CRITICAL - FORCES biometric prompt
     };
 
     console.log('[WebAuthn] 🔍 Authentication challenge generated for:', userId);

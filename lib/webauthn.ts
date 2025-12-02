@@ -174,6 +174,8 @@ export async function registerCredential(
 
     // Create credential
     console.log('[WebAuthn] 📲 Requesting credential creation...');
+    console.log('[WebAuthn] 🔐 Configuration from server:', authenticatorSelection);
+    console.log('[WebAuthn] ⏱️ Timeout:', timeout, 'ms');
     
     const credential = await navigator.credentials.create({
       publicKey: {
@@ -184,6 +186,7 @@ export async function registerCredential(
           id: userIdBuffer,
         },
         pubKeyCredParams,
+        // ✅ USE SERVER CONFIGURATION - Don't override!
         authenticatorSelection,
         timeout,
         attestation: 'none', // Privacy-preserving
@@ -232,18 +235,25 @@ export async function registerCredential(
 
   } catch (error: any) {
     console.error('[WebAuthn] ❌ Registration error:', error);
+    console.error('[WebAuthn] Error name:', error.name);
+    console.error('[WebAuthn] Error message:', error.message);
+    console.error('[WebAuthn] Error stack:', error.stack);
     
     // User-friendly error messages
     let errorMessage = error.message;
     
     if (error.name === 'NotAllowedError') {
-      errorMessage = 'Biometric authentication cancelled or not available';
+      errorMessage = '❌ Biometric cancelled or device locked. Try unlocking your device first.';
     } else if (error.name === 'NotSupportedError') {
-      errorMessage = 'Biometric authentication not supported on this device';
+      errorMessage = '❌ Biometric not supported. Enable Face ID/Touch ID/Windows Hello in device settings.';
     } else if (error.name === 'SecurityError') {
-      errorMessage = 'Security error - please use HTTPS';
+      errorMessage = '❌ Security error - WebAuthn requires HTTPS or localhost.';
     } else if (error.name === 'AbortError') {
-      errorMessage = 'Authentication timeout';
+      errorMessage = '⏱️ Timeout - No response from biometric sensor. Is it enabled?';
+    } else if (error.name === 'InvalidStateError') {
+      errorMessage = '🔄 Credential already exists. Try Re-enrollment if switching devices.';
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = '🔐 Cannot access biometric sensor. Check device permissions.';
     }
 
     return {
@@ -301,15 +311,20 @@ export async function authenticateCredential(
 
     // Get credential
     console.log('[WebAuthn] 📲 Requesting authentication...');
+    console.log('[WebAuthn] 🔐 User verification:', userVerification);
+    console.log('[WebAuthn] 🏢 RP ID:', rpId);
+    console.log('[WebAuthn] ⏱️ Timeout:', timeout, 'ms');
     
+    // ✅ CRITICAL FOR iOS/Safari - Use mediation to show native prompt
     const assertion = await navigator.credentials.get({
       publicKey: {
         challenge: challengeBuffer,
-        allowCredentials: allowCredentialsWithBuffer,
+        allowCredentials: allowCredentialsWithBuffer.length > 0 ? allowCredentialsWithBuffer : undefined,
         timeout,
         rpId,
-        userVerification,
+        userVerification, // ✅ Use server setting ('required' = FORCE biometric)
       },
+      mediation: 'required', // ✅ FORCE UI prompt on iOS/Safari
     }) as PublicKeyCredential | null;
 
     if (!assertion) {
@@ -357,18 +372,27 @@ export async function authenticateCredential(
 
   } catch (error: any) {
     console.error('[WebAuthn] ❌ Authentication error:', error);
+    console.error('[WebAuthn] Error name:', error.name);
+    console.error('[WebAuthn] Error message:', error.message);
+    console.error('[WebAuthn] Error stack:', error.stack);
     
     // User-friendly error messages
     let errorMessage = error.message;
     
     if (error.name === 'NotAllowedError') {
-      errorMessage = 'Biometric authentication cancelled';
+      errorMessage = '❌ Biometric cancelled or permission denied. Please try again.';
     } else if (error.name === 'NotSupportedError') {
-      errorMessage = 'Biometric authentication not supported';
+      errorMessage = '❌ Biometric not supported. Enable in device settings.';
     } else if (error.name === 'SecurityError') {
-      errorMessage = 'Security error - please use HTTPS';
+      errorMessage = '❌ Security error - WebAuthn requires HTTPS or localhost.';
     } else if (error.name === 'AbortError') {
-      errorMessage = 'Authentication timeout';
+      errorMessage = '⏱️ Timeout - No response. Check if biometric sensor is active.';
+    } else if (error.name === 'InvalidStateError') {
+      errorMessage = '🔄 Credential invalid or expired. Try Re-enrollment.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = '🔍 No matching credential. Register biometric first.';
+    } else if (error.name === 'NotReadableError') {
+      errorMessage = '🔐 Cannot read biometric sensor. Check permissions.';
     }
 
     return {

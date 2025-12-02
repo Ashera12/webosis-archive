@@ -50,14 +50,15 @@ export async function POST(request: NextRequest) {
       });
 
     // WebAuthn registration options
-    // RP ID must be the domain WITHOUT protocol and WITHOUT port
-    const rpId = 'biezz.my.id'; // Parent domain works for all subdomains
+    // ✅ RP ID MUST MATCH EXACTLY - Use environment variable or auto-detect
+    const hostname = request.headers.get('host') || 'osissmktest.biezz.my.id';
+    const rpId = hostname.includes('localhost') ? 'localhost' : 'biezz.my.id'; // Parent domain for all subdomains
     
     const options = {
       challenge,
       rp: {
         name: process.env.NEXT_PUBLIC_APP_NAME || 'OSIS SMK Fithrah Insani',
-        id: rpId, // Must match domain exactly (no https://, no port)
+        id: rpId, // ✅ Dynamically set based on hostname
       },
       user: {
         id: Buffer.from(userId).toString('base64'),
@@ -65,14 +66,14 @@ export async function POST(request: NextRequest) {
         displayName: userDisplayName || session.user.name || 'User',
       },
       pubKeyCredParams: [
-        { alg: -7, type: 'public-key' },  // ES256
-        { alg: -257, type: 'public-key' }, // RS256
+        { alg: -7, type: 'public-key' },  // ES256 (preferred for mobile)
+        { alg: -257, type: 'public-key' }, // RS256 (fallback)
       ],
       authenticatorSelection: {
-        authenticatorAttachment: 'platform', // Built-in biometric
-        requireResidentKey: false,
-        residentKey: 'preferred',
-        userVerification: 'required', // MUST use biometric/PIN
+        authenticatorAttachment: 'platform', // ✅ FORCE built-in biometric (Face ID, Touch ID, Windows Hello)
+        requireResidentKey: true, // ✅ REQUIRED - Creates passkey stored on device
+        residentKey: 'required', // ✅ CRITICAL - Enables discoverable credentials
+        userVerification: 'required', // ✅ MUST use biometric/PIN - NO FALLBACK
       },
       timeout: 60000, // 60 seconds
       attestation: 'none', // Privacy-preserving

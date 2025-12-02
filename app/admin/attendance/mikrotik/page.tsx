@@ -50,12 +50,14 @@ export default function MikrotikConfigPage() {
     }
     if (session?.user?.email) {
       fetchSettings();
+      const id = setInterval(fetchSettings, 60000);
+      return () => clearInterval(id);
     }
   }, [session, status]);
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings/mikrotik');
+      const res = await fetch('/api/admin/settings/mikrotik?t=' + Date.now(), { cache: 'no-store' as any });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

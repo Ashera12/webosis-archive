@@ -30,6 +30,7 @@ import {
 } from '@/lib/biometric-methods';
 import { PermissionManager } from '@/lib/permission-manager';
 import { useSecurityAnalysis } from '@/components/SecurityAnalyzerProvider';
+import { useLiveLocation } from '@/components/LocationServiceProvider';
 
 interface BiometricSetupData {
   referencePhotoUrl: string;
@@ -38,6 +39,7 @@ interface BiometricSetupData {
 
 export default function AttendancePage() {
   const { data: session, status } = useSession();
+  const { location: liveLocation, permission: locationPermission, refresh: refreshLocation } = useLiveLocation();
   
   // 🔒 ENROLLMENT GATE: Check if user completed mandatory enrollment
   const [enrollmentStatus, setEnrollmentStatus] = useState<any>(null);
@@ -102,6 +104,27 @@ export default function AttendancePage() {
 
   // 🔄 FORCE REFRESH: Check URL parameter on mount
   useEffect(() => {
+    // Sync live location into local state for validations and submission
+    if (liveLocation && (!locationData || Math.abs(liveLocation.timestamp - (locationData.timestamp || 0)) > 5000)) {
+      setLocationData({
+        latitude: liveLocation.latitude,
+        longitude: liveLocation.longitude,
+        accuracy: liveLocation.accuracy,
+        timestamp: liveLocation.timestamp,
+      });
+    }
+  }, [liveLocation]);
+
+  // On page focus, attempt to refresh GPS
+  useEffect(() => {
+    const onFocus = () => {
+      try { refreshLocation(); } catch {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus);
+      return () => window.removeEventListener('focus', onFocus);
+    }
+  }, [refreshLocation]);
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('forceRefresh') === '1') {
@@ -311,7 +334,23 @@ export default function AttendancePage() {
     if (session?.user) {
       detectDeviceCapabilities();
       checkAllRequirements();
-      checkReEnrollmentRequest(); // ✅ NEW: Check if user has pending re-enrollment request
+      checkReEnrollmentRequest();
+      
+      // Periodic refresh of school config for live admin changes
+      const refreshSchoolConfig = async () => {
+        try {
+          const res = await fetch('/api/school/wifi-config?t=' + Date.now(), { cache: 'no-store' as any });
+          if (res.ok) {
+            const data = await res.json();
+            console.log('[Attendance] School config refreshed:', data);
+          }
+        } catch (e) {
+          console.warn('[Attendance] Config refresh failed:', e);
+        }
+      };
+      
+      const id = setInterval(refreshSchoolConfig, 60000); // every 60s
+      return () => clearInterval(id);
     }
   }, [session]);
   

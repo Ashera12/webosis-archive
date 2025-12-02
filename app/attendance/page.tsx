@@ -1426,7 +1426,7 @@ export default function AttendancePage() {
             errorMessage = 'Permission ditolak atau biometric dibatalkan';
             helpText = 'Coba lagi dan izinkan akses biometric';
           } else if (webauthnError.name === 'NotSupportedError') {
-            errorMessage = 'Browser tidak mendukung ' + selectedMethod.name;
+            errorMessage = 'Browser tidak mendukung ' + (selectedMethod?.name || 'biometric');
             helpText = 'Gunakan browser terbaru atau pilih mode Fingerprint';
           } else if (webauthnError.name === 'SecurityError') {
             errorMessage = 'Security error - periksa koneksi HTTPS';
@@ -1441,7 +1441,7 @@ export default function AttendancePage() {
           
           toast.error(
             <div>
-              <div className="font-bold">❌ {selectedMethod.name} Error</div>
+              <div className="font-bold">❌ {selectedMethod?.name || 'Biometric'} Error</div>
               <div className="text-sm mt-1">{errorMessage}</div>
               <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
             </div>,
@@ -3296,7 +3296,7 @@ export default function AttendancePage() {
                         <button
                           onClick={() => {
                             console.log('[Add Device] User wants to add new device biometric');
-                            toast.info(
+                            toast.success(
                               <div>
                                 <div className="font-bold">📱 Tambah Device Baru</div>
                                 <div className="text-sm mt-1">Biometric dari device lain akan tetap tersimpan</div>

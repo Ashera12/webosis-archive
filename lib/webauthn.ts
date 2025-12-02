@@ -139,6 +139,13 @@ export async function registerCredential(
   publicKey?: string;
   authenticatorData?: string;
   clientDataJSON?: string;
+  deviceInfo?: {
+    userAgent: string;
+    platform: string;
+    browser: string;
+    registeredAt: string;
+  };
+  totalDevices?: number;
   error?: string;
 }> {
   try {
@@ -231,6 +238,8 @@ export async function registerCredential(
       publicKey: verifyData.publicKey,
       authenticatorData: attestationObject,
       clientDataJSON,
+      deviceInfo: verifyData.deviceInfo, // ✅ Pass device info from API
+      totalDevices: verifyData.totalDevices, // ✅ Pass total devices from API
     };
 
   } catch (error: any) {

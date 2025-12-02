@@ -1,12 +1,17 @@
 {
   "framework": "nextjs",
   "regions": ["sin1"],
-  "buildCommand": "next build",
+  "buildCommand": "npm run build",
   "devCommand": "next dev",
-  "installCommand": "npm install",
+  "installCommand": "npm ci",
   "outputDirectory": ".next",
   "cleanUrls": true,
   "trailingSlash": false,
+  "github": {
+    "autoAlias": false,
+    "silent": false,
+    "autoJobCancelation": false
+  },
   "headers": [
     {
       "source": "/(.*)",

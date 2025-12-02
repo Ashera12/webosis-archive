@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
 
 /**
  * POST /api/security/log-location
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
     
     console.log('[Security Log] Location event:', {
       user: session.user.email,
-      event_type,
+      event_type: 'location_log',
       location: latitude ? `${latitude}, ${longitude}` : 'N/A'
     });
     

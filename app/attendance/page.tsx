@@ -2114,8 +2114,20 @@ export default function AttendancePage() {
               const allowedRadius = backgroundAnalysis?.location?.allowedRadius || 100;
               const accuracyThreshold = backgroundAnalysis?.location?.accuracyThreshold || 50;
               
+              // 🔍 DEBUG: Log GPS values
+              console.log('[Attendance] 🔍 GPS Debug:', {
+                schoolLat,
+                schoolLon,
+                type: typeof schoolLat,
+                isNull: schoolLat === null,
+                isUndefined: schoolLat === undefined,
+                isNaN: isNaN(schoolLat as any),
+                fullLocation: backgroundAnalysis?.location
+              });
+              
               // ⚠️ ERROR: School GPS not loaded from admin config!
-              if (!schoolLat || !schoolLon) {
+              // FIX: Check for null/undefined explicitly, allow 0 and negative numbers
+              if (schoolLat == null || schoolLon == null || isNaN(schoolLat) || isNaN(schoolLon)) {
                 console.error('❌ [Attendance] School GPS not configured! Admin must set location.');
                 return (
                   <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">

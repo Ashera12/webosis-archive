@@ -77,12 +77,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('[WiFi Config API] 📋 Config found:', {
-      id: config.id,
-      name: config.location_name,
-      });
-    }
-
     // Extract allowed SSIDs and IP ranges from config
     const allowedSSIDs = Array.isArray(config.allowed_wifi_ssids) 
       ? config.allowed_wifi_ssids 
@@ -92,7 +86,13 @@ export async function GET(request: NextRequest) {
       ? config.allowed_ip_ranges
       : (config.allowed_ip_ranges ? [config.allowed_ip_ranges] : ['192.168.', '10.0.', '172.16.']);
 
-    return NextResponse.json({itude,
+    return NextResponse.json({
+      allowedSSIDs,
+      allowedIPRanges,
+      config: {
+        locationName: config.location_name,
+        latitude: config.latitude,
+        longitude: config.longitude,
         radiusMeters: config.radius_meters,
         requireWiFi: config.require_wifi || false,
         isActive: config.is_active,

@@ -57,10 +57,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { referencePhotoUrl, fingerprintTemplate, webauthnCredentialId } = validation.data;
+    const { 
+      referencePhotoUrl, 
+      fingerprintTemplate, 
+      webauthnCredentialId,
+      biometricType,
+      deviceInfo
+    } = validation.data;
     
     // webauthnCredentialId is OPTIONAL (null = AI-only mode)
     console.log('[Biometric Setup] Mode:', webauthnCredentialId ? 'WebAuthn + AI' : 'AI-only');
+    console.log('[Biometric Setup] Biometric Type:', biometricType);
+    console.log('[Biometric Setup] Device Info:', deviceInfo);
 
     // SECURITY: Verify photo URL belongs to this user (prevent photo swap)
     console.log('[Biometric Setup] Validating photo ownership for user:', userId);
@@ -112,6 +120,8 @@ export async function POST(request: NextRequest) {
           reference_photo_url: referencePhotoUrl,
           fingerprint_template: fingerprintTemplate,
           webauthn_credential_id: webauthnCredentialId,
+          biometric_type: biometricType || 'fingerprint', // ✅ SAVE TYPE
+          device_info: deviceInfo || {}, // ✅ SAVE DEVICE INFO
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId)
@@ -124,10 +134,12 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('user_activities').insert({
         user_id: userId,
         activity_type: 'biometric_update',
-        description: 'Updated biometric registration (photo + fingerprint)',
+        description: `Updated biometric registration (${biometricType || 'fingerprint'})`,
         metadata: {
           photoUrl: referencePhotoUrl.substring(0, 100) + '...',
           fingerprintHash: fingerprintTemplate.substring(0, 16) + '...',
+          biometricType: biometricType || 'fingerprint', // ✅ LOG TYPE
+          deviceInfo: deviceInfo,
           hasWebAuthn: !!webauthnCredentialId,
           timestamp: new Date().toISOString()
         }
@@ -149,6 +161,8 @@ export async function POST(request: NextRequest) {
           reference_photo_url: referencePhotoUrl,
           fingerprint_template: fingerprintTemplate,
           webauthn_credential_id: webauthnCredentialId,
+          biometric_type: biometricType || 'fingerprint', // ✅ SAVE TYPE
+          device_info: deviceInfo || {}, // ✅ SAVE DEVICE INFO
         })
         .select()
         .single();
@@ -159,10 +173,12 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin.from('user_activities').insert({
         user_id: userId,
         activity_type: 'biometric_registration',
-        description: 'Registered biometric authentication (photo + fingerprint)',
+        description: `Registered biometric authentication (${biometricType || 'fingerprint'})`,
         metadata: {
           photoUrl: referencePhotoUrl.substring(0, 100) + '...',
           fingerprintHash: fingerprintTemplate.substring(0, 16) + '...',
+          biometricType: biometricType || 'fingerprint', // ✅ LOG TYPE
+          deviceInfo: deviceInfo,
           hasWebAuthn: !!webauthnCredentialId,
           registeredAt: new Date().toISOString()
         }

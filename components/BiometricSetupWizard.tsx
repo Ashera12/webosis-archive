@@ -10,8 +10,25 @@ interface BiometricSetupWizardProps {
   userName: string;
   photoBlob: Blob;
   fingerprintHash: string;
-  onComplete: (credentialId: string | null, biometricType: string) => void;
+  onComplete: (credentialId: string | null, biometricType: string, deviceInfo?: any) => void;
   onCancel: () => void;
+}
+
+// Helper functions for device detection
+function getBrowserName(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes('Chrome')) return 'Chrome';
+  if (ua.includes('Firefox')) return 'Firefox';
+  if (ua.includes('Safari')) return 'Safari';
+  if (ua.includes('Edge')) return 'Edge';
+  return 'Unknown';
+}
+
+function getDeviceType(): string {
+  const ua = navigator.userAgent;
+  if (/mobile/i.test(ua)) return 'mobile';
+  if (/tablet/i.test(ua)) return 'tablet';
+  return 'desktop';
 }
 
 export default function BiometricSetupWizard({
@@ -132,9 +149,17 @@ export default function BiometricSetupWizard({
         </div>
       );
 
-      // Complete setup
+      // Complete setup with device info
       setTimeout(() => {
-        onComplete(credentialId, selectedMethod.id);
+        // ✅ Collect device info
+        const deviceInfo = {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          browser: getBrowserName(),
+          deviceType: getDeviceType()
+        };
+        
+        onComplete(credentialId, selectedMethod.id, deviceInfo);
       }, 1500);
 
     } catch (error: any) {

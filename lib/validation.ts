@@ -40,7 +40,27 @@ export const BiometricSetupSchema = z.object({
   referencePhotoUrl: z.string().url(),
   fingerprintTemplate: z.string().min(10),
   webauthnCredentialId: z.string().nullable().optional(),
-  userId: z.string().uuid().optional()
+  userId: z.string().uuid().optional(),
+  // ✅ ADD: Track which biometric method user selected
+  biometricType: z.enum([
+    'face-id',
+    'touch-id', 
+    'fingerprint',
+    'face-unlock',
+    'windows-hello-face',
+    'windows-hello-fingerprint',
+    'windows-hello-pin',
+    'touch-id-mac',
+    'passkey',
+    'security-key',
+    'pin-code'
+  ]).optional().default('fingerprint'),
+  deviceInfo: z.object({
+    userAgent: z.string(),
+    platform: z.string(),
+    browser: z.string().optional(),
+    deviceType: z.string().optional()
+  }).optional()
 });
 
 // Biometric verification schema

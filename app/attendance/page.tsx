@@ -88,6 +88,10 @@ export default function AttendancePage() {
   const [availableMethods, setAvailableMethods] = useState<BiometricMethod[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<BiometricMethod | null>(null);
   const [showMethodSelection, setShowMethodSelection] = useState(false);
+  
+  // ✅ NEW: Track selected biometric type from wizard
+  const [selectedBiometricType, setSelectedBiometricType] = useState<string>('fingerprint');
+  const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<any>(null);
 
   // 🔄 FORCE REFRESH: Check URL parameter on mount
   useEffect(() => {
@@ -1083,13 +1087,74 @@ export default function AttendancePage() {
       
       // Show available biometric type
       console.log('[Setup] ✅ Biometric ready:', biometricTest.type);
-      toast.success(
-        <div>
-          <div className="font-bold">✅ Biometric Ready!</div>
-          <div className="text-sm mt-1">{biometricTest.icon} {biometricTest.type} available</div>
-        </div>,
-        { duration: 3000 }
-      );
+      
+      // ✅ Detect available biometric methods
+      console.log('[Setup] 🔍 Detecting biometric methods...');
+      const methods = await detectBiometricMethods();
+      console.log('[Setup] Available methods:', methods);
+      
+      // Set available methods for UI
+      setAvailableMethods(methods);
+      
+      // Auto-select primary method if only one available
+      let selectedType = 'fingerprint'; // Default fallback
+      let selectedMethodObj = methods[0] || null;
+      
+      if (methods.length === 1) {
+        selectedType = methods[0].id;
+        setSelectedBiometricType(selectedType);
+        setSelectedMethod(methods[0]);
+        console.log('[Setup] ✅ Auto-selected:', methods[0].name);
+        
+        toast.success(
+          <div>
+            <div className="font-bold">✅ Biometric Ready!</div>
+            <div className="text-sm mt-1">{methods[0].icon} {methods[0].name} detected</div>
+          </div>,
+          { duration: 3000 }
+        );
+      } else if (methods.length > 1) {
+        // Multiple methods - let user choose (TODO: show modal)
+        console.log('[Setup] 🔀 Multiple methods available, using primary:', methods[0].name);
+        selectedType = methods[0].id;
+        selectedMethodObj = methods[0];
+        setSelectedBiometricType(selectedType);
+        setSelectedMethod(methods[0]);
+        
+        toast.success(
+          <div>
+            <div className="font-bold">✅ Multiple Methods Available!</div>
+            <div className="text-sm mt-1">Using {methods[0].icon} {methods[0].name}</div>
+          </div>,
+          { duration: 3000 }
+        );
+      } else {
+        // No methods detected - fallback
+        console.warn('[Setup] ⚠️ No specific method detected, using generic biometric');
+        toast.success(
+          <div>
+            <div className="font-bold">✅ Biometric Ready!</div>
+            <div className="text-sm mt-1">{biometricTest.icon} {biometricTest.type} available</div>
+          </div>,
+          { duration: 3000 }
+        );
+      }
+      
+      // ✅ Collect device info
+      const detectedDeviceInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        browser: /Chrome/.test(navigator.userAgent) ? 'Chrome' :
+                 /Firefox/.test(navigator.userAgent) ? 'Firefox' :
+                 /Safari/.test(navigator.userAgent) ? 'Safari' :
+                 /Edge/.test(navigator.userAgent) ? 'Edge' : 'Unknown',
+        deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' :
+                    /tablet/i.test(navigator.userAgent) ? 'tablet' : 'desktop',
+        biometricMethod: selectedMethodObj?.name || biometricTest.type
+      };
+      
+      setSelectedDeviceInfo(detectedDeviceInfo);
+      console.log('[Setup] 📱 Device info collected:', detectedDeviceInfo);
       
       // Step 2: Upload photo
       const uploadToast = toast.loading('📤 Mengupload foto...');
@@ -1164,10 +1229,24 @@ export default function AttendancePage() {
       console.log('[Setup] 💾 Saving biometric data to database...');
       console.log('[Setup] Mode:', webauthnCredentialId ? 'WebAuthn + AI' : 'AI-only');
       
+      // ✅ Collect device info from wizard or detect manually
+      const deviceInfo = selectedDeviceInfo || {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        browser: /Chrome/.test(navigator.userAgent) ? 'Chrome' :
+                 /Firefox/.test(navigator.userAgent) ? 'Firefox' :
+                 /Safari/.test(navigator.userAgent) ? 'Safari' :
+                 /Edge/.test(navigator.userAgent) ? 'Edge' : 'Unknown',
+        deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' :
+                    /tablet/i.test(navigator.userAgent) ? 'tablet' : 'desktop'
+      };
+      
       const setupPayload = {
         referencePhotoUrl: photoUrl,
         fingerprintTemplate: fingerprintHash,
         webauthnCredentialId: webauthnCredentialId, // null = AI-only mode
+        biometricType: selectedBiometricType, // ✅ Use wizard selection instead of hardcoded
+        deviceInfo: deviceInfo // ✅ Use device info from wizard or fallback
       };
       
       console.log('[Setup] Setup payload:', setupPayload);

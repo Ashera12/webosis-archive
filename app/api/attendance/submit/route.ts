@@ -419,6 +419,7 @@ export async function POST(request: NextRequest) {
         wifi_ssid: body.wifiSSID,
         wifi_bssid: body.wifiBSSID,
         is_enrollment_attendance: isFirstTimeAttendance, // NEW: Flag for first-time enrollment
+        biometric_method_used: biometric?.biometric_type || 'fingerprint', // ✅ NEW: Log which method was used
         device_info: {
           ...body.deviceInfo,
           // Enhanced security tracking
@@ -433,6 +434,8 @@ export async function POST(request: NextRequest) {
           is_mobile: deviceInfo.is_mobile,
           // AI Verification Data
           ai_verification: body.aiVerification || null,
+          // Biometric device info
+          biometric_device: biometric?.device_info || null,
         },
         notes: body.notes,
         status: 'present',

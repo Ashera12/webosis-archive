@@ -1838,7 +1838,6 @@ export default function AttendancePage() {
           { duration: 7000 }
         );
         // ✅ Don't block - continue to AI verification
-        }
       }
       
       // ===== 5. ALL VERIFICATIONS PASSED =====

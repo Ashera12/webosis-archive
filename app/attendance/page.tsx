@@ -46,7 +46,7 @@ export default function AttendancePage() {
   // 🔒 USE BACKGROUND SECURITY ANALYSIS (runs on login)
   const { result: backgroundAnalysis, isReady, isBlocked, blockReasons } = useSecurityAnalysis();
   
-  const [step, setStep] = useState<'check' | 'setup' | 'ready' | 'verify-biometric' | 'capture' | 'submitting' | 'blocked'>('check');
+  const [step, setStep] = useState<'check' | 'select-method' | 'setup' | 'ready' | 'verify-biometric' | 'capture' | 'submitting' | 'blocked'>('check');
   const [hasSetup, setHasSetup] = useState(false);
   const [requirements, setRequirements] = useState({
     role: false,
@@ -84,6 +84,8 @@ export default function AttendancePage() {
   
   // Re-enrollment request state
   const [reEnrollmentStatus, setReEnrollmentStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
+  const [showReEnrollmentForm, setShowReEnrollmentForm] = useState(false);
+  const [reEnrollmentReason, setReEnrollmentReason] = useState('');
   
   // Biometric methods detection
   const [availableMethods, setAvailableMethods] = useState<BiometricMethod[]>([]);
@@ -255,6 +257,7 @@ export default function AttendancePage() {
     if (session?.user) {
       detectDeviceCapabilities();
       checkAllRequirements();
+      checkReEnrollmentRequest(); // ✅ NEW: Check if user has pending re-enrollment request
     }
   }, [session]);
   
@@ -588,6 +591,61 @@ export default function AttendancePage() {
     } else {
       setAuthMethod('ai-face');
       console.log('[Device] ⚠️ WebAuthn unavailable, using AI Face Verification');
+    }
+  };
+
+  // ===== 🔄 CHECK RE-ENROLLMENT REQUEST STATUS =====
+  const checkReEnrollmentRequest = async () => {
+    try {
+      const response = await fetch('/api/attendance/biometric/request-reenrollment');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasRequest) {
+          setReEnrollmentStatus(data.status);
+          setEnrollmentStatus(data.data);
+          console.log('[Re-enrollment] Status:', data.status, data.data);
+        }
+      }
+    } catch (error) {
+      console.error('[Re-enrollment] Check failed:', error);
+    }
+  };
+
+  // ===== 📝 SUBMIT RE-ENROLLMENT REQUEST =====
+  const handleSubmitReEnrollmentRequest = async () => {
+    if (!reEnrollmentReason.trim() || reEnrollmentReason.trim().length < 10) {
+      toast.error('Alasan harus diisi minimal 10 karakter');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const response = await fetch('/api/attendance/biometric/request-reenrollment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: reEnrollmentReason.trim(),
+          newMethod: selectedMethod?.id || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('✅ Request berhasil dikirim ke admin!');
+        setReEnrollmentStatus('pending');
+        setShowReEnrollmentForm(false);
+        setReEnrollmentReason('');
+        checkReEnrollmentRequest(); // Refresh status
+      } else {
+        toast.error(data.error || 'Gagal submit request');
+      }
+    } catch (error: any) {
+      console.error('[Re-enrollment] Submit failed:', error);
+      toast.error('Error: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1192,53 +1250,68 @@ export default function AttendancePage() {
       toast.dismiss(uploadToast);
       toast.success('✅ Foto berhasil diupload!');
       
-      // Step 3: Register WebAuthn credential (OPTIONAL - fallback to AI-only if fails)
-      console.log('[Setup] 🔐 Attempting WebAuthn credential registration...');
+      // Step 3: Register WebAuthn credential (CONDITIONAL - based on selected method)
+      console.log('[Setup] 🔐 Selected Method:', selectedMethod?.name, '(', selectedBiometricType, ')');
+      console.log('[Setup] Attempting WebAuthn credential registration...');
       
       const registerToast = toast.loading(
         <div>
-          <div className="font-bold">🔐 Setting up biometric...</div>
-          <div className="text-sm mt-1">{biometricTest.icon} Please authenticate with {biometricTest.type}</div>
+          <div className="font-bold">🔐 Setting up {selectedMethod?.name || 'Biometric'}...</div>
+          <div className="text-sm mt-1">{selectedMethod?.icon || '🔐'} Please authenticate with your device</div>
         </div>
       );
       
       let webauthnCredentialId: string | null = null;
       
-      try {
-        const webauthnResult = await registerCredential(
-          session.user.id,
-          session.user.email || 'user',
-          session.user.name || 'User'
-        );
-        console.log('[Setup] WebAuthn result:', webauthnResult);
+      // ✅ ONLY REGISTER WebAuthn IF METHOD SUPPORTS IT
+      const shouldRegisterWebAuthn = selectedMethod && 
+        ['face-id', 'touch-id', 'passkey', 'windows-hello'].includes(selectedMethod.id);
+      
+      if (shouldRegisterWebAuthn) {
+        console.log('[Setup] ✅ Method supports WebAuthn, registering...');
         
-        if (webauthnResult.success) {
-          webauthnCredentialId = webauthnResult.credentialId || null;
-          console.log('[Setup] ✅ WebAuthn credential registered!');
-          console.log('[Setup] Credential ID:', webauthnCredentialId);
-          toast.dismiss(registerToast);
-          toast.success('✅ Biometric authentication configured!');
-        } else {
-          throw new Error(webauthnResult.error || 'Registration failed');
-        }
-      } catch (webauthnError: any) {
-        toast.dismiss(registerToast);
-        console.warn('[Setup] ⚠️ WebAuthn registration failed:', webauthnError.message);
-        console.log('[Setup] 📱 Continuing with AI-only biometric mode...');
-        
-        // Show info but continue - this is not a fatal error
-        toast(
-          <div>
-            <div className="font-bold">⚠️ Platform biometric unavailable</div>
-            <div className="text-sm mt-1">Menggunakan AI Face Recognition saja</div>
-          </div>,
-          { 
-            duration: 3000,
-            icon: '⚠️',
+        try {
+          const webauthnResult = await registerCredential(
+            session.user.id,
+            session.user.email || 'user',
+            session.user.name || 'User'
+          );
+          console.log('[Setup] WebAuthn result:', webauthnResult);
+          
+          if (webauthnResult.success) {
+            webauthnCredentialId = webauthnResult.credentialId || null;
+            console.log('[Setup] ✅ WebAuthn credential registered!');
+            console.log('[Setup] Credential ID:', webauthnCredentialId);
+            toast.dismiss(registerToast);
+            toast.success(`✅ ${selectedMethod.name} berhasil didaftarkan!`);
+          } else {
+            throw new Error(webauthnResult.error || 'Registration failed');
           }
+        } catch (webauthnError: any) {
+          toast.dismiss(registerToast);
+          console.warn('[Setup] ⚠️ WebAuthn registration failed:', webauthnError.message);
+          console.log('[Setup] 📱 Falling back to AI-only mode...');
+          
+          toast(
+            <div>
+              <div className="font-bold">⚠️ {selectedMethod.name} tidak tersedia</div>
+              <div className="text-sm mt-1">Menggunakan AI Face Recognition saja</div>
+            </div>,
+            { 
+              duration: 3000,
+              icon: '⚠️',
+            }
+          );
+          
+          webauthnCredentialId = null;
+        }
+      } else {
+        console.log('[Setup] ℹ️ Method does not use WebAuthn (fingerprint/AI-only)');
+        toast.dismiss(registerToast);
+        toast(
+          'Menggunakan AI Face Recognition + Browser Fingerprint',
+          { icon: 'ℹ️', duration: 3000 }
         );
-        
-        // Don't throw - continue with AI-only mode
         webauthnCredentialId = null;
       }
       
@@ -1455,46 +1528,64 @@ export default function AttendancePage() {
       console.log('[Biometric Verify] ✅ Registration confirmed');
       console.log('[Biometric Verify] Verification result:', biometricData);
       
-      // ===== 2. CHECK VERIFICATION RESULT =====
+      // ===== 2. GET ENROLLED BIOMETRIC TYPE FROM DATABASE =====
+      const enrolledBiometricType = biometricData.biometricData?.biometric_type || 'fingerprint';
+      const hasWebAuthn = biometricData.biometricData?.hasWebAuthn;
+      
+      console.log('[Biometric Verify] 📋 Enrolled method:', enrolledBiometricType);
+      console.log('[Biometric Verify] 📋 Has WebAuthn:', hasWebAuthn);
+      
+      // Find the method details
+      const enrolledMethod = availableMethods.find(m => m.id === enrolledBiometricType) || {
+        id: enrolledBiometricType,
+        name: enrolledBiometricType.toUpperCase(),
+        icon: '🔐',
+        description: 'Enrolled biometric method'
+      };
+      
       toast.dismiss(verifyToast);
       
+      // ===== 3. CHECK BROWSER FINGERPRINT (NON-BLOCKING) =====
       const fingerprintPassed = biometricData.checks?.fingerprint?.passed;
       
       if (!fingerprintPassed) {
-        console.warn('[Biometric Verify] ⚠️ Fingerprint mismatch!');
-        toast.error(
+        console.warn('[Biometric Verify] ⚠️ Browser fingerprint mismatch (non-blocking)');
+        console.warn('[Biometric Verify] Reason: Browser updates/settings can change fingerprint');
+        
+        toast(
           <div>
-            <div className="font-bold">⚠️ Device Berbeda</div>
-            <div className="text-sm mt-1">Fingerprint tidak cocok dengan yang terdaftar</div>
-            <div className="text-xs mt-2">Silakan gunakan device yang sama atau daftar ulang</div>
+            <div className="font-bold">⚠️ Browser Fingerprint Changed</div>
+            <div className="text-sm mt-1">Device fingerprint berbeda (normal jika browser di-update)</div>
+            <div className="text-xs mt-2 text-gray-600">✓ Akan menggunakan {enrolledMethod.name} sebagai primary security</div>
           </div>,
-          { duration: 7000 }
+          { 
+            duration: 5000,
+            icon: '⚠️'
+          }
         );
-        setStep('ready');
-        setLoading(false);
-        return false;
+        
+        console.log('[Biometric Verify] ▶️ Continuing with', enrolledMethod.name);
+      } else {
+        console.log('[Biometric Verify] ✅ Browser fingerprint matched!');
+        
+        toast.success(
+          <div>
+            <div className="font-bold">✅ Device Dikenali!</div>
+            <div className="text-sm mt-1">🔐 Browser fingerprint cocok</div>
+          </div>,
+          { duration: 2000 }
+        );
       }
       
-      console.log('[Biometric Verify] ✅ Fingerprint matched!');
-      
-      toast.success(
-        <div>
-          <div className="font-bold">✅ Fingerprint Verified!</div>
-          <div className="text-sm mt-1">🔐 Device dikenali</div>
-        </div>,
-        { duration: 2000 }
-      );
-      
-      // ===== 3. CHECK IF HAS WEBAUTHN (from database) =====
-      const hasWebAuthn = biometricData.biometricData?.hasWebAuthn;
-      
-      if (hasWebAuthn) {
-        console.log('[Biometric Verify] WebAuthn credential detected, attempting authentication...');
+      // ===== 4. VERIFY USING ENROLLED METHOD =====
+      if (hasWebAuthn && ['face-id', 'touch-id', 'passkey', 'windows-hello'].includes(enrolledBiometricType)) {
+        console.log('[Biometric Verify] 🔐 Enrolled method uses WebAuthn, authenticating...');
+        console.log('[Biometric Verify] Method:', enrolledMethod.name);
         
         const webauthnToast = toast.loading(
           <div>
-            <div className="font-bold">🔐 {getAuthenticatorName()}</div>
-            <div className="text-sm mt-1">Tunggu prompt biometric...</div>
+            <div className="font-bold">🔐 {enrolledMethod.name}</div>
+            <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt {enrolledMethod.name}...</div>
           </div>
         );
         
@@ -1504,31 +1595,52 @@ export default function AttendancePage() {
           toast.dismiss(webauthnToast);
           
           if (webauthnResult.success) {
-            console.log('[Biometric Verify] ✅ WebAuthn verified!');
+            console.log('[Biometric Verify] ✅', enrolledMethod.name, 'verified!');
             toast.success(
               <div>
-                <div className="font-bold">✅ {getAuthenticatorName()} Verified!</div>
-                <div className="text-sm mt-1">{getAuthenticatorIcon()} Biometric authentication successful</div>
+                <div className="font-bold">✅ {enrolledMethod.name} Verified!</div>
+                <div className="text-sm mt-1">{enrolledMethod.icon} Biometric authentication successful</div>
               </div>,
               { duration: 2000 }
             );
           } else {
-            console.log('[Biometric Verify] ⚠️ WebAuthn skipped or failed');
+            console.warn('[Biometric Verify] ⚠️', enrolledMethod.name, 'verification failed');
+            toast.dismiss(webauthnToast);
+            toast.error(
+              <div>
+                <div className="font-bold">❌ {enrolledMethod.name} Gagal</div>
+                <div className="text-sm mt-1">Silakan coba lagi atau gunakan AI Face Recognition</div>
+              </div>,
+              { duration: 5000 }
+            );
+            // Don't block - continue to AI verification
           }
-        } catch (webauthnError) {
+        } catch (webauthnError: any) {
           toast.dismiss(webauthnToast);
-          console.log('[Biometric Verify] WebAuthn error (non-fatal):', webauthnError);
+          console.error('[Biometric Verify] WebAuthn error:', webauthnError);
+          toast.error(
+            <div>
+              <div className="font-bold">❌ {enrolledMethod.name} Error</div>
+              <div className="text-sm mt-1">{webauthnError.message || 'Authentication failed'}</div>
+            </div>,
+            { duration: 5000 }
+          );
+          // Don't block - continue to AI verification
         }
+      } else {
+        console.log('[Biometric Verify] ℹ️ Method does not use WebAuthn:', enrolledBiometricType);
+        console.log('[Biometric Verify] Will use AI Face Recognition for verification');
       }
       
-      // ===== ALL VERIFICATIONS PASSED =====
-      console.log('[Biometric Verify] 🎉 All biometric verifications passed!');
+      // ===== 5. ALL VERIFICATIONS PASSED =====
+      console.log('[Biometric Verify] 🎉 Biometric verification complete!');
+      console.log('[Biometric Verify] Method used:', enrolledMethod.name);
       
       toast.success(
         <div>
           <div className="font-bold text-lg">🎉 Verifikasi Berhasil!</div>
           <div className="text-sm mt-2 space-y-1">
-            <div>✅ Fingerprint: Cocok</div>
+            <div>✅ {enrolledMethod.icon} {enrolledMethod.name}: Ready</div>
             <div>✅ Device: Terdaftar</div>
             <div>✅ Identitas: Terverifikasi</div>
           </div>
@@ -2119,21 +2231,123 @@ export default function AttendancePage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border-2 border-orange-200 dark:border-orange-700">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Setup Biometric Pertama Kali</h2>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">
-              Anda perlu mendaftarkan foto selfie dan sidik jari browser untuk verifikasi absensi.
+              Anda perlu mendaftarkan foto selfie dan biometric untuk verifikasi absensi.
             </p>
 
-            {!photoPreview ? (
-              <button
-                onClick={handleCapturePhoto}
-                disabled={loading}
-                className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50"
-              >
-                <FaCamera className="text-lg sm:text-xl" />
-                {loading ? 'Mengambil Foto...' : 'Ambil Foto Selfie'}
-              </button>
+            {/* ✅ STEP 1: PILIH METODE BIOMETRIC */}
+            {!selectedMethod ? (
+              <div className="space-y-4">
+                <div className="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-700 rounded-xl p-4">
+                  <h3 className="font-bold text-purple-900 dark:text-purple-100 mb-3 flex items-center gap-2">
+                    🔐 Pilih Metode Biometric
+                  </h3>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mb-4">
+                    Pilih metode yang tersedia di perangkat Anda:
+                  </p>
+                  
+                  <div className="space-y-2">
+                    {availableMethods.filter(m => m.available).map(method => (
+                      <button
+                        key={method.id}
+                        onClick={() => {
+                          setSelectedMethod(method);
+                          setSelectedBiometricType(method.id); // ✅ Set type from method ID
+                          console.log('[Setup] ✅ User selected:', method.name, '(', method.id, ')');
+                          toast.success(`Metode terpilih: ${method.name}`);
+                        }}
+                        className="w-full bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-700 transition-all flex items-center gap-3 text-left hover:shadow-lg"
+                      >
+                        <span className="text-3xl">{method.icon}</span>
+                        <div className="flex-1">
+                          <div className="font-bold text-gray-900 dark:text-white">
+                            {method.name}
+                            {method.primary && (
+                              <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">
+                                Rekomendasi
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            {method.description}
+                          </div>
+                        </div>
+                        <div className="text-purple-500 text-2xl">→</div>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {availableMethods.filter(m => m.available).length === 0 && (
+                    <div className="text-center text-red-600 dark:text-red-400 py-4">
+                      ❌ Tidak ada metode biometric yang tersedia di perangkat Anda.
+                      <br />
+                      <span className="text-sm">Gunakan browser yang mendukung WebAuthn (Chrome, Edge, Safari, Firefox)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : !photoPreview ? (
+              /* ✅ STEP 2: FOTO SELFIE */
+              <div className="space-y-4">
+                {/* Show selected method */}
+                <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{selectedMethod.icon}</span>
+                    <div>
+                      <div className="font-bold text-green-900 dark:text-green-100 text-sm">
+                        Metode Terpilih: {selectedMethod.name}
+                      </div>
+                      <div className="text-xs text-green-700 dark:text-green-300">
+                        {selectedMethod.description}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedMethod(null);
+                        setSelectedBiometricType('fingerprint');
+                        toast('Silakan pilih metode lagi', { icon: 'ℹ️' });
+                      }}
+                      className="ml-auto text-sm text-green-600 dark:text-green-400 underline hover:text-green-800"
+                    >
+                      Ganti
+                    </button>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleCapturePhoto}
+                  disabled={loading}
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-50"
+                >
+                  <FaCamera className="text-lg sm:text-xl" />
+                  {loading ? 'Mengambil Foto...' : '📸 Ambil Foto Selfie'}
+                </button>
+              </div>
             ) : (
+              /* ✅ STEP 3: KONFIRMASI & DAFTAR */
               <div className="space-y-3 sm:space-y-4">
+                {/* Show selected method */}
+                <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-xl">{selectedMethod.icon}</span>
+                    <span className="font-bold text-green-900 dark:text-green-100">
+                      {selectedMethod.name}
+                    </span>
+                  </div>
+                </div>
+                
                 <img src={photoPreview} alt="Selfie" className="w-full rounded-xl shadow-lg" />
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-xs">
+                  <p className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                    ℹ️ Yang akan didaftarkan:
+                  </p>
+                  <ul className="text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                    <li>Foto selfie untuk AI Face Recognition</li>
+                    <li>{selectedMethod.icon} {selectedMethod.name} untuk verifikasi cepat</li>
+                    <li>Browser fingerprint (opsional, tidak wajib cocok)</li>
+                  </ul>
+                </div>
+                
                 <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
@@ -2149,7 +2363,7 @@ export default function AttendancePage() {
                     disabled={loading}
                     className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-xl transition-all active:scale-95 disabled:opacity-50"
                   >
-                    {loading ? 'Menyimpan...' : 'Daftar Biometric'}
+                    {loading ? 'Menyimpan...' : `🔐 Daftar ${selectedMethod.name}`}
                   </button>
                 </div>
               </div>
@@ -2702,6 +2916,7 @@ export default function AttendancePage() {
                           key={method.id}
                           onClick={() => {
                             setSelectedMethod(method);
+                            setSelectedBiometricType(method.id); // ✅ Save selected type
                             setShowMethodSelection(false);
                             toast.success(`Metode diubah ke: ${method.name}`);
                           }}
@@ -2845,74 +3060,78 @@ export default function AttendancePage() {
                     </p>
                   </div>
                 ) : (
-                  <button
-                    onClick={async () => {
-                      if (!session?.user?.id) {
-                        toast.error('Silakan login terlebih dahulu');
-                        return;
-                      }
-
-                      const reason = prompt(
-                        '📝 Alasan Re-enrollment (minimal 10 karakter):\n\n' +
-                        'Contoh:\n' +
-                        '- Ganti perangkat/HP baru\n' +
-                        '- Biometrik tidak berfungsi\n' +
-                        '- Data rusak/error\n\n' +
-                        'Masukkan alasan Anda:'
-                      );
-
-                      if (!reason || reason.trim().length < 10) {
-                        toast.error('Alasan terlalu pendek (minimal 10 karakter)');
-                        return;
-                      }
-
-                      const loadingToast = toast.loading('📨 Mengirim permintaan re-enrollment...');
-
-                      try {
-                        const response = await fetch('/api/attendance/request-re-enrollment', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ reason: reason.trim() })
-                        });
-
-                        const data = await response.json();
-
-                        toast.dismiss(loadingToast);
-
-                        if (!response.ok || !data.success) {
-                          if (data.status === 'pending') {
-                            toast.error('⏳ Permintaan Anda sudah dikirim sebelumnya dan sedang menunggu persetujuan admin', {
-                              duration: 5000
-                            });
-                            setReEnrollmentStatus('pending');
-                          } else {
-                            toast.error(data.error || 'Gagal mengirim permintaan');
-                          }
-                          return;
-                        }
-
-                        setReEnrollmentStatus('pending');
+                  <>
+                    {!showReEnrollmentForm ? (
+                      <button
+                        onClick={() => setShowReEnrollmentForm(true)}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="text-xl">🔄</span>
+                        Request Re-enrollment Biometrik
+                      </button>
+                    ) : (
+                      <div className="bg-white dark:bg-gray-800 border-2 border-orange-300 dark:border-orange-700 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-bold text-gray-900 dark:text-white">
+                            📝 Request Re-enrollment
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setShowReEnrollmentForm(false);
+                              setReEnrollmentReason('');
+                            }}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            ✕
+                          </button>
+                        </div>
                         
-                        toast.success(
-                          '✅ Permintaan re-enrollment berhasil dikirim!\n\n' +
-                          'Admin akan meninjau permintaan Anda.\n' +
-                          'Anda akan dihubungi setelah disetujui.',
-                          { duration: 7000 }
-                        );
-
-                      } catch (error: any) {
-                        toast.dismiss(loadingToast);
-                        console.error('Re-enrollment request error:', error);
-                        toast.error('Terjadi kesalahan: ' + error.message);
-                      }
-                    }}
-                    className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm sm:text-base font-semibold rounded-xl hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Request Re-enrollment Biometrik
-                  </button>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                              Alasan Re-enrollment
+                            </label>
+                            <textarea
+                              value={reEnrollmentReason}
+                              onChange={(e) => setReEnrollmentReason(e.target.value)}
+                              placeholder="Contoh: Ganti perangkat baru, Face ID tidak berfungsi, dll (minimal 10 karakter)"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white text-sm"
+                              rows={4}
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {reEnrollmentReason.length}/10 karakter minimum
+                            </p>
+                          </div>
+                          
+                          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-xs">
+                            <p className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                              ℹ️ Informasi:
+                            </p>
+                            <ul className="text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                              <li>Request akan dikirim ke admin untuk review</li>
+                              <li>Setelah disetujui, Anda dapat mendaftar ulang biometrik</li>
+                              <li>Proses biasanya 1-2 hari kerja</li>
+                            </ul>
+                          </div>
+                          
+                          <button
+                            onClick={handleSubmitReEnrollmentRequest}
+                            disabled={loading || reEnrollmentReason.trim().length < 10}
+                            className="w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loading ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Mengirim...
+                              </span>
+                            ) : (
+                              '📨 Kirim Request ke Admin'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

@@ -31,6 +31,21 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+    
+    // ✅ Detect device info for multi-device tracking
+    const userAgent = request.headers.get('user-agent') || 'Unknown';
+    const deviceInfo = {
+      userAgent,
+      platform: userAgent.includes('Windows') ? 'Windows' :
+                userAgent.includes('Mac') ? 'macOS' :
+                userAgent.includes('Android') ? 'Android' :
+                userAgent.includes('iPhone') || userAgent.includes('iPad') ? 'iOS' : 'Unknown',
+      browser: userAgent.includes('Chrome') ? 'Chrome' :
+               userAgent.includes('Firefox') ? 'Firefox' :
+               userAgent.includes('Safari') ? 'Safari' :
+               userAgent.includes('Edge') ? 'Edge' : 'Unknown',
+      registeredAt: new Date().toISOString(),
+    };
 
     // Verify challenge exists and not expired
     const { data: challengeData, error: challengeError } = await supabase
@@ -83,7 +98,7 @@ export async function POST(request: NextRequest) {
       // Don't fail on origin mismatch in development
     }
 
-    // Store credential in database
+    // Store credential in database (upsert = add new without deleting old)
     const { data: credential, error: credentialError } = await supabase
       .from('webauthn_credentials')
       .upsert({
@@ -92,6 +107,7 @@ export async function POST(request: NextRequest) {
         public_key: attestationObject, // Stored for future verification
         counter: 0,
         transports: ['internal'], // Platform authenticator
+        device_info: deviceInfo, // ✅ Track which device registered this credential
         created_at: new Date().toISOString(),
         last_used_at: new Date().toISOString(),
       })
@@ -106,6 +122,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Count total devices for this user
+    const { count: deviceCount } = await supabase
+      .from('webauthn_credentials')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    console.log('[WebAuthn] ✅ Credential registered for:', userId);
+    console.log('[WebAuthn] 📱 Device:', deviceInfo.platform, '-', deviceInfo.browser);
+    console.log('[WebAuthn] 🔢 Total devices enrolled:', deviceCount);
+
     // Delete used challenge
     await supabase
       .from('webauthn_challenges')
@@ -113,12 +139,12 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId)
       .eq('type', 'registration');
 
-    console.log('[WebAuthn] ✅ Credential registered for:', userId);
-
     return NextResponse.json({
       success: true,
       credentialId,
       publicKey: attestationObject,
+      deviceInfo, // ✅ Return device info
+      totalDevices: deviceCount || 1, // ✅ Return total enrolled devices
     });
 
   } catch (error: any) {

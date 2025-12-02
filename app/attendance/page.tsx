@@ -1355,13 +1355,21 @@ export default function AttendancePage() {
             webauthnCredentialId = webauthnResult.credentialId || null;
             console.log('[Setup] ✅ WebAuthn credential registered!');
             console.log('[Setup] Credential ID:', webauthnCredentialId);
+            console.log('[Setup] 📱 Device:', webauthnResult.deviceInfo?.platform, '-', webauthnResult.deviceInfo?.browser);
+            console.log('[Setup] 🔢 Total devices enrolled:', webauthnResult.totalDevices);
+            
             toast.dismiss(registerToast);
             toast.success(
               <div>
                 <div className="font-bold">✅ {selectedMethod?.name || 'Biometric'} Registered!</div>
                 <div className="text-sm mt-1">{selectedMethod?.icon || '🔐'} Device biometric berhasil didaftarkan</div>
+                {webauthnResult.totalDevices && webauthnResult.totalDevices > 1 && (
+                  <div className="text-xs mt-2 opacity-80">
+                    📱 Total {webauthnResult.totalDevices} device terdaftar
+                  </div>
+                )}
               </div>,
-              { duration: 3000 }
+              { duration: 4000 }
             );
           } else {
             // Enhanced error messages for failed registration
@@ -3283,13 +3291,46 @@ export default function AttendancePage() {
                 ) : (
                   <>
                     {!showReEnrollmentForm ? (
-                      <button
-                        onClick={() => setShowReEnrollmentForm(true)}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                      >
-                        <span className="text-xl">🔄</span>
-                        Request Re-enrollment Biometrik
-                      </button>
+                      <div className="space-y-3">
+                        {/* Add New Device Button - Tidak hapus device lama */}
+                        <button
+                          onClick={() => {
+                            console.log('[Add Device] User wants to add new device biometric');
+                            toast.info(
+                              <div>
+                                <div className="font-bold">📱 Tambah Device Baru</div>
+                                <div className="text-sm mt-1">Biometric dari device lain akan tetap tersimpan</div>
+                              </div>,
+                              { duration: 3000 }
+                            );
+                            setStep('setup'); // Langsung ke setup
+                          }}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                        >
+                          <span className="text-xl">📱</span>
+                          Tambah Device Baru (Multi-Device)
+                        </button>
+                        
+                        {/* Re-enrollment Button - Hapus semua device lama */}
+                        <button
+                          onClick={() => setShowReEnrollmentForm(true)}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                        >
+                          <span className="text-xl">🔄</span>
+                          Request Re-enrollment (Reset Semua)
+                        </button>
+                        
+                        {/* Info Box */}
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-xs">
+                          <p className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                            💡 Perbedaan:
+                          </p>
+                          <ul className="text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                            <li><strong>Tambah Device Baru:</strong> Biometric device lain tetap tersimpan (laptop + HP)</li>
+                            <li><strong>Re-enrollment:</strong> Hapus semua device lama, daftar ulang dari nol</li>
+                          </ul>
+                        </div>
+                      </div>
                     ) : (
                       <div className="bg-white dark:bg-gray-800 border-2 border-orange-300 dark:border-orange-700 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-3">

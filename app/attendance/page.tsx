@@ -95,6 +95,10 @@ export default function AttendancePage() {
   // ✅ NEW: Track selected biometric type from wizard
   const [selectedBiometricType, setSelectedBiometricType] = useState<string>('fingerprint');
   const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<any>(null);
+  
+  // 🌐 BROWSER COMPATIBILITY
+  const [webauthnSupported, setWebauthnSupported] = useState<boolean | null>(null);
+  const [platformAuthAvailable, setPlatformAuthAvailable] = useState<boolean | null>(null);
 
   // 🔄 FORCE REFRESH: Check URL parameter on mount
   useEffect(() => {
@@ -109,6 +113,56 @@ export default function AttendancePage() {
         console.log('[Attendance] ✅ URL cleaned, analyzer will bypass cache');
       }
     }
+  }, []);
+  
+  // 🌐 CHECK BROWSER COMPATIBILITY ON MOUNT
+  useEffect(() => {
+    const checkBrowserSupport = async () => {
+      console.log('[Browser Check] 🌐 Checking WebAuthn support...');
+      
+      const { isWebAuthnSupported, isPlatformAuthenticatorAvailable } = await import('@/lib/webauthn');
+      const supported = isWebAuthnSupported();
+      setWebauthnSupported(supported);
+      
+      if (!supported) {
+        console.warn('[Browser Check] ❌ WebAuthn NOT supported');
+        toast.error(
+          <div>
+            <div className="font-bold">❌ Browser Tidak Mendukung Biometric</div>
+            <div className="text-sm mt-1">Gunakan browser terbaru: Chrome 67+, Edge 18+, Safari 13+, Firefox 60+</div>
+            <div className="text-xs mt-2 opacity-80">WebAuthn diperlukan untuk Face ID, Touch ID, Windows Hello</div>
+          </div>,
+          { duration: 10000 }
+        );
+        return;
+      }
+      
+      console.log('[Browser Check] ✅ WebAuthn supported');
+      
+      try {
+        const platformAvailable = await isPlatformAuthenticatorAvailable();
+        setPlatformAuthAvailable(platformAvailable);
+        
+        if (!platformAvailable) {
+          console.warn('[Browser Check] ⚠️ Platform authenticator not available');
+          toast(
+            <div>
+              <div className="font-bold">⚠️ Biometric Device Tidak Terdeteksi</div>
+              <div className="text-sm mt-1">Pastikan device memiliki Face ID, Touch ID, atau Windows Hello</div>
+              <div className="text-xs mt-2 opacity-80">Atau gunakan security key eksternal</div>
+            </div>,
+            { duration: 8000, icon: '⚠️' }
+          );
+        } else {
+          console.log('[Browser Check] ✅ Platform authenticator available');
+        }
+      } catch (error) {
+        console.error('[Browser Check] Error checking platform authenticator:', error);
+        setPlatformAuthAvailable(false);
+      }
+    };
+    
+    checkBrowserSupport();
   }, []);
 
   useEffect(() => {
@@ -1270,6 +1324,27 @@ export default function AttendancePage() {
       if (shouldRegisterWebAuthn) {
         console.log('[Setup] ✅ Method supports WebAuthn, registering...');
         
+        // Check browser support before attempting
+        if (webauthnSupported === false) {
+          toast.dismiss(registerToast);
+          console.error('[Setup] ❌ Browser does not support WebAuthn');
+          toast.error(
+            <div>
+              <div className="font-bold">❌ Browser Tidak Support {selectedMethod.name}</div>
+              <div className="text-sm mt-1">Upgrade browser Anda ke versi terbaru:</div>
+              <ul className="text-xs mt-2 list-disc list-inside space-y-1">
+                <li>Chrome 67+ atau Edge 18+</li>
+                <li>Safari 13+ (iOS/macOS)</li>
+                <li>Firefox 60+</li>
+              </ul>
+              <div className="text-xs mt-2 opacity-80">Atau pilih "Fingerprint" yang menggunakan AI Face Recognition</div>
+            </div>,
+            { duration: 10000 }
+          );
+          setLoading(false);
+          return;
+        }
+        
         try {
           const webauthnResult = await registerCredential(
             session.user.id,
@@ -1285,24 +1360,74 @@ export default function AttendancePage() {
             toast.dismiss(registerToast);
             toast.success(`✅ ${selectedMethod.name} berhasil didaftarkan!`);
           } else {
-            throw new Error(webauthnResult.error || 'Registration failed');
+            // Enhanced error messages for failed registration
+            let errorTitle = '⚠️ ' + selectedMethod.name + ' Tidak Tersedia';
+            let errorDetails = webauthnResult.error || 'Pendaftaran gagal';
+            let helpText = '';
+            
+            if (webauthnResult.error?.includes('cancelled') || webauthnResult.error?.includes('not available')) {
+              errorDetails = 'Biometric dibatalkan atau tidak tersedia di device ini';
+              helpText = 'Gunakan AI Face Recognition sebagai fallback';
+            } else if (webauthnResult.error?.includes('not supported')) {
+              errorDetails = 'Browser atau device tidak mendukung ' + selectedMethod.name;
+              helpText = 'Upgrade browser atau gunakan mode Fingerprint';
+            } else if (webauthnResult.error?.includes('HTTPS')) {
+              errorDetails = 'WebAuthn memerlukan koneksi HTTPS';
+              helpText = 'Pastikan mengakses via https:// atau localhost';
+            } else if (webauthnResult.error?.includes('timeout')) {
+              errorDetails = 'Waktu habis - tidak ada respons dari biometric';
+              helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+            }
+            
+            toast.dismiss(registerToast);
+            toast.warn(
+              <div>
+                <div className="font-bold">{errorTitle}</div>
+                <div className="text-sm mt-1">{errorDetails}</div>
+                {helpText && <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>}
+                <div className="text-xs mt-2 font-semibold">✓ Akan menggunakan AI Face Recognition</div>
+              </div>,
+              { duration: 8000 }
+            );
+            
+            console.warn('[Setup] ⚠️ WebAuthn failed, using AI-only mode');
+            webauthnCredentialId = null;
           }
         } catch (webauthnError: any) {
           toast.dismiss(registerToast);
-          console.warn('[Setup] ⚠️ WebAuthn registration failed:', webauthnError.message);
-          console.log('[Setup] 📱 Falling back to AI-only mode...');
+          console.error('[Setup] ❌ WebAuthn registration error:', webauthnError);
           
-          toast(
+          // User-friendly error handling
+          let errorMessage = webauthnError.message || 'Terjadi kesalahan';
+          let helpText = 'Akan menggunakan AI Face Recognition sebagai fallback';
+          
+          if (webauthnError.name === 'NotAllowedError') {
+            errorMessage = 'Permission ditolak atau biometric dibatalkan';
+            helpText = 'Coba lagi dan izinkan akses biometric';
+          } else if (webauthnError.name === 'NotSupportedError') {
+            errorMessage = 'Browser tidak mendukung ' + selectedMethod.name;
+            helpText = 'Gunakan browser terbaru atau pilih mode Fingerprint';
+          } else if (webauthnError.name === 'SecurityError') {
+            errorMessage = 'Security error - periksa koneksi HTTPS';
+            helpText = 'Akses via https:// atau localhost';
+          } else if (webauthnError.name === 'AbortError') {
+            errorMessage = 'Timeout - tidak ada respons dari biometric';
+            helpText = 'Pastikan sensor biometric aktif dan coba lagi';
+          } else if (webauthnError.name === 'InvalidStateError') {
+            errorMessage = 'Biometric sudah terdaftar di device ini';
+            helpText = 'Gunakan Re-enrollment jika ganti device';
+          }
+          
+          toast.error(
             <div>
-              <div className="font-bold">⚠️ {selectedMethod.name} tidak tersedia</div>
-              <div className="text-sm mt-1">Menggunakan AI Face Recognition saja</div>
+              <div className="font-bold">❌ {selectedMethod.name} Error</div>
+              <div className="text-sm mt-1">{errorMessage}</div>
+              <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
             </div>,
-            { 
-              duration: 3000,
-              icon: '⚠️',
-            }
+            { duration: 8000 }
           );
           
+          console.warn('[Setup] ⚠️ Continuing with AI-only mode...');
           webauthnCredentialId = null;
         }
       } else {
@@ -1604,26 +1729,69 @@ export default function AttendancePage() {
               { duration: 2000 }
             );
           } else {
-            console.warn('[Biometric Verify] ⚠️', enrolledMethod.name, 'verification failed');
+            console.warn('[Biometric Verify] ⚠️', enrolledMethod.name, 'verification failed:', webauthnResult.error);
+            
+            // Enhanced error messages
+            let errorDetails = webauthnResult.error || 'Verifikasi gagal';
+            let helpText = 'Silakan coba lagi atau gunakan AI Face Recognition';
+            
+            if (webauthnResult.error?.includes('cancelled')) {
+              errorDetails = 'Biometric dibatalkan oleh user';
+              helpText = 'Tap tombol verifikasi lagi dan izinkan akses biometric';
+            } else if (webauthnResult.error?.includes('not supported')) {
+              errorDetails = 'Browser tidak mendukung ' + enrolledMethod.name;
+              helpText = 'Gunakan browser terbaru yang support WebAuthn';
+            } else if (webauthnResult.error?.includes('timeout')) {
+              errorDetails = 'Waktu habis - tidak ada respons';
+              helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+            } else if (webauthnResult.error?.includes('not found')) {
+              errorDetails = 'Credential tidak ditemukan';
+              helpText = 'Gunakan Re-enrollment untuk mendaftar ulang';
+            }
+            
             toast.dismiss(webauthnToast);
-            toast.error(
+            toast.warn(
               <div>
-                <div className="font-bold">❌ {enrolledMethod.name} Gagal</div>
-                <div className="text-sm mt-1">Silakan coba lagi atau gunakan AI Face Recognition</div>
+                <div className="font-bold">⚠️ {enrolledMethod.name} Gagal</div>
+                <div className="text-sm mt-1">{errorDetails}</div>
+                <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
               </div>,
-              { duration: 5000 }
+              { duration: 6000 }
             );
             // Don't block - continue to AI verification
           }
         } catch (webauthnError: any) {
           toast.dismiss(webauthnToast);
           console.error('[Biometric Verify] WebAuthn error:', webauthnError);
+          
+          // User-friendly error handling
+          let errorMessage = webauthnError.message || 'Authentication failed';
+          let helpText = 'Akan melanjutkan dengan AI Face Recognition';
+          
+          if (webauthnError.name === 'NotAllowedError') {
+            errorMessage = 'Permission ditolak atau biometric dibatalkan';
+            helpText = 'Coba lagi dan izinkan akses biometric';
+          } else if (webauthnError.name === 'NotSupportedError') {
+            errorMessage = 'Browser tidak mendukung ' + enrolledMethod.name;
+            helpText = 'Gunakan browser yang support WebAuthn';
+          } else if (webauthnError.name === 'SecurityError') {
+            errorMessage = 'Security error - periksa koneksi HTTPS';
+            helpText = 'Pastikan akses via https:// atau localhost';
+          } else if (webauthnError.name === 'AbortError') {
+            errorMessage = 'Timeout - tidak ada respons dari sensor';
+            helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+          } else if (webauthnError.name === 'InvalidStateError') {
+            errorMessage = 'Credential tidak valid atau expired';
+            helpText = 'Gunakan Re-enrollment untuk mendaftar ulang';
+          }
+          
           toast.error(
             <div>
               <div className="font-bold">❌ {enrolledMethod.name} Error</div>
-              <div className="text-sm mt-1">{webauthnError.message || 'Authentication failed'}</div>
+              <div className="text-sm mt-1">{errorMessage}</div>
+              <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
             </div>,
-            { duration: 5000 }
+            { duration: 7000 }
           );
           // Don't block - continue to AI verification
         }

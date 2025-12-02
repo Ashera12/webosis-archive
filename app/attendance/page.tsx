@@ -28,6 +28,7 @@ import {
   authenticateWithFallback,
   type BiometricMethod 
 } from '@/lib/biometric-methods';
+import { PermissionManager } from '@/lib/permission-manager';
 import { useSecurityAnalysis } from '@/components/SecurityAnalyzerProvider';
 
 interface BiometricSetupData {
@@ -1014,36 +1015,52 @@ export default function AttendancePage() {
       return;
     }
     
-    // REQUEST PERMISSIONS FIRST
+    // REQUEST PERMISSIONS FIRST with better UX
     console.log('[Setup] 🔐 Requesting permissions...');
     const permissionToast = toast.loading(
       <div>
         <div className="font-bold">🔐 Requesting Permissions</div>
-        <div className="text-sm mt-1">Allow this web to access location & WiFi for security</div>
+        <div className="text-sm mt-1">Camera, Location & Biometric access needed</div>
       </div>
     );
     
     try {
-      // Get location permission
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
+      // ✅ Use PermissionManager for better error handling
+      const locationResult = await PermissionManager.requestLocation();
       
-      console.log('[Setup] ✅ Location permission granted:', position.coords);
+      if (!locationResult.granted) {
+        toast.dismiss(permissionToast);
+        console.error('[Setup] ❌ Location permission denied:', locationResult.error);
+        
+        // Show clear instructions
+        const instructions = PermissionManager.getInstructions('location');
+        
+        toast.error(
+          <div>
+            <div className="font-bold">❌ Location Permission Required</div>
+            <div className="text-sm mt-2">{locationResult.error}</div>
+            <div className="text-xs mt-2 space-y-1">
+              {instructions.map((step, i) => (
+                <div key={i}>• {step}</div>
+              ))}
+            </div>
+          </div>,
+          { duration: 10000 }
+        );
+        return;
+      }
+      
+      console.log('[Setup] ✅ Location permission granted');
       toast.dismiss(permissionToast);
       toast.success('✅ Permissions granted!');
       
     } catch (permError: any) {
       toast.dismiss(permissionToast);
-      console.error('[Setup] ❌ Permission denied:', permError);
+      console.error('[Setup] ❌ Permission error:', permError);
       toast.error(
         <div>
-          <div className="font-bold">❌ Permission Required</div>
-          <div className="text-sm mt-1">Please allow location access for WiFi detection & security verification</div>
+          <div className="font-bold">❌ Permission Error</div>
+          <div className="text-sm mt-1">{permError.message || 'Please allow location access'}</div>
         </div>,
         { duration: 8000 }
       );
@@ -1892,6 +1909,8 @@ export default function AttendancePage() {
           isFirstTime: isFirstTimeAttendance,
           timestamp: new Date().toISOString(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          biometricMethod: selectedBiometricType || 'fingerprint', // ✅ Track which method user used
+          deviceInfo: selectedDeviceInfo, // ✅ Device info from setup
         },
         // Include AI verification result for dashboard sync
         aiVerification: aiVerification ? {

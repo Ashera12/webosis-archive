@@ -246,10 +246,16 @@ export async function POST(request: NextRequest) {
         status: 'failure',
       });
       
+      // ✅ CHANGED: Don't block - browser fingerprint can change legitimately
+      // Just log warning and continue to AI face verification (primary security)
+      console.warn('[Attendance Submit] ⚠️ Fingerprint mismatch non-fatal - continuing to AI verification');
+      
+      /* DISABLED: Too strict - browser fingerprint changes frequently
       return NextResponse.json(
         { error: 'Verifikasi sidik jari gagal. Device tidak dikenali. Gunakan device yang sama saat setup.' },
         { status: 403 }
       );
+      */
     }
 
     console.log('[Attendance Submit] ✅ Fingerprint verified!');

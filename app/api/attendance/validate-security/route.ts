@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 interface SecurityValidation {
   latitude: number;
   longitude: number;
+  locationAccuracy?: number; // ✅ ADD: GPS accuracy
   wifiSSID: string;
   fingerprintHash: string;
   timestamp: number;
@@ -371,8 +372,15 @@ export async function POST(request: NextRequest) {
       
     } else {
       // 🚨 CRITICAL: Detect FAKE GPS (accuracy = 0 or > 10000m)
-      const gpsAccuracy = (body as any).accuracy || 999999;
+      const gpsAccuracy = body.locationAccuracy || (body as any).accuracy || 999999;
       const isFakeGPS = gpsAccuracy === 0 || gpsAccuracy > 10000;
+      
+      console.log('[Security Validation] GPS Accuracy Check:', {
+        locationAccuracy: body.locationAccuracy,
+        fallbackAccuracy: (body as any).accuracy,
+        finalAccuracy: gpsAccuracy,
+        isFake: isFakeGPS
+      });
       
       if (isFakeGPS) {
         violations.push('FAKE_GPS_DETECTED');

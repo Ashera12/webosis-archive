@@ -6,7 +6,7 @@
  */
 
 interface SecurityAnalysisResult {
-  timestamp: string;
+  timestamp: number;  // Changed from string to number for easier cache expiry calculation
   userId: string;
   wifi: {
     detected: boolean;
@@ -194,7 +194,7 @@ class BackgroundSecurityAnalyzer {
    */
   private async performAnalysis(userId: string, userEmail: string): Promise<SecurityAnalysisResult> {
     const result: SecurityAnalysisResult = {
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),  // Use numeric timestamp for cache expiry calculation
       userId,
       wifi: {
         detected: false,

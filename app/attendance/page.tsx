@@ -1317,34 +1317,32 @@ export default function AttendancePage() {
       
       let webauthnCredentialId: string | null = null;
       
-      // ✅ ONLY REGISTER WebAuthn IF METHOD SUPPORTS IT
-      const shouldRegisterWebAuthn = selectedMethod && 
-        ['face-id', 'touch-id', 'passkey', 'windows-hello'].includes(selectedMethod.id);
+      // ✅ ALWAYS TRY WebAuthn for ALL biometric methods
+      // Face ID, Touch ID, Windows Hello, Android Fingerprint - ALL use WebAuthn!
+      console.log('[Setup] 🔐 Attempting WebAuthn credential registration...');
+      console.log('[Setup] Selected method:', selectedMethod?.name, '(', selectedBiometricType, ')');
       
-      if (shouldRegisterWebAuthn) {
-        console.log('[Setup] ✅ Method supports WebAuthn, registering...');
-        
-        // Check browser support before attempting
-        if (webauthnSupported === false) {
-          toast.dismiss(registerToast);
-          console.error('[Setup] ❌ Browser does not support WebAuthn');
-          toast.error(
-            <div>
-              <div className="font-bold">❌ Browser Tidak Support {selectedMethod.name}</div>
-              <div className="text-sm mt-1">Upgrade browser Anda ke versi terbaru:</div>
-              <ul className="text-xs mt-2 list-disc list-inside space-y-1">
-                <li>Chrome 67+ atau Edge 18+</li>
-                <li>Safari 13+ (iOS/macOS)</li>
-                <li>Firefox 60+</li>
-              </ul>
-              <div className="text-xs mt-2 opacity-80">Atau pilih "Fingerprint" yang menggunakan AI Face Recognition</div>
-            </div>,
-            { duration: 10000 }
-          );
-          setLoading(false);
-          return;
-        }
-        
+      // Check browser support before attempting
+      if (webauthnSupported === false) {
+        toast.dismiss(registerToast);
+        console.error('[Setup] ❌ Browser does not support WebAuthn');
+        toast.error(
+          <div>
+            <div className="font-bold">❌ Browser Tidak Support WebAuthn</div>
+            <div className="text-sm mt-1">Upgrade browser Anda ke versi terbaru:</div>
+            <ul className="text-xs mt-2 list-disc list-inside space-y-1">
+              <li>Chrome 67+ atau Edge 18+</li>
+              <li>Safari 13+ (iOS/macOS)</li>
+              <li>Firefox 60+</li>
+            </ul>
+            <div className="text-xs mt-2 opacity-80">✓ Sistem akan menggunakan AI Face Recognition</div>
+          </div>,
+          { duration: 10000 }
+        );
+        // ✅ Don't return - continue with AI-only mode
+        webauthnCredentialId = null;
+      } else {
+        // ✅ Browser supports WebAuthn - TRY IT!
         try {
           const webauthnResult = await registerCredential(
             session.user.id,
@@ -1358,25 +1356,40 @@ export default function AttendancePage() {
             console.log('[Setup] ✅ WebAuthn credential registered!');
             console.log('[Setup] Credential ID:', webauthnCredentialId);
             toast.dismiss(registerToast);
-            toast.success(`✅ ${selectedMethod.name} berhasil didaftarkan!`);
+            toast.success(
+              <div>
+                <div className="font-bold">✅ {selectedMethod?.name || 'Biometric'} Registered!</div>
+                <div className="text-sm mt-1">{selectedMethod?.icon || '🔐'} Device biometric berhasil didaftarkan</div>
+              </div>,
+              { duration: 3000 }
+            );
           } else {
             // Enhanced error messages for failed registration
-            let errorTitle = '⚠️ ' + selectedMethod.name + ' Tidak Tersedia';
+            let errorTitle = '⚠️ WebAuthn Registration Failed';
             let errorDetails = webauthnResult.error || 'Pendaftaran gagal';
             let helpText = '';
             
-            if (webauthnResult.error?.includes('cancelled') || webauthnResult.error?.includes('not available')) {
-              errorDetails = 'Biometric dibatalkan atau tidak tersedia di device ini';
-              helpText = 'Gunakan AI Face Recognition sebagai fallback';
+            if (webauthnResult.error?.includes('cancelled')) {
+              errorDetails = 'Biometric dibatalkan oleh user';
+              helpText = 'Coba lagi dan izinkan akses biometric saat diminta';
+            } else if (webauthnResult.error?.includes('device locked')) {
+              errorDetails = 'Device terkunci - unlock device Anda';
+              helpText = 'Buka kunci device dan coba lagi';
             } else if (webauthnResult.error?.includes('not supported')) {
-              errorDetails = 'Browser atau device tidak mendukung ' + selectedMethod.name;
-              helpText = 'Upgrade browser atau gunakan mode Fingerprint';
-            } else if (webauthnResult.error?.includes('HTTPS')) {
+              errorDetails = 'Browser/device tidak mendukung WebAuthn biometric';
+              helpText = 'Enable biometric di device settings atau gunakan browser terbaru';
+            } else if (webauthnResult.error?.includes('HTTPS') || webauthnResult.error?.includes('Security')) {
               errorDetails = 'WebAuthn memerlukan koneksi HTTPS';
               helpText = 'Pastikan mengakses via https:// atau localhost';
-            } else if (webauthnResult.error?.includes('timeout')) {
-              errorDetails = 'Waktu habis - tidak ada respons dari biometric';
-              helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+            } else if (webauthnResult.error?.includes('timeout') || webauthnResult.error?.includes('Timeout')) {
+              errorDetails = 'Waktu habis - tidak ada respons dari biometric sensor';
+              helpText = 'Pastikan biometric enabled dan coba lagi';
+            } else if (webauthnResult.error?.includes('already exists') || webauthnResult.error?.includes('InvalidState')) {
+              errorDetails = 'Credential sudah terdaftar';
+              helpText = 'Gunakan Re-enrollment jika ganti device';
+            } else if (webauthnResult.error?.includes('Cannot access')) {
+              errorDetails = 'Tidak dapat mengakses biometric sensor';
+              helpText = 'Check permissions di device settings';
             }
             
             toast.dismiss(registerToast);
@@ -1385,7 +1398,7 @@ export default function AttendancePage() {
                 <div className="font-bold">{errorTitle}</div>
                 <div className="text-sm mt-1">{errorDetails}</div>
                 {helpText && <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>}
-                <div className="text-xs mt-2 font-semibold">✓ Akan menggunakan AI Face Recognition</div>
+                <div className="text-xs mt-2 font-semibold">✓ Akan menggunakan AI Face Recognition sebagai fallback</div>
               </div>,
               { duration: 8000, icon: '⚠️' }
             );
@@ -1430,15 +1443,9 @@ export default function AttendancePage() {
           console.warn('[Setup] ⚠️ Continuing with AI-only mode...');
           webauthnCredentialId = null;
         }
-      } else {
-        console.log('[Setup] ℹ️ Method does not use WebAuthn (fingerprint/AI-only)');
-        toast.dismiss(registerToast);
-        toast(
-          'Menggunakan AI Face Recognition + Browser Fingerprint',
-          { icon: 'ℹ️', duration: 3000 }
-        );
-        webauthnCredentialId = null;
       }
+      
+      toast.dismiss(registerToast);
       
       // Step 4: Save to biometric setup API
       console.log('[Setup] 💾 Saving biometric data to database...');
@@ -1702,15 +1709,16 @@ export default function AttendancePage() {
         );
       }
       
-      // ===== 4. VERIFY USING ENROLLED METHOD =====
-      if (hasWebAuthn && ['face-id', 'touch-id', 'passkey', 'windows-hello'].includes(enrolledBiometricType)) {
-        console.log('[Biometric Verify] 🔐 Enrolled method uses WebAuthn, authenticating...');
+      // ===== 4. TRY WEBAUTHN VERIFICATION (if enrolled) =====
+      if (hasWebAuthn) {
+        console.log('[Biometric Verify] 🔐 WebAuthn enrolled, authenticating...');
         console.log('[Biometric Verify] Method:', enrolledMethod.name);
         
         const webauthnToast = toast.loading(
           <div>
             <div className="font-bold">🔐 {enrolledMethod.name}</div>
-            <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt {enrolledMethod.name}...</div>
+            <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt biometric dari device...</div>
+            <div className="text-xs mt-2 opacity-80">Scan wajah/jari Anda saat diminta</div>
           </div>
         );
         
@@ -1795,9 +1803,6 @@ export default function AttendancePage() {
           );
           // Don't block - continue to AI verification
         }
-      } else {
-        console.log('[Biometric Verify] ℹ️ Method does not use WebAuthn:', enrolledBiometricType);
-        console.log('[Biometric Verify] Will use AI Face Recognition for verification');
       }
       
       // ===== 5. ALL VERIFICATIONS PASSED =====

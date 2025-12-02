@@ -4,6 +4,7 @@ import "./globals.css";
 import "./globals-mobile.css";
 import '@/lib/fontawesome';
 import Providers from "../components/Providers";
+import LocationServiceProvider from "@/components/LocationServiceProvider";
 import ClientRole from "../components/ClientRole";
 import BackgroundSync from "../components/BackgroundSync";
 import AIMonitorClient from "../components/AIMonitorClient";
@@ -166,6 +167,7 @@ export default async function RootLayout({
                     }} 
                     suppressHydrationWarning
                 >
+                    <LocationServiceProvider>
                     <Providers>
                         <BackgroundSync />
                         <AIMonitorClient />
@@ -177,6 +179,7 @@ export default async function RootLayout({
                             <LocationPermissionPrompt />
                         )}
                     </Providers>
+                    </LocationServiceProvider>
                 </div>
             </body>
         </html>

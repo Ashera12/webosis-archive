@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/server';
 
 /**
  * POST /api/security/log-location
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const { latitude, longitude, accuracy, event_type, timestamp } = body;
+    const { latitude, longitude, accuracy, page, timestamp } = body;
     
     // Get client IP
     const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
@@ -33,17 +34,17 @@ export async function POST(request: NextRequest) {
     
     // Log to security_events table
     await supabaseAdmin.from('security_events').insert({
-      user_id: session.user.id,
-      event_type: event_type || 'location_access',
+      user_id: session?.user?.id || null,
+      event_type: 'location_log',
       severity: 'INFO',
       metadata: {
-        latitude,
-        longitude,
-        accuracy,
-        clientIP,
-        timestamp,
-        userAgent: request.headers.get('user-agent')
-      }
+        latitude: body.latitude,
+        longitude: body.longitude,
+        accuracy: body.accuracy,
+        page: body.page,
+        timestamp: body.timestamp || new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
     });
     
     return NextResponse.json({

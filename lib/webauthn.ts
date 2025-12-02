@@ -277,26 +277,41 @@ export async function authenticateCredential(
 }> {
   try {
     console.log('[WebAuthn] 🔍 Starting authentication...');
+    console.log('[WebAuthn] User ID:', userId);
 
     // Check support
     if (!isWebAuthnSupported()) {
+      console.error('[WebAuthn] ❌ Browser does not support WebAuthn');
       throw new Error('WebAuthn not supported in this browser');
     }
+    
+    console.log('[WebAuthn] ✅ Browser supports WebAuthn');
 
     // Get challenge from server
+    console.log('[WebAuthn] 📡 Fetching auth challenge from server...');
     const challengeResponse = await fetch('/api/attendance/biometric/webauthn/auth-challenge', {
-      method: 'GET', // ✅ Changed from POST to GET
+      method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include', // Include session cookie
     });
 
+    console.log('[WebAuthn] 📥 Challenge response status:', challengeResponse.status);
+
     if (!challengeResponse.ok) {
-      throw new Error('Failed to get authentication challenge');
+      const errorData = await challengeResponse.json().catch(() => ({}));
+      console.error('[WebAuthn] ❌ Challenge fetch failed:', errorData);
+      throw new Error(errorData.error || 'Failed to get authentication challenge');
     }
 
     const challengeData = await challengeResponse.json();
+    console.log('[WebAuthn] 📋 Challenge data received:', {
+      success: challengeData.success,
+      hasOptions: !!challengeData.options,
+      credentialsCount: challengeData.options?.allowCredentials?.length || 0,
+    });
     
     if (!challengeData.success) {
+      console.error('[WebAuthn] ❌ Challenge generation failed:', challengeData.error);
       throw new Error(challengeData.error || 'Challenge generation failed');
     }
 
@@ -310,10 +325,16 @@ export async function authenticateCredential(
     }));
 
     // Get credential
-    console.log('[WebAuthn] 📲 Requesting authentication...');
+    console.log('[WebAuthn] 📲 Requesting authentication from device...');
     console.log('[WebAuthn] 🔐 User verification:', userVerification);
     console.log('[WebAuthn] 🏢 RP ID:', rpId);
     console.log('[WebAuthn] ⏱️ Timeout:', timeout, 'ms');
+    console.log('[WebAuthn] 🔑 Allowed credentials:', allowCredentialsWithBuffer.length);
+    console.log('[WebAuthn] 🌐 Mediation: required (force native prompt)');
+    console.log('[WebAuthn] ');
+    console.log('[WebAuthn] ⏳ WAITING FOR USER TO SCAN BIOMETRIC...');
+    console.log('[WebAuthn] 👆 User should see native prompt now (Face ID/Touch ID/Windows Hello/Fingerprint)');
+    console.log('[WebAuthn] ');
     
     // ✅ CRITICAL FOR iOS/Safari - Use mediation to show native prompt
     const assertion = await navigator.credentials.get({
@@ -327,11 +348,15 @@ export async function authenticateCredential(
       mediation: 'required', // ✅ FORCE UI prompt on iOS/Safari
     }) as PublicKeyCredential | null;
 
+    console.log('[WebAuthn] 📥 User completed biometric scan');
+    console.log('[WebAuthn] Assertion received:', !!assertion);
+
     if (!assertion) {
+      console.error('[WebAuthn] ❌ Authentication cancelled by user');
       throw new Error('Authentication cancelled');
     }
 
-    console.log('[WebAuthn] ✅ Authentication successful!');
+    console.log('[WebAuthn] ✅ Biometric authentication successful!');
 
     // Extract assertion data
     const response = assertion.response as AuthenticatorAssertionResponse;

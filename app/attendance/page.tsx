@@ -1709,99 +1709,135 @@ export default function AttendancePage() {
         );
       }
       
-      // ===== 4. TRY WEBAUTHN VERIFICATION (if enrolled) =====
-      if (hasWebAuthn) {
-        console.log('[Biometric Verify] 🔐 WebAuthn enrolled, authenticating...');
-        console.log('[Biometric Verify] Method:', enrolledMethod.name);
+      // ===== 4. ALWAYS TRY WEBAUTHN VERIFICATION =====
+      // Even if hasWebAuthn is false from DB, we should still try to authenticate
+      // because user might have set it up but DB flag is not updated
+      console.log('[Biometric Verify] 🔐 Attempting WebAuthn authentication...');
+      console.log('[Biometric Verify] Method:', enrolledMethod.name);
+      console.log('[Biometric Verify] DB hasWebAuthn:', hasWebAuthn);
+      
+      const webauthnToast = toast.loading(
+        <div>
+          <div className="font-bold">🔐 {enrolledMethod.name}</div>
+          <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt biometric dari device...</div>
+          <div className="text-xs mt-2 opacity-80">✨ Scan wajah/jari Anda saat diminta</div>
+        </div>
+      );
+      
+      try {
+        console.log('[Biometric Verify] 📲 Calling authenticateCredential()...');
+        const webauthnResult = await authenticateCredential(session!.user.id!);
         
-        const webauthnToast = toast.loading(
-          <div>
-            <div className="font-bold">🔐 {enrolledMethod.name}</div>
-            <div className="text-sm mt-1">{enrolledMethod.icon} Tunggu prompt biometric dari device...</div>
-            <div className="text-xs mt-2 opacity-80">Scan wajah/jari Anda saat diminta</div>
-          </div>
-        );
+        console.log('[Biometric Verify] 📥 WebAuthn result:', webauthnResult);
+        toast.dismiss(webauthnToast);
         
-        try {
-          const webauthnResult = await authenticateCredential(session!.user.id!);
-          
-          toast.dismiss(webauthnToast);
-          
-          if (webauthnResult.success) {
-            console.log('[Biometric Verify] ✅', enrolledMethod.name, 'verified!');
-            toast.success(
-              <div>
-                <div className="font-bold">✅ {enrolledMethod.name} Verified!</div>
-                <div className="text-sm mt-1">{enrolledMethod.icon} Biometric authentication successful</div>
-              </div>,
-              { duration: 2000 }
-            );
-          } else {
-            console.warn('[Biometric Verify] ⚠️', enrolledMethod.name, 'verification failed:', webauthnResult.error);
-            
-            // Enhanced error messages
-            let errorDetails = webauthnResult.error || 'Verifikasi gagal';
-            let helpText = 'Silakan coba lagi atau gunakan AI Face Recognition';
-            
-            if (webauthnResult.error?.includes('cancelled')) {
-              errorDetails = 'Biometric dibatalkan oleh user';
-              helpText = 'Tap tombol verifikasi lagi dan izinkan akses biometric';
-            } else if (webauthnResult.error?.includes('not supported')) {
-              errorDetails = 'Browser tidak mendukung ' + enrolledMethod.name;
-              helpText = 'Gunakan browser terbaru yang support WebAuthn';
-            } else if (webauthnResult.error?.includes('timeout')) {
-              errorDetails = 'Waktu habis - tidak ada respons';
-              helpText = 'Coba lagi dan pastikan sensor biometric aktif';
-            } else if (webauthnResult.error?.includes('not found')) {
-              errorDetails = 'Credential tidak ditemukan';
-              helpText = 'Gunakan Re-enrollment untuk mendaftar ulang';
-            }
-            
-            toast.dismiss(webauthnToast);
-            toast(
-              <div>
-                <div className="font-bold">⚠️ {enrolledMethod.name} Gagal</div>
-                <div className="text-sm mt-1">{errorDetails}</div>
-                <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
-              </div>,
-              { duration: 6000, icon: '⚠️' }
-            );
-            // Don't block - continue to AI verification
-          }
-        } catch (webauthnError: any) {
-          toast.dismiss(webauthnToast);
-          console.error('[Biometric Verify] WebAuthn error:', webauthnError);
-          
-          // User-friendly error handling
-          let errorMessage = webauthnError.message || 'Authentication failed';
-          let helpText = 'Akan melanjutkan dengan AI Face Recognition';
-          
-          if (webauthnError.name === 'NotAllowedError') {
-            errorMessage = 'Permission ditolak atau biometric dibatalkan';
-            helpText = 'Coba lagi dan izinkan akses biometric';
-          } else if (webauthnError.name === 'NotSupportedError') {
-            errorMessage = 'Browser tidak mendukung ' + enrolledMethod.name;
-            helpText = 'Gunakan browser yang support WebAuthn';
-          } else if (webauthnError.name === 'SecurityError') {
-            errorMessage = 'Security error - periksa koneksi HTTPS';
-            helpText = 'Pastikan akses via https:// atau localhost';
-          } else if (webauthnError.name === 'AbortError') {
-            errorMessage = 'Timeout - tidak ada respons dari sensor';
-            helpText = 'Coba lagi dan pastikan sensor biometric aktif';
-          } else if (webauthnError.name === 'InvalidStateError') {
-            errorMessage = 'Credential tidak valid atau expired';
-            helpText = 'Gunakan Re-enrollment untuk mendaftar ulang';
-          }
-          
-          toast.error(
+        if (webauthnResult.success) {
+          console.log('[Biometric Verify] ✅', enrolledMethod.name, 'verified!');
+          toast.success(
             <div>
-              <div className="font-bold">❌ {enrolledMethod.name} Error</div>
-              <div className="text-sm mt-1">{errorMessage}</div>
+              <div className="font-bold">✅ {enrolledMethod.name} Verified!</div>
+              <div className="text-sm mt-1">{enrolledMethod.icon} Biometric authentication successful</div>
+            </div>,
+            { duration: 3000 }
+          );
+        } else {
+          console.warn('[Biometric Verify] ⚠️', enrolledMethod.name, 'verification failed:', webauthnResult.error);
+          
+          // Enhanced error messages
+          let errorDetails = webauthnResult.error || 'Verifikasi gagal';
+          let helpText = 'Silakan coba lagi atau gunakan AI Face Recognition';
+          
+          if (webauthnResult.error?.includes('cancelled')) {
+            errorDetails = 'Biometric dibatalkan oleh user';
+            helpText = 'Tap tombol verifikasi lagi dan izinkan akses biometric';
+          } else if (webauthnResult.error?.includes('not supported')) {
+            errorDetails = 'Browser tidak mendukung WebAuthn';
+            helpText = 'Gunakan browser terbaru yang support WebAuthn';
+          } else if (webauthnResult.error?.includes('timeout')) {
+            errorDetails = 'Waktu habis - tidak ada respons';
+            helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+          } else if (webauthnResult.error?.includes('No credentials found') || webauthnResult.error?.includes('not found')) {
+            errorDetails = 'Credential tidak ditemukan - belum setup biometric';
+            helpText = 'Lakukan Setup Biometric terlebih dahulu';
+            
+            // ✅ Auto-redirect to setup if no credentials
+            toast.dismiss(webauthnToast);
+            toast.error(
+              <div>
+                <div className="font-bold">❌ Biometric Belum Di-setup</div>
+                <div className="text-sm mt-1">Silakan setup biometric terlebih dahulu</div>
+                <div className="text-xs mt-2 opacity-80">💡 Klik tombol "Setup Biometric" di bawah</div>
+              </div>,
+              { duration: 8000 }
+            );
+            setStep('setup');
+            setLoading(false);
+            return false;
+          }
+          
+          toast.dismiss(webauthnToast);
+          toast(
+            <div>
+              <div className="font-bold">⚠️ {enrolledMethod.name} Gagal</div>
+              <div className="text-sm mt-1">{errorDetails}</div>
               <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
             </div>,
-            { duration: 7000 }
+            { duration: 6000, icon: '⚠️' }
           );
-          // Don't block - continue to AI verification
+          // ✅ Don't block - continue to AI verification as fallback
+        }
+      } catch (webauthnError: any) {
+        toast.dismiss(webauthnToast);
+        console.error('[Biometric Verify] ❌ WebAuthn exception:', webauthnError);
+        console.error('[Biometric Verify] Error name:', webauthnError.name);
+        console.error('[Biometric Verify] Error message:', webauthnError.message);
+        
+        // User-friendly error handling
+        let errorMessage = webauthnError.message || 'Authentication failed';
+        let helpText = 'Akan melanjutkan dengan AI Face Recognition';
+        
+        if (webauthnError.name === 'NotAllowedError') {
+          errorMessage = '❌ Permission ditolak atau biometric dibatalkan';
+          helpText = 'Coba lagi dan izinkan akses biometric';
+        } else if (webauthnError.name === 'NotSupportedError') {
+          errorMessage = '❌ Browser tidak mendukung WebAuthn';
+          helpText = 'Gunakan browser yang support WebAuthn (Chrome 67+, Safari 13+, Edge 18+)';
+        } else if (webauthnError.name === 'SecurityError') {
+          errorMessage = '❌ Security error - periksa koneksi HTTPS';
+          helpText = 'Pastikan akses via https:// atau localhost';
+        } else if (webauthnError.name === 'AbortError') {
+          errorMessage = '⏱️ Timeout - tidak ada respons dari sensor';
+          helpText = 'Coba lagi dan pastikan sensor biometric aktif';
+        } else if (webauthnError.name === 'InvalidStateError') {
+          errorMessage = '🔄 Credential tidak valid atau expired';
+          helpText = 'Gunakan Re-enrollment untuk mendaftar ulang';
+        } else if (webauthnError.name === 'NotFoundError') {
+          errorMessage = '🔍 Credential tidak ditemukan - belum setup';
+          helpText = 'Lakukan Setup Biometric terlebih dahulu';
+          
+          // ✅ Auto-redirect to setup
+          toast.error(
+            <div>
+              <div className="font-bold">❌ Biometric Belum Di-setup</div>
+              <div className="text-sm mt-1">Silakan setup biometric terlebih dahulu</div>
+              <div className="text-xs mt-2 opacity-80">💡 Klik tombol "Setup Biometric" di bawah</div>
+            </div>,
+            { duration: 8000 }
+          );
+          setStep('setup');
+          setLoading(false);
+          return false;
+        }
+        
+        toast.error(
+          <div>
+            <div className="font-bold">❌ WebAuthn Error</div>
+            <div className="text-sm mt-1">{errorMessage}</div>
+            <div className="text-xs mt-2 opacity-80">💡 {helpText}</div>
+          </div>,
+          { duration: 7000 }
+        );
+        // ✅ Don't block - continue to AI verification
         }
       }
       

@@ -25,17 +25,22 @@ export async function GET(request: NextRequest) {
 
     const userId = session.user.id; // From session, not body
 
-    // Get user's registered credentials
+    // Get user's registered credentials (if any)
     const { data: credentials, error: credError } = await supabase
       .from('webauthn_credentials')
       .select('credential_id, transports')
       .eq('user_id', userId);
 
-    if (credError || !credentials || credentials.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No credentials found. Please register first.' },
-        { status: 404 }
-      );
+    // ✅ IMPORTANT: Even if no credentials in DB, still generate challenge
+    // Reason: User might have credentials on device but not synced to DB
+    // OR: Using discoverable credentials (passkey) which doesn't need allowCredentials
+    const hasCredentials = credentials && credentials.length > 0;
+    
+    if (!hasCredentials) {
+      console.warn('[WebAuthn] ⚠️ No credentials found in DB for:', userId);
+      console.warn('[WebAuthn] Will try discoverable credentials (passkey mode)');
+    } else {
+      console.log('[WebAuthn] ✅ Found', credentials.length, 'credential(s) for:', userId);
     }
 
     // Generate random challenge
@@ -61,17 +66,21 @@ export async function GET(request: NextRequest) {
     
     const options = {
       challenge,
-      allowCredentials: credentials.map(cred => ({
+      // ✅ IMPORTANT: If no credentials, use empty array for discoverable credentials (passkey mode)
+      // Browser will show ALL available passkeys for this RP ID
+      allowCredentials: hasCredentials ? credentials!.map(cred => ({
         id: cred.credential_id,
         type: 'public-key' as const,
         transports: cred.transports || ['internal'], // ✅ 'internal' for platform authenticators
-      })),
+      })) : [], // ✅ Empty = discoverable credentials
       timeout: 60000, // 60 seconds
       rpId, // ✅ Dynamically matched with registration
       userVerification: 'required' as const, // ✅ CRITICAL - FORCES biometric prompt
     };
 
     console.log('[WebAuthn] 🔍 Authentication challenge generated for:', userId);
+    console.log('[WebAuthn] Mode:', hasCredentials ? 'Specific credentials' : 'Discoverable credentials (passkey)');
+    console.log('[WebAuthn] Credentials count:', hasCredentials ? credentials!.length : 0);
 
     return NextResponse.json({
       success: true,

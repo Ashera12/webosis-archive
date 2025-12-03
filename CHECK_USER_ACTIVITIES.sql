@@ -193,9 +193,11 @@ ORDER BY created_at DESC;
 -- Untuk backward compatibility dengan code lama
 SELECT 
   user_id,
+  user_email,
   activity_type,
   description,
-  metadata,
+  status,
+  details,
   created_at
 FROM user_activities
 ORDER BY created_at DESC
@@ -209,6 +211,7 @@ SELECT
   event_type,
   severity,
   metadata,
+  resolved,
   created_at
 FROM security_events
 ORDER BY created_at DESC

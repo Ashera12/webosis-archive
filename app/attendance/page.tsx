@@ -1061,7 +1061,7 @@ export default function AttendancePage() {
                 'LOCATION_TOO_FAR': '📍 Lokasi terlalu jauh dari sekolah',
                 'LOCATION_NOT_ACCURATE': '🎯 Akurasi GPS tidak memenuhi syarat',
                 'LOCATION_NOT_DETECTED': '📍 Lokasi tidak terdeteksi',
-                'FINGERPRINT_MISMATCH': '🔐 Device fingerprint tidak cocok',
+                'FINGERPRINT_MISMATCH': 'ℹ️ Device fingerprint berbeda (normal jika browser di-update)',
                 'OUTSIDE_ATTENDANCE_HOURS': '⏰ Di luar jam absensi'
               };
               console.error(`   → ${violation}: ${descriptions[violation] || violation}`);
@@ -3612,7 +3612,7 @@ export default function AttendancePage() {
                         {violation === 'LOCATION_NOT_ACCURATE' && '🎯 Akurasi GPS tidak memenuhi syarat'}
                         {violation === 'GPS_ACCURACY_LOW' && '🎯 Akurasi GPS terlalu rendah'}
                         {violation === 'LOCATION_NOT_DETECTED' && '📍 Lokasi tidak terdeteksi'}
-                        {violation === 'FINGERPRINT_MISMATCH' && '🔐 Device fingerprint tidak cocok'}
+                        {violation === 'FINGERPRINT_MISMATCH' && 'ℹ️ Device fingerprint berbeda (normal - browser updates)'}
                         {violation === 'OUTSIDE_ATTENDANCE_HOURS' && '⏰ Di luar jam absensi'}
                         {!['LOCATION_PERMISSION_DENIED', 'FAKE_GPS_DETECTED', 'IP_NOT_IN_WHITELIST', 'IP_NOT_DETECTED', 'LOCATION_TOO_FAR', 'OUTSIDE_RADIUS', 'LOCATION_NOT_ACCURATE', 'GPS_ACCURACY_LOW', 'LOCATION_NOT_DETECTED', 'FINGERPRINT_MISMATCH', 'OUTSIDE_ATTENDANCE_HOURS'].includes(violation) && violation}
                       </span>

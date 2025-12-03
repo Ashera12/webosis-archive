@@ -820,7 +820,8 @@ async function logSecurityEvent(params: {
 }
 
 function getSeverity(eventType: string): string {
-  const highSeverity = ['FINGERPRINT_MISMATCH', 'LOCATION_SPOOFING', 'MULTIPLE_DEVICES'];
+  // FINGERPRINT_MISMATCH removed - now INFO-only, non-blocking
+  const highSeverity = ['LOCATION_SPOOFING', 'MULTIPLE_DEVICES'];
   const mediumSeverity = ['ANOMALY_DETECTED', 'NEAR_BOUNDARY'];
   
   if (highSeverity.includes(eventType)) return 'HIGH';

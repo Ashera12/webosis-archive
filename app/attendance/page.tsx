@@ -941,6 +941,11 @@ export default function AttendancePage() {
       
       console.log('🔒 Security validation response:', data);
 
+      // CRITICAL: Filter out FINGERPRINT_MISMATCH from violations - it should never block
+      if (data.violations && Array.isArray(data.violations)) {
+        data.violations = data.violations.filter((v: string) => v !== 'FINGERPRINT_MISMATCH');
+      }
+
       if (!response.ok || !data.success) {
         // Validation FAILED
         console.error('❌ Security validation failed:', data);
@@ -958,8 +963,8 @@ export default function AttendancePage() {
             break;
             
           case 'REDIRECT_SETUP':
-            toast.error(data.error || 'Setup biometric diperlukan');
-            setStep('setup');
+            console.warn('⚠️ Setup required - will be handled in biometric verification step');
+            // Don't block here - let biometric verification handle setup requirement
             break;
             
           case 'BLOCK_ATTENDANCE':
@@ -1095,12 +1100,23 @@ export default function AttendancePage() {
             
           case 'SHOW_SETUP_ERROR':
           case 'SHOW_ERROR':
-          default:
             toast.error(data.error || 'Validasi keamanan gagal');
+            break;
+            
+          default:
+            // Unknown action - proceed anyway
+            console.warn('⚠️ Unknown action from validate-security:', data.action);
             break;
         }
         
-        return false;
+        // CRITICAL: Only return false for actual blocking actions
+        const blockingActions = ['REDIRECT_LOGIN', 'REDIRECT_DASHBOARD', 'BLOCK_ATTENDANCE'];
+        if (blockingActions.includes(data.action)) {
+          return false;
+        }
+        
+        // For non-blocking actions (REDIRECT_SETUP, warnings, etc), continue to biometric verification
+        console.log('⚠️ Non-critical validation issue - proceeding to biometric verification anyway');
       }
 
       // Validation SUCCESS

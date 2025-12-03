@@ -535,7 +535,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ===== 4. VALIDATE BIOMETRIC REGISTRATION (NOT FINGERPRINT HASH) =====
+    // ===== 4. BIOMETRIC REGISTRATION CHECK (WARNING ONLY) =====
     console.log('[Security Validation] Checking biometric registration...');
     const { data: biometric, error: bioError } = await supabaseAdmin
       .from('biometric_data')
@@ -544,48 +544,20 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (bioError || !biometric) {
-      console.error('[Security Validation] ❌ No biometric data');
-      
-      return NextResponse.json({
-        success: false,
-        error: 'Data biometric belum terdaftar. Silakan setup terlebih dahulu.',
-        action: 'REDIRECT_SETUP',
-        severity: 'MEDIUM',
-        violations: ['NO_BIOMETRIC'],
-        securityScore: 0
-      }, { status: 400 });
+      console.warn('[Security Validation] ⚠️ No biometric data - will require setup in next step');
+      warnings.push('NO_BIOMETRIC_REGISTRATION');
     }
 
-    console.log('[Security Validation] ✅ Biometric registration confirmed');
-
-    // ===== BROWSER FINGERPRINT - ANALYTICS ONLY (COMPLETELY NON-BLOCKING) =====
-    // DO NOT CHECK fingerprint match here - it's INFO ONLY for backend analytics
-    // WebAuthn is PRIMARY security, handled separately in biometric/verify endpoint
-    if (body.fingerprintHash && biometric.fingerprint_template) {
-      const fingerprintMatch = body.fingerprintHash === biometric.fingerprint_template;
-      
-      if (!fingerprintMatch) {
-        console.warn('[Security Validation] ℹ️ Browser fingerprint changed (ANALYTICS ONLY)');
-        console.warn('[Security Validation] Reason: Browser updates/cache/settings legitimately change fingerprint');
-        
-        // Log for backend analytics ONLY - NO user notification, NO blocking
-        await logSecurityEvent({
-          user_id: userId,
-          event_type: 'FINGERPRINT_MISMATCH',
-          severity: 'INFO',
-          description: 'Browser fingerprint analytics (non-blocking)',
-          metadata: {
-            providedHash: body.fingerprintHash.substring(0, 20),
-            storedHash: biometric.fingerprint_template.substring(0, 20),
-            note: 'Analytics only - WebAuthn is primary security'
-          }
-        });
-      } else {
-        console.log('[Security Validation] ✅ Browser fingerprint matched (analytics)');
-      }
+    // ===== BROWSER FINGERPRINT - ANALYTICS ONLY (NO VALIDATION) =====
+    if (body.fingerprintHash && biometric?.fingerprint_template && body.fingerprintHash !== biometric.fingerprint_template) {
+      await logSecurityEvent({
+        user_id: userId,
+        event_type: 'FINGERPRINT_MISMATCH',
+        severity: 'INFO',
+        description: 'Browser fingerprint analytics (non-blocking)',
+        metadata: { note: 'Analytics only - WebAuthn is primary security' }
+      });
     }
-
-    console.log('[Security Validation] ▶️ Proceeding (fingerprint is analytics-only, NOT security gate)');
 
 
     // ===== 5. CHECK DUPLICATE ATTENDANCE TODAY =====

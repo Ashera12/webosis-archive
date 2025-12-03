@@ -535,8 +535,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ===== 4. VALIDATE FINGERPRINT =====
-    console.log('[Security Validation] Checking fingerprint...');
+    // ===== 4. VALIDATE BIOMETRIC REGISTRATION (NOT FINGERPRINT HASH) =====
+    console.log('[Security Validation] Checking biometric registration...');
     const { data: biometric, error: bioError } = await supabaseAdmin
       .from('biometric_data')
       .select('*')
@@ -556,38 +556,37 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verify fingerprint hash (NON-BLOCKING - INFO ONLY)
-    const fingerprintMatch = body.fingerprintHash === biometric.fingerprint_template;
-    
-    if (!fingerprintMatch) {
-      // ⚠️ WARNING ONLY - Browser updates/cache clearing can change fingerprint
-      // WebAuthn is the PRIMARY security - fingerprint is INFO ONLY
-      console.warn('[Security Validation] ⚠️ Fingerprint mismatch (NON-BLOCKING):', {
-        provided: body.fingerprintHash.substring(0, 20) + '...',
-        stored: biometric.fingerprint_template.substring(0, 20) + '...',
-        reason: 'Browser updates/cache/settings can change fingerprint'
-      });
+    console.log('[Security Validation] ✅ Biometric registration confirmed');
 
-      // Log for analytics only - NOT a blocking event
-      await logSecurityEvent({
-        user_id: userId,
-        event_type: 'FINGERPRINT_MISMATCH',
-        severity: 'INFO', // Changed from HIGH to INFO
-        description: 'Browser fingerprint changed (browser update/cache clear) - non-blocking',
-        metadata: {
-          providedHash: body.fingerprintHash,
-          storedHash: biometric.fingerprint_template,
-          wifiSSID: body.wifiSSID,
-          location: { lat: body.latitude, lng: body.longitude },
-          note: 'WebAuthn is primary security - fingerprint is supplementary'
-        }
-      });
-
-      // ✅ CONTINUE - Do NOT block user
-      console.log('[Security Validation] ▶️ Continuing to WebAuthn verification (primary security)');
-    } else {
-      console.log('[Security Validation] ✅ Fingerprint matched (supplementary check)');
+    // ===== BROWSER FINGERPRINT - ANALYTICS ONLY (COMPLETELY NON-BLOCKING) =====
+    // DO NOT CHECK fingerprint match here - it's INFO ONLY for backend analytics
+    // WebAuthn is PRIMARY security, handled separately in biometric/verify endpoint
+    if (body.fingerprintHash && biometric.fingerprint_template) {
+      const fingerprintMatch = body.fingerprintHash === biometric.fingerprint_template;
+      
+      if (!fingerprintMatch) {
+        console.warn('[Security Validation] ℹ️ Browser fingerprint changed (ANALYTICS ONLY)');
+        console.warn('[Security Validation] Reason: Browser updates/cache/settings legitimately change fingerprint');
+        
+        // Log for backend analytics ONLY - NO user notification, NO blocking
+        await logSecurityEvent({
+          user_id: userId,
+          event_type: 'FINGERPRINT_MISMATCH',
+          severity: 'INFO',
+          description: 'Browser fingerprint analytics (non-blocking)',
+          metadata: {
+            providedHash: body.fingerprintHash.substring(0, 20),
+            storedHash: biometric.fingerprint_template.substring(0, 20),
+            note: 'Analytics only - WebAuthn is primary security'
+          }
+        });
+      } else {
+        console.log('[Security Validation] ✅ Browser fingerprint matched (analytics)');
+      }
     }
+
+    console.log('[Security Validation] ▶️ Proceeding (fingerprint is analytics-only, NOT security gate)');
+
 
     // ===== 5. CHECK DUPLICATE ATTENDANCE TODAY =====
     console.log('[Security Validation] Checking duplicate...');

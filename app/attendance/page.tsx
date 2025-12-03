@@ -918,9 +918,13 @@ export default function AttendancePage() {
         wifiSSID: wifiSSID.trim()
       });
       
-      const response = await fetch('/api/attendance/validate-security', {
+      const response = await fetch('/api/attendance/validate-security?v=' + Date.now(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        cache: 'no-store' as any,
         body: JSON.stringify({
           latitude: locationData.latitude,
           longitude: locationData.longitude,
